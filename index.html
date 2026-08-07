@@ -323,6 +323,55 @@
   .condomino-topbar .font-ctrl{display:flex;gap:8px;align-items:center;}
   .font-btn{width:42px;height:42px;border-radius:50%;border:1px solid #3A4452;background:#232B36;color:#F2F0EC;font-size:16px;font-weight:600;cursor:pointer;}
   .font-btn:hover{background:#2C3644;}
+  /* --- Video, chat e voto: stile ripreso fedelmente da voto-condominio.html (validato nei
+     test reali del giorno prima), adattato ai colori scuri già usati in questa pagina. --- */
+  #cv-video-wrap{ width:100%; }
+  #cv-pre-ingresso{ background:#161C24; border:1px solid #3A4452; border-radius:8px; padding:22px 20px; text-align:center; margin-bottom:16px; }
+  #cv-pre-ingresso .titolo{ font-size:17px; font-weight:700; margin:0 0 10px; color:#F2F0EC; }
+  #cv-pre-ingresso .testo{ font-size:14px; line-height:1.5; color:#B7BEC9; margin:0 0 18px; }
+  #cv-btn-entra-video{ width:100%; padding:15px; font-size:16px; font-weight:700; border-radius:8px; border:none; background:var(--sage,#3E7A54); color:#fff; cursor:pointer; }
+  #cv-btn-entra-video:active{ transform:scale(0.98); }
+  .cv-aiuto-permessi{ margin-top:14px; }
+  .cv-aiuto-permessi summary{ font-size:12.5px; color:#8B93A0; cursor:pointer; text-decoration:underline; list-style:none; }
+  .cv-aiuto-permessi summary::-webkit-details-marker{ display:none; }
+  .cv-aiuto-permessi-corpo{ background:#0F141A; border-radius:8px; padding:12px 14px; text-align:left; font-size:12.5px; line-height:1.55; color:#B7BEC9; margin-top:10px; }
+  .cv-aiuto-permessi-corpo b{ color:#F2F0EC; }
+  .cv-aiuto-permessi-corpo ol{ margin:6px 0 12px; padding-left:18px; }
+
+  #cv-video-box{ width:100%; aspect-ratio:9/16; max-height:70vh; background:#000; overflow:hidden; position:relative; border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,.35); transition:width .35s ease, max-height .35s ease, border-radius .35s ease; margin:0 auto 12px; }
+  @media (orientation: landscape){ #cv-video-box{ aspect-ratio:16/9; max-height:75vh; } }
+  #cv-video-box iframe{ width:100% !important; height:100% !important; border:0 !important; display:block; }
+  #cv-video-box.video-piccolo{ width:150px; max-height:none; border-radius:8px; border:2px solid #3A4452; }
+  #cv-video-toggle-bar{ display:none; margin-bottom:14px; }
+  #cv-video-toggle-bar.visibile{ display:block; }
+  #cv-btn-video-toggle{ display:block; width:100%; font-size:13.5px; font-weight:700; color:#F2F0EC; background:#232B36; border:1px solid #3A4452; border-radius:8px; padding:10px 12px; cursor:pointer; }
+
+  #cv-chat-toggle-bar{ display:none; margin-bottom:10px; }
+  #cv-chat-toggle-bar.visibile{ display:block; }
+  #cv-btn-chat-toggle{ display:block; width:100%; font-size:13.5px; font-weight:700; color:#F2F0EC; background:#232B36; border:1px solid #3A4452; border-radius:8px; padding:10px 12px; cursor:pointer; }
+
+  #cv-poll-video-scroll-hint{ position:absolute; left:0; right:0; bottom:0; display:flex; align-items:flex-end; justify-content:center; padding-bottom:8px; pointer-events:none; background:linear-gradient(to top, rgba(0,0,0,.55), rgba(0,0,0,0)); height:54px; }
+  #cv-poll-video-scroll-hint span{ color:#fff; font-size:22px; line-height:1; animation:cv-scroll-hint-bounce 1.6s ease-in-out infinite; }
+  @keyframes cv-scroll-hint-bounce{ 0%,100%{transform:translateY(0);opacity:.65;} 50%{transform:translateY(6px);opacity:1;} }
+  #cv-video-box.video-piccolo #cv-poll-video-scroll-hint{ display:none; }
+
+  .cv-voto-btn{ display:block; width:100%; padding:15px 14px; margin-bottom:9px; font-size:15.5px; font-weight:700; border-radius:8px; border:2px solid #3A4452; background:#232B36; color:#F2F0EC; cursor:pointer; text-align:center; transition:padding .22s ease, font-size .22s ease, opacity .22s ease, border-width .22s ease; }
+  .cv-voto-btn:active{ transform:scale(0.98); }
+  .cv-voto-btn.scelto{ border-color:var(--brass); background:#2C2417; color:#F2F0EC; }
+  #cv-lista-opzioni.scelta-fatta .cv-voto-btn{ padding:8px 12px; font-size:12.5px; opacity:.5; }
+  #cv-lista-opzioni.scelta-fatta .cv-voto-btn.scelto{ padding:20px 16px; font-size:18px; opacity:1; border-width:3px; box-shadow:0 6px 16px rgba(169,130,44,.25); }
+  #cv-btn-conferma-voto{ display:block; width:100%; padding:16px 14px; margin-top:14px; font-size:17px; font-weight:700; border-radius:8px; border:none; background:#3A4452; color:#B7BEC9; cursor:not-allowed; text-align:center; transition:.15s; }
+  #cv-btn-conferma-voto.attivo{ background:var(--sage,#3E7A54); color:#fff; cursor:pointer; }
+  #cv-conferma-voto-box{ text-align:center; background:#161C24; border:1px solid var(--sage,#3E7A54); border-radius:10px; padding:20px; font-size:17px; font-weight:700; color:var(--sage,#3E7A54); }
+  #cv-conferma-voto-box .sub{ display:block; font-size:13px; font-weight:400; color:#B7BEC9; margin-top:6px; }
+  .cv-odg-punto{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:12px 14px; margin-bottom:8px; background:#232B36; border:1px solid #3A4452; border-radius:8px; font-size:13.5px; font-weight:600; color:#F2F0EC; }
+  .cv-odg-badge{ flex-shrink:0; font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:20px; background:#3A4452; color:#B7BEC9; }
+  .cv-esito-riga{ margin-bottom:12px; }
+  .cv-esito-riga .etichetta{ display:flex; justify-content:space-between; font-size:13.5px; font-weight:600; margin-bottom:4px; color:#F2F0EC; }
+  .cv-esito-barra-sfondo{ background:#3A4452; border-radius:6px; height:16px; overflow:hidden; }
+  .cv-esito-barra-riempita{ background:var(--brass); height:100%; border-radius:6px 0 0 6px; }
+  .cv-esito-riga.mia .cv-esito-barra-riempita{ background:var(--sage,#3E7A54); }
+  .cv-esito-riga.mia .etichetta{ color:var(--sage,#3E7A54); }
   .cv-video{background:#000;border-radius:6px;overflow:hidden;aspect-ratio:16/10;margin-bottom:16px;}
   .cv-video iframe{width:100%;height:100%;border:0;}
   .big-action-btn{width:100%;padding:22px;font-size:1.15em;font-weight:600;border-radius:6px;border:2px solid var(--brass);background:var(--brass);color:#1B222B;cursor:pointer;margin-top:16px;}
@@ -355,7 +404,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 07/08/2026 alle 20:12">LIVE-TEST-7</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 07/08/2026 alle 20:26">LIVE-TEST-8</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1027,21 +1076,40 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
           <h1 id="cv-building-name">Assemblea</h1>
           <p class="sub" id="cv-welcome">—</p>
 
-          <div class="cv-video" id="cv-video-box">
-            <div class="video-off" style="color:#8B93A0;">La videoconferenza non è ancora avviata dall'amministratore</div>
+          <div id="cv-video-wrap">
+            <div id="cv-pre-ingresso">
+              <p class="titolo">📹 Pronto per entrare</p>
+              <p class="testo">Tocca il pulsante qui sotto: il video comparirà qui sopra, in questa stessa pagina. Ricordati di toccare "Consenti" quando ti viene chiesto il permesso per microfono e videocamera.</p>
+              <button id="cv-btn-entra-video" onclick="entraInVideochiamataCondomino()">Entra in videochiamata</button>
+              <details class="cv-aiuto-permessi">
+                <summary>Il telefono non ti ha chiesto il permesso? Tocca qui</summary>
+                <div class="cv-aiuto-permessi-corpo">
+                  <p><b>Su iPhone (Safari):</b></p>
+                  <ol><li>Tocca "AA" (o l'icona "ⓘ") nella barra degli indirizzi in alto</li><li>Tocca "Impostazioni sito web"</li><li>Metti su "Consenti" sia Fotocamera che Microfono</li><li>Ricarica la pagina e riprova a entrare</li></ol>
+                  <p><b>Su Android (Chrome):</b></p>
+                  <ol><li>Tocca il lucchetto 🔒 (o i tre puntini ⋮) nella barra degli indirizzi</li><li>Tocca "Autorizzazioni sito"</li><li>Metti su "Consenti" sia Fotocamera che Microfono</li><li>Ricarica la pagina e riprova a entrare</li></ol>
+                </div>
+              </details>
+            </div>
+            <div id="cv-video-box" style="display:none;"></div>
+            <div id="cv-video-toggle-bar">
+              <button id="cv-btn-video-toggle" onclick="toggleVideoSizeCondomino()">⌃ Rimpicciolisci il video</button>
+            </div>
+            <div id="cv-chat-toggle-bar">
+              <button id="cv-btn-chat-toggle" onclick="apriChatConTastoCondomino()">💬 Chat</button>
+            </div>
           </div>
 
           <button class="big-action-btn" id="cv-hand-btn" onclick="toggleHandRaise()">✋ Alza la mano</button>
 
           <div id="cv-poll-area"></div>
 
-          <div class="assist-panel">
+          <div class="assist-panel" id="cv-chat-sezione" style="display:none;">
             <h3>Chat</h3>
-            <p class="muted" style="color:#8B93A0;margin-bottom:10px;">Per segnalazioni pratiche (es. "non sento l'audio") — non è la chat per gli interventi formali.</p>
             <div class="cv-chat-log" id="cv-chat-log"></div>
             <div class="row-inline">
-              <input id="cv-chat-input" placeholder="Scrivi qui..." style="background:#161C24;border-color:#3A4452;color:#F2F0EC;">
-              <button class="btn small brass" onclick="sendChatMessage(currentCondomino?nomeCompletoCondomino(currentCondomino):'Condòmino','cv-chat-input')">Invia</button>
+              <input id="cv-chat-input" placeholder="Scrivi qui..." style="background:#161C24;border-color:#3A4452;color:#F2F0EC;" oninput="segnaAttivitaChatCondomino()">
+              <button class="btn small brass" onclick="sendChatMessage(currentCondomino?nomeCompletoCondomino(currentCondomino):'Condòmino','cv-chat-input');segnaAttivitaChatCondomino();">Invia</button>
             </div>
           </div>
         </div>
@@ -4582,7 +4650,7 @@ function renderVistaCondomino(){
       ? `Accesso riconosciuto come ${nomeCompletoCondomino(currentCondomino)}`
       : 'Nessun condòmino riconosciuto — apri questa vista dal link personale o dal selettore "Anteprima come..." nella Sala assemblea.';
   }
-  renderChat('cv-chat-log');
+  renderChatCondomino();
   renderCvPollArea();
   const btn=document.getElementById('cv-hand-btn');
   if(currentCondomino && handsArr().find(h=>h.condominoId===currentCondomino.id)){
@@ -4595,66 +4663,245 @@ function adjustFontScale(dir){
   fontScale = Math.min(24, Math.max(15, fontScale + dir*2));
   document.getElementById('condomino-view-box').style.setProperty('--cv-scale', fontScale+'px');
 }
+
+// ---------- VIDEOCHIAMATA CONDÒMINO (Digital Samba — stessa stanza validata nei test di
+// dispositivi reali): una sola stanza fissa condivisa da tutti, come nel test funzionante.
+// Nota per Alessandro: essendo UNA stanza sola, se in futuro provi PIÙ assemblee live nello
+// stesso momento, i partecipanti finirebbero tutti nella stessa videochiamata — per un singolo
+// test con famiglia/amici va benissimo così com'è.
+const LINK_STANZA_DIGITAL_SAMBA = "https://Adunanza.digitalsamba.com/demo-room";
+function entraInVideochiamataCondomino(){
+  document.getElementById('cv-pre-ingresso').style.display = 'none';
+  const cont = document.getElementById('cv-video-box');
+  cont.style.display = 'block';
+  cont.innerHTML = `<iframe src="${LINK_STANZA_DIGITAL_SAMBA}"
+    allow="camera; microphone; fullscreen; display-capture; autoplay; clipboard-write"
+    allowfullscreen></iframe>
+    <div id="cv-poll-video-scroll-hint"><span>⌄</span></div>`;
+  document.getElementById('cv-video-toggle-bar').classList.add('visibile');
+  document.getElementById('cv-chat-toggle-bar').classList.add('visibile');
+}
+
+// ---------- VIDEO RIDOTTO A RIQUADRO + CHAT A COMPARSA (logica identica a quella validata) ----------
+// Il video è piccolo quando è vera ALMENO UNA di queste condizioni: un sondaggio è aperto, un
+// sondaggio si è appena concluso da meno di 45 secondi, oppure la chat è stata usata da meno di
+// 15 secondi. Il pulsante manuale ha sempre l'ultima parola sull'istante del tocco, ma la
+// rivalutazione automatica riprende al cambio successivo di una di queste condizioni.
+let __cvUltimaChiavePunto = null;
+let __cvTempoConclusionePunto = null;
+let __cvUltimaAttivitaChatMs = 0;
+let __cvUltimoValoreCondizioneVideo = null;
+let __cvUltimoActivePollOdgId = null;
+let __cvPollAppenaConcluso = null; // {question, tabella, options, risultatiFinali, scelte, momento}
+
+function registraTransizionePuntoCondomino(chiave, nuovoStato){
+  if(chiave === __cvUltimaChiavePunto) return;
+  __cvUltimaChiavePunto = chiave;
+  __cvTempoConclusionePunto = (nuovoStato === 'concluso') ? Date.now() : null;
+  if(nuovoStato === 'aperto'){
+    setTimeout(()=>{
+      const el = document.getElementById('cv-poll-area');
+      if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
+    }, 150);
+  }
+}
+function rimpicciolisciVideoCondomino(){
+  const box = document.getElementById('cv-video-box');
+  if(!box || box.style.display !== 'block') return;
+  box.classList.add('video-piccolo');
+  const btn = document.getElementById('cv-btn-video-toggle');
+  if(btn) btn.textContent = '⌄ Ingrandisci il video';
+}
+function espandiVideoCondomino(){
+  const box = document.getElementById('cv-video-box');
+  if(!box || box.style.display !== 'block') return;
+  box.classList.remove('video-piccolo');
+  const btn = document.getElementById('cv-btn-video-toggle');
+  if(btn) btn.textContent = '⌃ Rimpicciolisci il video';
+}
+function toggleVideoSizeCondomino(){
+  const box = document.getElementById('cv-video-box');
+  if(box && box.classList.contains('video-piccolo')) espandiVideoCondomino();
+  else rimpicciolisciVideoCondomino();
+}
+function chatAttivaAdessoCondomino(){
+  return (Date.now() - __cvUltimaAttivitaChatMs) < 15000;
+}
+function rivalutaCondizioniDinamicheCondomino(){
+  if(currentPage !== 'vista-condomino') return;
+  const sondaggioAperto = !!activePoll;
+  const risultatiRecenti = __cvTempoConclusionePunto !== null && (Date.now() - __cvTempoConclusionePunto) < 45000;
+  const chatAttiva = chatAttivaAdessoCondomino();
+  const videoDeveEssereGrande = !(sondaggioAperto || risultatiRecenti || chatAttiva);
+  if(videoDeveEssereGrande !== __cvUltimoValoreCondizioneVideo){
+    __cvUltimoValoreCondizioneVideo = videoDeveEssereGrande;
+    if(videoDeveEssereGrande) espandiVideoCondomino(); else rimpicciolisciVideoCondomino();
+  }
+  const chatSezione = document.getElementById('cv-chat-sezione');
+  if(chatSezione) chatSezione.style.display = chatAttiva ? 'block' : 'none';
+  // Il "risultati recenti" scade da solo dopo 45 secondi: quando succede, torniamo
+  // all'elenco dell'ordine del giorno senza aspettare un'altra sincronizzazione.
+  if(!activePoll && __cvPollAppenaConcluso && !risultatiRecenti){ renderCvPollArea(); }
+}
+setInterval(rivalutaCondizioniDinamicheCondomino, 1000);
+function segnaAttivitaChatCondomino(){
+  __cvUltimaAttivitaChatMs = Date.now();
+  rivalutaCondizioniDinamicheCondomino();
+}
+function apriChatConTastoCondomino(){ segnaAttivitaChatCondomino(); }
+function suonaBipChatCondomino(){
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine'; osc.frequency.value = 880; gain.gain.value = 0.18;
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start();
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28);
+    osc.stop(ctx.currentTime + 0.3);
+  }catch(e){ /* audio bloccato dal browser: nessun problema, si continua senza suono */ }
+}
+// Come renderChat, ma rileva anche i messaggi nuovi (per aprire la chat da sola e avvisare
+// con un suono breve — non per i messaggi appena scritti da te stesso).
+let __cvUltimaLunghezzaChatVista = -1;
+function renderChatCondomino(){
+  const arr = chatArr();
+  if(__cvUltimaLunghezzaChatVista === -1){
+    __cvUltimaLunghezzaChatVista = arr.length;
+  }else if(arr.length > __cvUltimaLunghezzaChatVista){
+    __cvUltimaLunghezzaChatVista = arr.length;
+    const ultimo = arr[arr.length-1];
+    const mioNome = currentCondomino ? nomeCompletoCondomino(currentCondomino) : null;
+    if(ultimo && ultimo.autore !== mioNome){
+      segnaAttivitaChatCondomino();
+      suonaBipChatCondomino();
+    }
+  }
+  renderChat('cv-chat-log');
+}
+
+// ---------- SONDAGGIO: SELEZIONE + CONFERMA (stessa interazione a due passaggi validata) ----------
 let sceltaVotoCorrente = null;
+let __cvUltimoPuntoRenderizzato = null;
+let __cvUltimoStatoRenderizzato = null;
 function renderCvPollArea(){
   const el=document.getElementById('cv-poll-area');
   if(!el) return;
-  if(!activePoll){ el.innerHTML=''; return; }
-  if(!currentCondomino){
-    el.innerHTML = `<div class="assist-panel"><h3>Votazione in corso</h3><p class="sub">${activePoll.question}</p><p class="muted" style="color:#8B93A0;">Non riconosco chi sei in questa anteprima: non posso farti votare senza sapere quali millesimi usare.</p></div>`;
-    return;
-  }
-  const giaVotato = activePoll.voted.has(currentCondomino.id);
   const b=getActiveBuilding();
   const assembleaCorrente=getAssembleaInCorso(b);
+
+  // Rilevazione transizione: un sondaggio che era aperto è appena stato chiuso — recuperiamo
+  // il suo risultato dallo storico per mostrarlo ancora per un po', come nel test validato.
+  if(!activePoll && __cvUltimoActivePollOdgId){
+    const puntoAppenaChiuso = assembleaCorrente ? (assembleaCorrente.odg||[]).find(p=>p.id===__cvUltimoActivePollOdgId) : null;
+    const storico = puntoAppenaChiuso && puntoAppenaChiuso.storicoSondaggi;
+    const ultimoStorico = storico && storico.length ? storico[storico.length-1] : null;
+    if(ultimoStorico){
+      __cvPollAppenaConcluso = Object.assign({}, ultimoStorico, {momento: Date.now()});
+      registraTransizionePuntoCondomino(__cvUltimoActivePollOdgId+':concluso', 'concluso');
+    }
+    __cvUltimoActivePollOdgId = null;
+  }
+  if(activePoll) __cvUltimoActivePollOdgId = activePollOdgId;
+
+  if(!activePoll){
+    if(__cvPollAppenaConcluso && (Date.now()-__cvPollAppenaConcluso.momento) < 45000){
+      renderCvRisultatoSondaggioConcluso(el, __cvPollAppenaConcluso);
+      return;
+    }
+    __cvPollAppenaConcluso = null;
+    __cvUltimoPuntoRenderizzato = null; __cvUltimoStatoRenderizzato = null;
+    registraTransizionePuntoCondomino('nessuno', null);
+    if(assembleaCorrente && assembleaCorrente.iniziata && (assembleaCorrente.odg||[]).length){
+      el.innerHTML = `<div class="assist-panel"><h3>📋 Ordine del giorno</h3><div class="cv-odg-lista">` +
+        assembleaCorrente.odg.map((p,i)=>`<div class="cv-odg-punto"><span>${i+1}. ${escapeHtml(p.testo||'(punto da definire)')}</span><span class="cv-odg-badge">${(p.storicoSondaggi&&p.storicoSondaggi.length)?'Votato':'In attesa'}</span></div>`).join('') +
+        `</div></div>`;
+    }else{
+      el.innerHTML='';
+    }
+    return;
+  }
+  if(!currentCondomino){
+    el.innerHTML = `<div class="assist-panel"><h3>Votazione in corso</h3><p class="sub">${escapeHtml(activePoll.question)}</p><p class="muted" style="color:#8B93A0;">Non riconosco chi sei in questa anteprima: non posso farti votare senza sapere quali millesimi usare.</p></div>`;
+    return;
+  }
+
+  const chiave = (assembleaCorrente?assembleaCorrente.id:'x') + ':' + activePollOdgId;
+  registraTransizionePuntoCondomino(chiave, 'aperto');
+
+  const giaVotato = activePoll.voted.has(currentCondomino.id);
   const mieiMillesimi = assembleaCorrente ? pesoVoto(currentCondomino, b, assembleaCorrente) : (currentCondomino.millesimi[activePoll.tabella]||0);
   if(giaVotato){
     const idScelto = activePoll.scelte ? activePoll.scelte[currentCondomino.id] : null;
     const optScelta = activePoll.options.find(o=>o.id===idScelto);
     const etichetta = optScelta ? optScelta.label : 'registrato';
-    el.innerHTML = `<div class="assist-panel"><h3>Votazione in corso</h3><p class="sub" style="margin-bottom:10px;">${activePoll.question}</p>
-      <div class="note" style="background:rgba(76,122,93,.15);border-color:var(--sage);color:#CFE3D5;">✅ Hai votato: <b>${etichetta}</b> — voto registrato con i tuoi ${mieiMillesimi} millesimi (${activePoll.tabella}). Non puoi votare di nuovo.</div>
-    </div>`;
+    el.innerHTML = `<div id="cv-conferma-voto-box">Hai votato: ${escapeHtml(etichetta)}<span class="sub">Voto registrato con i tuoi ${mieiMillesimi} millesimi (${escapeHtml(activePoll.tabella)}). In attesa che l'amministratore chiuda il sondaggio...</span></div>`;
     return;
   }
   const attivo = assembleaCorrente ? recordAttivo(assembleaCorrente, currentCondomino.id) : null;
   if(!attivo){
-    el.innerHTML = `<div class="assist-panel"><h3>Votazione in corso</h3><p class="sub" style="margin-bottom:10px;">${activePoll.question}</p>
-      <div class="note" style="border-color:var(--brick);color:var(--brick);">Non risulti online o presente in sala in questo momento: non puoi votare finché non rientri in assemblea.</div>
-    </div>`;
+    el.innerHTML = `<div class="assist-panel"><h3>Votazione in corso</h3><p class="sub" style="margin-bottom:10px;">${escapeHtml(activePoll.question)}</p>
+      <div class="note" style="border-color:var(--brick);color:var(--brick);">Non risulti online o presente in sala in questo momento: non puoi votare finché non rientri in assemblea.</div></div>`;
     return;
   }
+  // Ricostruiamo la scheda solo se non è già quella mostrata (per non perdere la selezione in
+  // corso a ogni sincronizzazione, che può avvenire più volte al minuto).
+  if(__cvUltimoPuntoRenderizzato===chiave && __cvUltimoStatoRenderizzato==='aperto' && document.getElementById('cv-lista-opzioni')) return;
+  __cvUltimoPuntoRenderizzato = chiave; __cvUltimoStatoRenderizzato = 'aperto';
   sceltaVotoCorrente = null;
-  el.innerHTML = `<div class="assist-panel"><h3>Votazione in corso</h3><p class="sub" style="margin-bottom:4px;">${activePoll.question}</p>
-    <p class="muted" style="color:#8B93A0;margin-bottom:12px;">Voterai con i tuoi ${mieiMillesimi} millesimi (tabella: ${activePoll.tabella})</p>
-    <div id="cv-poll-options-radio"></div>
-    <button class="big-action-btn" id="cv-submit-vote-btn" onclick="inviaVotoCondomino()" disabled style="opacity:.5;text-transform:uppercase;letter-spacing:.03em;">Invia risposta</button>
+  el.innerHTML = `<div class="assist-panel"><p class="sub" style="margin-bottom:4px;font-weight:700;font-size:16px;color:#F2F0EC;">${escapeHtml(activePoll.question)}</p>
+    <p class="muted" style="color:#8B93A0;margin-bottom:12px;">Voterai con i tuoi ${mieiMillesimi} millesimi (tabella: ${escapeHtml(activePoll.tabella)})</p>
+    <div id="cv-lista-opzioni"></div>
+    <button id="cv-btn-conferma-voto" onclick="confermaVotoCondomino()" disabled>Conferma il voto</button>
   </div>`;
-  const radioArea = document.getElementById('cv-poll-options-radio');
+  const cont = document.getElementById('cv-lista-opzioni');
   activePoll.options.forEach(o=>{
-    const btn=document.createElement('button');
-    btn.className='cv-poll-option-btn';
-    btn.textContent=o.label;
-    btn.onclick=()=>{
-      sceltaVotoCorrente=o.id;
-      radioArea.querySelectorAll('.cv-poll-option-btn').forEach(x=>{x.style.borderColor='#3A4452'; x.style.background='#232B36';});
-      btn.style.borderColor='var(--brass)'; btn.style.background='#2C3644';
-      const submitBtn=document.getElementById('cv-submit-vote-btn');
-      submitBtn.disabled=false; submitBtn.style.opacity='1';
-    };
-    radioArea.appendChild(btn);
+    const optBtn=document.createElement('button');
+    optBtn.className='cv-voto-btn';
+    optBtn.id='cv-opz-'+o.id;
+    optBtn.textContent=o.label;
+    optBtn.onclick=()=>selezionaOpzioneCondomino(o.id);
+    cont.appendChild(optBtn);
   });
 }
-function inviaVotoCondomino(){
-  if(!activePoll || !currentCondomino) return;
-  if(sceltaVotoCorrente==null){ toast('Seleziona un\'opzione prima di inviare.'); return; }
+function renderCvRisultatoSondaggioConcluso(el, info){
+  const mieScelta = info.scelte && currentCondomino ? info.scelte[currentCondomino.id] : null;
+  const totale = Object.values(info.risultatiFinali||{}).reduce((s,v)=>s+v,0) || 1;
+  const barreHtml = (info.options||[]).map(o=>{
+    const voti = (info.risultatiFinali||{})[o.id] || 0;
+    const percentuale = Math.round((voti/totale)*100);
+    const eLaMiaScelta = mieScelta===o.id;
+    return `<div class="cv-esito-riga ${eLaMiaScelta?'mia':''}"><div class="etichetta"><span>${escapeHtml(o.label)}${eLaMiaScelta?' ✓':''}</span><span>${percentuale}%</span></div>
+      <div class="cv-esito-barra-sfondo"><div class="cv-esito-barra-riempita" style="width:${percentuale}%;"></div></div></div>`;
+  }).join('');
+  const optScelta = mieScelta!=null ? (info.options||[]).find(o=>o.id===mieScelta) : null;
+  el.innerHTML = `<div class="assist-panel"><h3 style="margin-top:0;">📊 Sondaggio concluso</h3><p class="sub" style="margin-bottom:10px;">${escapeHtml(info.question)}</p>
+    <div>${barreHtml}</div>
+    <p class="muted" style="margin-top:10px;">Il tuo voto: <b>${optScelta ? escapeHtml(optScelta.label) : 'non hai votato'}</b></p></div>`;
+}
+function selezionaOpzioneCondomino(optionId){
+  sceltaVotoCorrente = optionId;
+  const cont = document.getElementById('cv-lista-opzioni');
+  cont.classList.add('scelta-fatta');
+  cont.querySelectorAll('.cv-voto-btn').forEach(btn=>{
+    btn.classList.toggle('scelto', btn.id === 'cv-opz-'+optionId);
+  });
+  const btnConferma = document.getElementById('cv-btn-conferma-voto');
+  btnConferma.disabled=false;
+  btnConferma.classList.add('attivo');
+  setTimeout(()=>{ btnConferma.scrollIntoView({behavior:'smooth', block:'center'}); }, 80);
+}
+function confermaVotoCondomino(){
+  if(sceltaVotoCorrente==null || !activePoll || !currentCondomino) return;
   if(activePoll.voted.has(currentCondomino.id)){ toast('Hai già votato: non puoi votare di nuovo.'); return; }
+  const btnConferma = document.getElementById('cv-btn-conferma-voto');
+  if(btnConferma){ btnConferma.disabled=true; btnConferma.textContent='Invio in corso...'; }
   impostaVoto(currentCondomino.id, sceltaVotoCorrente, false);
   renderPollResults();
   renderTabellaVotiSondaggio();
   renderCvPollArea();
   salvaStato();
-  toast('Risposta inviata — grazie.');
+  toast('Voto registrato — grazie.');
 }
 
 // ---------- VERBALE IA (chiamata reale all'API Claude) ----------
