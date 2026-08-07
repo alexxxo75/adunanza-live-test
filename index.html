@@ -1,3 +1,4 @@
+
 <!--
   Adunanza — Gestione assemblee condominiali online
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
@@ -42,6 +43,10 @@
   window.__fbAscoltaStato = function(callback){
     onValue(statoRef, (snapshot)=>{ callback(snapshot.val()); });
   };
+  // Questo script "a moduli" parte necessariamente dopo il resto del programma (è una regola
+  // del browser, non qualcosa che dipende dalla connessione): segnaliamo con un evento preciso
+  // il momento in cui è davvero pronto, invece di sperare che i tempi coincidano per caso.
+  window.dispatchEvent(new CustomEvent('adunanza-firebase-pronto'));
 </script>
 <style>
   :root{
@@ -5333,7 +5338,13 @@ window.addEventListener('storage', (e)=>{
 // Quando un ALTRO DISPOSITIVO (non solo un'altra scheda dello stesso browser) cambia qualcosa,
 // il database condiviso ce lo segnala qui, in tempo reale — questa è la parte nuova rispetto
 // alla demo originale, che senza Firebase restava chiusa nel browser di chi la usava.
-if(window.__fbAscoltaStato){
+function collegaAscoltoFirebase(){
+  if(!window.__fbAscoltaStato){
+    console.warn('[Adunanza] Firebase non disponibile: si lavora solo in locale, come nella demo originale.');
+    const indicatore = document.getElementById('fb-stato-connessione');
+    if(indicatore) indicatore.textContent = '⚪ Solo in locale (database condiviso non raggiungibile)';
+    return;
+  }
   window.__fbAscoltaStato((dati)=>{
     if(applicaDatiRicevuti(dati)){
       rirenderizzaDopoSincronizzazione();
@@ -5341,8 +5352,18 @@ if(window.__fbAscoltaStato){
     const indicatore = document.getElementById('fb-stato-connessione');
     if(indicatore) indicatore.textContent = '🟢 Connesso al database condiviso';
   });
+}
+if(window.__fbAscoltaStato){
+  // Caso 1: lo script di Firebase ha già finito, possiamo collegarci subito.
+  collegaAscoltoFirebase();
 }else{
-  console.warn('[Adunanza] Firebase non disponibile: si lavora solo in locale, come nella demo originale.');
+  // Caso 2 (il più comune): lo script di Firebase non ha ancora finito — aspettiamo il suo
+  // segnale invece di arrenderci subito. Mettiamo comunque un limite di attesa: se il segnale
+  // non arriva mai (Firebase davvero non raggiungibile, es. rete assente), l'app prosegue in
+  // locale invece di restare bloccata in attesa per sempre.
+  let arrivato = false;
+  window.addEventListener('adunanza-firebase-pronto', ()=>{ arrivato=true; collegaAscoltoFirebase(); }, {once:true});
+  setTimeout(()=>{ if(!arrivato) collegaAscoltoFirebase(); }, 5000);
 }
 
 if(initFromUrlToken()){
