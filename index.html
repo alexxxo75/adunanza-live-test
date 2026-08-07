@@ -411,7 +411,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 07/08/2026 alle 23:11">LIVE-TEST-9</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 08/08/2026 alle 01:35">LIVE-TEST-11</span></div>
   </div>
 
   <!-- MAIN -->
@@ -878,10 +878,6 @@
     <div class="page hidden" id="page-assemblea">
       <div class="page-head">
         <div><div class="eyebrow">Sala virtuale</div><div class="page-title-row"><button class="page-back" onclick="tornaIndietro()" aria-label="Indietro"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M14.5 8 10 12l4.5 4"/><path d="M10.3 12h6.2"/></svg></button><h1 id="assemblea-titolo-corrente">Assemblea in corso</h1></div><p class="sub">Videoconferenza, sondaggi ponderati sui millesimi e verbale generato automaticamente.</p></div>
-        <div style="display:flex;gap:10px;">
-          <select id="preview-condomino-select" style="width:auto;max-width:200px;"></select>
-          <button class="btn secondary" onclick="anteprimaVistaCondomino()">👁 Anteprima come...</button>
-        </div>
       </div>
 
       <div id="sezione-video-chat">
@@ -1112,6 +1108,7 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
 
           <div class="assist-panel" id="cv-chat-sezione" style="display:none;">
             <h3>Chat</h3>
+            <p class="muted" style="color:#A39C88;margin-bottom:10px;">Per segnalazioni pratiche (es. "non sento l'audio") — non è la chat per gli interventi formali.</p>
             <div class="cv-chat-log" id="cv-chat-log"></div>
             <div class="row-inline">
               <input id="cv-chat-input" placeholder="Scrivi qui..." style="background:#2A2519;border-color:#5C5540;color:#F2F0EC;" oninput="segnaAttivitaChatCondomino()">
@@ -1585,7 +1582,7 @@ function goPage(name){
   }
   if(name==='dashboard') renderDashboard();
   if(name==='crea-assemblea') renderCreaAssemblea();
-  if(name==='assemblea'){ aggiornaTitoloAssemblea(); renderHandsList(); renderChat('admin-chat-log'); renderOdgBlocks(); populatePreviewCondominoSelect(); renderLiveParticipants(); renderAppello(); renderFloatingActivePoll(); }
+  if(name==='assemblea'){ aggiornaTitoloAssemblea(); renderHandsList(); renderChat('admin-chat-log'); renderOdgBlocks(); renderAppello(); renderFloatingActivePoll(); }
   if(name==='registrazioni') renderRegistrazioni();
   renderNavSubmenu();
 }
@@ -5401,16 +5398,8 @@ function terminaAssemblea(){
     : `Vuoi terminare l'assemblea del ${a.dataSeconda||'(data non impostata)'}? Chi è ancora online verrà disconnesso, la registrazione sarà interrotta e l'assemblea passerà in archivio.`;
   if(!confirm(messaggioConferma)) return;
 
-  // 1) disconnette chi è ancora online — ma SOLO se non c'è una prossima assemblea concatenata:
-  // in quel caso la videochiamata deve proseguire invariata, senza interrompere nessuno.
-  if(!prossima && jitsiApi){
-    try{
-      liveParticipants.forEach(p=>{
-        try{ jitsiApi.executeCommand('kickParticipant', p.id); }catch(e){}
-      });
-      jitsiApi.executeCommand('hangup');
-    }catch(e){}
-  }
+  // 1) Con Digital Samba (semplice iframe, senza controlli esterni come aveva Jitsi) non c'è
+  // modo di disconnettere i partecipanti da qui: chi è in videochiamata dovrà uscirne da sé.
 
   // 2) genera il verbale (con IA se ci sono appunti, altrimenti solo con i dati essenziali) —
   // sempre, perché le tabelle di presenti/movimenti/votazioni servono comunque.
@@ -5454,7 +5443,6 @@ function terminaAssemblea(){
       prossima.iniziata = true;
       prossima.oraInizio = oraAdesso();
       b.assembleaInCorsoId = prossima.id;
-      liveParticipants = liveParticipants; // la videochiamata resta la stessa, i partecipanti pure
       // Si avvia automaticamente una nuova registrazione per questa prossima assemblea: ogni
       // assemblea della catena ha la propria registrazione distinta, coerente con l'avere un
       // proprio verbale separato.
@@ -5523,12 +5511,19 @@ function esportaDatiDiagnostica(){
     toast('Errore durante l\'esportazione: '+e.message);
   }
 }
+let __versioneStatoLocale = 0;
 function salvaStato(){
   try{
+    __versioneStatoLocale++;
     const statoCompleto = {
       buildings, activeBuildingId,
       activePoll: serializzaPoll(activePoll),
-      activePollOdgId, amministratore
+      activePollOdgId, amministratore,
+      // Numero che cresce ad ogni salvataggio: serve a riconoscere se un aggiornamento in
+      // arrivo dal database condiviso è più vecchio di uno che abbiamo già applicato (può
+      // capitare facendo più azioni di fila velocemente) — senza, rischieremmo di "tornare
+      // indietro nel tempo" sovrascrivendo dati più recenti con una versione precedente.
+      __versione: __versioneStatoLocale
     };
     localStorage.setItem('adunanza_stato_v1', JSON.stringify(statoCompleto));
     // Oltre alla copia locale (immediata, sempre disponibile), scriviamo anche sul database
@@ -5605,6 +5600,14 @@ function ricalcolaContatoriId(){
 // dell'app: usata sia dal caricamento normale sia dalla sincronizzazione in tempo reale.
 function applicaDatiRicevuti(parsed, aggiornaAncheNavigazioneLocale){
   if(!(parsed && Array.isArray(parsed.buildings) && parsed.buildings.length)) return false;
+  // Se questo aggiornamento è più VECCHIO di uno che abbiamo già applicato localmente, lo
+  // scartiamo: capita quando si fanno più azioni di fila velocemente e gli aggiornamenti dal
+  // database condiviso arrivano fuori ordine — applicarlo comunque farebbe "tornare indietro
+  // nel tempo" i dati, perdendo l'ultima modifica.
+  if(typeof parsed.__versione === 'number' && parsed.__versione < __versioneStatoLocale){
+    return false;
+  }
+  if(typeof parsed.__versione === 'number'){ __versioneStatoLocale = parsed.__versione; }
   buildings = parsed.buildings.map(miglioraSchemaBuilding);
   // activeBuildingId indica QUALE pagina/condominio sta guardando QUESTO dispositivo in questo
   // preciso momento: è un'informazione locale (l'amministratore guarda un condominio, un
