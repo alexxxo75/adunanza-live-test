@@ -355,7 +355,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 06/08/2026 alle 12:05">V-149 · live test</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 07/08/2026 alle 20:12">LIVE-TEST-7</span></div>
   </div>
 
   <!-- MAIN -->
@@ -3184,24 +3184,32 @@ function duplicaAssemblea(assembleaId){
 function renderCodaAssemblea(){
   const cont = document.getElementById('ca-coda-azione');
   if(!cont) return;
-  const a = workingAssembly;
-  const b = getActiveBuilding();
-  let html = '';
-  if(a.assembleaPrecedenteId){
-    const precedente = b.assemblee.find(x=>x.id===a.assembleaPrecedenteId);
-    if(precedente){
-      html += `<p class="muted" style="margin-bottom:10px;">🔗 Questa assemblea segue, nella stessa videochiamata, "<b>${escapeHtml(precedente.oggetto||'(oggetto non indicato)')}</b>".</p>`;
+  try{
+    const a = workingAssembly;
+    const b = getActiveBuilding();
+    let html = '';
+    if(a.assembleaPrecedenteId){
+      const precedente = (b.assemblee||[]).find(x=>x.id===a.assembleaPrecedenteId);
+      if(precedente){
+        html += `<p class="muted" style="margin-bottom:10px;">🔗 Questa assemblea segue, nella stessa videochiamata, "<b>${escapeHtml(precedente.oggetto||'(oggetto non indicato)')}</b>".</p>`;
+      }
     }
+    if(a.assembleaSuccessivaId){
+      const successiva = (b.assemblee||[]).find(x=>x.id===a.assembleaSuccessivaId);
+      html += successiva
+        ? `<p class="muted" style="margin-bottom:10px;">✅ Assemblea in coda già predisposta: <b>${escapeHtml(successiva.oggetto||'(oggetto non ancora indicato)')}</b></p><button class="btn small secondary" onclick="apriModificaAssemblea(${successiva.id})">Apri/Modifica l'assemblea in coda</button>`
+        : `<button class="btn small brass" onclick="aggiungiAssembleaInCoda()">+ Aggiungi assemblea in coda</button>`;
+    }else{
+      html += `<button class="btn small brass" onclick="aggiungiAssembleaInCoda()">+ Aggiungi assemblea in coda</button>`;
+    }
+    cont.innerHTML = html;
+  }catch(e){
+    // Rete di sicurezza: se per qualsiasi motivo (es. dati in arrivo da un altro dispositivo
+    // non ancora del tutto sincronizzati) qualcosa va storto, mostriamo comunque il pulsante
+    // base invece di lasciare il riquadro vuoto e silenzioso.
+    console.error('[Adunanza] renderCodaAssemblea fallito, mostro il pulsante base:', e);
+    cont.innerHTML = `<button class="btn small brass" onclick="aggiungiAssembleaInCoda()">+ Aggiungi assemblea in coda</button>`;
   }
-  if(a.assembleaSuccessivaId){
-    const successiva = b.assemblee.find(x=>x.id===a.assembleaSuccessivaId);
-    html += successiva
-      ? `<p class="muted" style="margin-bottom:10px;">✅ Assemblea in coda già predisposta: <b>${escapeHtml(successiva.oggetto||'(oggetto non ancora indicato)')}</b></p><button class="btn small secondary" onclick="apriModificaAssemblea(${successiva.id})">Apri/Modifica l'assemblea in coda</button>`
-      : `<button class="btn small brass" onclick="aggiungiAssembleaInCoda()">+ Aggiungi assemblea in coda</button>`;
-  }else{
-    html += `<button class="btn small brass" onclick="aggiungiAssembleaInCoda()">+ Aggiungi assemblea in coda</button>`;
-  }
-  cont.innerHTML = html;
 }
 function aggiungiAssembleaInCoda(){
   if(!workingAssembly.oggetto || !workingAssembly.oggetto.trim()){
@@ -3785,10 +3793,16 @@ function renderAnteprimeEmailConvocazione(a, b){
 // stile grafico della pagina (i client di posta non leggono il CSS di questo sito).
 function inviaEmailVeraTramiteEmailJS(c, oggetto, corpo){
   if(!window.emailjs) return Promise.reject(new Error('EmailJS non disponibile in questa sessione'));
+  // Il testo generato usa "a capo" semplici (\n), pensati per essere letti dentro questa
+  // pagina (che li mostra correttamente). In un'email HTML vera, però, un \n da solo non crea
+  // un vero a capo visibile: senza convertirlo, tutto il testo si schiaccia in un unico blocco
+  // compresso — probabilmente quello che si vedeva come "formato cellulare". Aggiungiamo anche
+  // uno stile di base (carattere, dimensione, larghezza massima) per un aspetto più normale.
+  const corpoFormattato = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#2B2E33;max-width:600px;">${corpo.replace(/\n/g,'<br>')}</div>`;
   return emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
     to_email: c.email,
     subject: oggetto,
-    message: corpo
+    message: corpoFormattato
   });
 }
 async function salvaESpedisciAssemblea(){
@@ -5397,42 +5411,63 @@ window.addEventListener('storage', (e)=>{
 // Quando un ALTRO DISPOSITIVO (non solo un'altra scheda dello stesso browser) cambia qualcosa,
 // il database condiviso ce lo segnala qui, in tempo reale — questa è la parte nuova rispetto
 // alla demo originale, che senza Firebase restava chiusa nel browser di chi la usava.
+const __paramsIniziali = new URLSearchParams(window.location.search);
+const __haTokenNelLink = !!__paramsIniziali.get('token');
+
+function instradamentoIniziale(){
+  if(initFromUrlToken()){
+    if(contestoDelegaAssembleaId){ goPage('delega-condomino'); }
+    else{ goPage('vista-condomino'); }
+  }else{
+    activeBuildingId = null;
+    draftBuilding = null;
+    renderHome();
+    renderNavSubmenu();
+  }
+}
+
+let __primoDatoFirebaseGestito = false;
 function collegaAscoltoFirebase(){
   if(!window.__fbAscoltaStato){
     console.warn('[Adunanza] Firebase non disponibile: si lavora solo in locale, come nella demo originale.');
     const indicatore = document.getElementById('fb-stato-connessione');
     if(indicatore) indicatore.textContent = '⚪ Solo in locale (database condiviso non raggiungibile)';
+    if(!__primoDatoFirebaseGestito){ __primoDatoFirebaseGestito=true; if(__haTokenNelLink) instradamentoIniziale(); }
     return;
   }
   window.__fbAscoltaStato((dati)=>{
-    if(applicaDatiRicevuti(dati)){
+    const applicato = applicaDatiRicevuti(dati);
+    if(!__primoDatoFirebaseGestito){
+      __primoDatoFirebaseGestito = true;
+      // Se c'è un token nel link, questa è la prima occasione utile per riconoscere davvero
+      // il condòmino — solo ora i dati veri sono arrivati. Senza aspettare questo momento, il
+      // link personale rischiava di non trovare nessuno (perché i dati condivisi non erano
+      // ancora arrivati) e finire per sbaglio sulla pagina dell'amministratore.
+      if(__haTokenNelLink) instradamentoIniziale();
+      else if(applicato) rirenderizzaDopoSincronizzazione();
+    }else if(applicato){
       rirenderizzaDopoSincronizzazione();
     }
     const indicatore = document.getElementById('fb-stato-connessione');
     if(indicatore) indicatore.textContent = '🟢 Connesso al database condiviso';
   });
 }
+
+if(!__haTokenNelLink){
+  // Nessun link personale: è l'amministratore, che vede subito la sua home (con i dati che ha
+  // già in locale) — si aggiornerà da sola appena arrivano i dati veri dal database condiviso.
+  instradamentoIniziale();
+}
+// Se invece c'è un token, non facciamo nulla qui: l'instradamento avviene sopra, dentro
+// collegaAscoltoFirebase, appena arriva il primo dato vero (o comunque entro pochi secondi,
+// grazie al limite di sicurezza qui sotto).
+
 if(window.__fbAscoltaStato){
-  // Caso 1: lo script di Firebase ha già finito, possiamo collegarci subito.
   collegaAscoltoFirebase();
 }else{
-  // Caso 2 (il più comune): lo script di Firebase non ha ancora finito — aspettiamo il suo
-  // segnale invece di arrenderci subito. Mettiamo comunque un limite di attesa: se il segnale
-  // non arriva mai (Firebase davvero non raggiungibile, es. rete assente), l'app prosegue in
-  // locale invece di restare bloccata in attesa per sempre.
   let arrivato = false;
   window.addEventListener('adunanza-firebase-pronto', ()=>{ arrivato=true; collegaAscoltoFirebase(); }, {once:true});
-  setTimeout(()=>{ if(!arrivato) collegaAscoltoFirebase(); }, 5000);
-}
-
-if(initFromUrlToken()){
-  if(contestoDelegaAssembleaId){ goPage('delega-condomino'); }
-  else{ goPage('vista-condomino'); }
-}else{
-  activeBuildingId = null;
-  draftBuilding = null;
-  renderHome();
-  renderNavSubmenu();
+  setTimeout(()=>{ if(!arrivato){ arrivato=true; collegaAscoltoFirebase(); } }, 5000);
 }
 </script>
 </body>
