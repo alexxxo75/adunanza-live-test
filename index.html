@@ -13,6 +13,18 @@
 <title>Adunanza — Assemblee condominiali online</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://meet.jit.si/external_api.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script>
+  // Collegamento per l'invio vero delle email di convocazione, tramite EmailJS (che a sua volta
+  // usa il Gmail dedicato collegato da Alessandro). Restano tutte in un unico account gratuito:
+  // 200 invii al mese — più che sufficiente per i test con famiglia e amici di questa fase.
+  const EMAILJS_SERVICE_ID = 'service_g27itvh';
+  const EMAILJS_TEMPLATE_ID = 'template_uodom5t';
+  try{
+    if(window.emailjs) emailjs.init({ publicKey: 'lR7iGUb9Ilg8SGomQ' });
+    else console.warn('[Adunanza] EmailJS non caricato: l\'invio vero delle email non sarà disponibile in questa sessione.');
+  }catch(e){ console.error('[Adunanza] Inizializzazione EmailJS fallita:', e); }
+</script>
 <script type="module">
   // Collegamento al database condiviso (Firebase Realtime Database): questa parte usa la
   // sintassi a "moduli" richiesta da Firebase, diversa dal resto del programma — per questo le
@@ -3763,7 +3775,18 @@ function renderAnteprimeEmailConvocazione(a, b){
     box.appendChild(div);
   });
 }
-function salvaESpedisciAssemblea(){
+// Invio VERO di una singola email, tramite EmailJS collegato al Gmail dedicato di Alessandro.
+// I link restano cliccabili anche nell'email reale (sono HTML), anche se non avranno lo stesso
+// stile grafico della pagina (i client di posta non leggono il CSS di questo sito).
+function inviaEmailVeraTramiteEmailJS(c, oggetto, corpo){
+  if(!window.emailjs) return Promise.reject(new Error('EmailJS non disponibile in questa sessione'));
+  return emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+    to_email: c.email,
+    subject: oggetto,
+    message: corpo
+  });
+}
+async function salvaESpedisciAssemblea(){
   const b=getActiveBuilding();
   const a=workingAssembly;
   if(!a.oggetto || !a.oggetto.trim()){
@@ -3777,15 +3800,46 @@ function salvaESpedisciAssemblea(){
       : 'Nessun convocato selezionato: scegli almeno un destinatario prima di salvare e inviare.');
     return;
   }
+  // Prima di inviare email VERE, chiediamo sempre conferma esplicita — meglio un click in più
+  // che un invio per sbaglio a persone reali, specie con un margine mensile limitato (200 email).
+  const elencoDestinatari = convocati.map(c=>`- ${nomeCompletoCondomino(c)} <${c.email}>`).join('\n');
+  const inviareDavvero = confirm(`Stai per inviare ${convocati.length} email VERE a:\n\n${elencoDestinatari}\n\nConfermi l'invio?`);
+
   salvaAssembleaInElenco();
   a.invitiInviati = true;
   convocati.forEach(c=>{ c.invitato=true; });
   renderAnteprimeEmailConvocazione(a, b);
   renderCondomini();
   const salvataggioRiuscito = salvaStato();
-  toast(salvataggioRiuscito
-    ? 'Assemblea salvata e inviti inviati (simulazione) — i pulsanti nell\'anteprima sono davvero cliccabili.'
-    : 'ATTENZIONE: gli inviti sono stati generati ma il salvataggio permanente nel browser è FALLITO (spazio esaurito o altro errore). L\'assemblea potrebbe non essere qui alla prossima visita — usa "Esporta dati" per una copia di sicurezza.');
+
+  if(!inviareDavvero){
+    toast(salvataggioRiuscito
+      ? 'Assemblea salvata, ma NESSUNA email è stata inviata davvero (hai annullato la conferma). I pulsanti nell\'anteprima restano comunque cliccabili.'
+      : 'ATTENZIONE: il salvataggio è FALLITO. Nessuna email inviata.');
+    return;
+  }
+  if(!salvataggioRiuscito){
+    toast('ATTENZIONE: il salvataggio non è riuscito — invio email interrotto per sicurezza. Riprova.');
+    return;
+  }
+
+  toast(`Invio in corso di ${convocati.length} email...`);
+  let riusciti=0, falliti=[];
+  for(const c of convocati){
+    const corpo = costruisciEmail(c, a, b);
+    try{
+      await inviaEmailVeraTramiteEmailJS(c, a.oggetto, corpo);
+      riusciti++;
+    }catch(e){
+      console.error('[Adunanza] Invio fallito per', c.email, e);
+      falliti.push(c.email);
+    }
+    // Piccola pausa tra un invio e l'altro, per non sovraccaricare il servizio gratuito.
+    await new Promise(r=>setTimeout(r, 400));
+  }
+  toast(falliti.length===0
+    ? `✅ ${riusciti} email inviate correttamente.`
+    : `⚠️ ${riusciti} email inviate, ${falliti.length} FALLITE (${falliti.join(', ')}). Controlla la connessione o il limite mensile di EmailJS.`);
 }
 function eliminaAssembleaCorrente(){
   const a=workingAssembly;
