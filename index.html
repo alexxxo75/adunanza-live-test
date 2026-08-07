@@ -411,7 +411,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 08/08/2026 alle 01:35">LIVE-TEST-11</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 08/08/2026 alle 01:41">LIVE-TEST-12</span></div>
   </div>
 
   <!-- MAIN -->
@@ -5557,6 +5557,37 @@ function miglioraSchemaBuilding(b){
   if(b.attivo===undefined) b.attivo = true;
   if(!Array.isArray(b.condomini)) b.condomini = [];
   if(!Array.isArray(b.tabelleMillesimali)) b.tabelleMillesimali = ['Proprietà'];
+  // Il database condiviso (Firebase) trasforma da solo qualsiasi lista o oggetto VUOTO in
+  // "null" quando lo salva (è un comportamento noto e documentato di Firebase, non un nostro
+  // errore) — quindi ogni lista dentro ogni assemblea che in un certo momento risultava vuota
+  // può tornare indietro come "null" invece che come lista vuota "[]". Senza sistemarla qui,
+  // la prima funzione che prova a scorrerla (es. l'Appello) si blocca subito con un errore,
+  // lasciando la pagina a metà — anche se, in apparenza, "l'assemblea c'è".
+  b.assemblee.forEach(a=>{
+    if(!a.convocati || typeof a.convocati!=='object') a.convocati = {modo:'tutti', tabelle:[], selezionati:[]};
+    if(!Array.isArray(a.convocati.selezionati)) a.convocati.selezionati = [];
+    if(!Array.isArray(a.convocati.tabelle)) a.convocati.tabelle = [];
+    if(!Array.isArray(a.odg)) a.odg = [];
+    if(!Array.isArray(a.programmati)) a.programmati = [];
+    if(!Array.isArray(a.deleghiEsterni)) a.deleghiEsterni = [];
+    if(!Array.isArray(a.nonRiconosciuti)) a.nonRiconosciuti = [];
+    if(!Array.isArray(a.chatMessages)) a.chatMessages = [];
+    if(!Array.isArray(a.handsRaised)) a.handsRaised = [];
+    if(!Array.isArray(a.allegatiConvocazione)) a.allegatiConvocazione = [];
+    if(!a.appello || typeof a.appello!=='object') a.appello = {online:[], presenzeFisiche:[], deleghe:{}};
+    if(!Array.isArray(a.appello.online)) a.appello.online = [];
+    if(!Array.isArray(a.appello.presenzeFisiche)) a.appello.presenzeFisiche = [];
+    if(!a.appello.deleghe || typeof a.appello.deleghe!=='object') a.appello.deleghe = {};
+    if(a.invioVerbaleDocumenti && !Array.isArray(a.invioVerbaleDocumenti.storicoInvii)) a.invioVerbaleDocumenti.storicoInvii = [];
+    a.odg.forEach(p=>{
+      if(!Array.isArray(p.storicoSondaggi)) p.storicoSondaggi = [];
+      p.storicoSondaggi.forEach(s=>{
+        if(!Array.isArray(s.options)) s.options = [];
+        if(!s.scelte || typeof s.scelte!=='object') s.scelte = {};
+        if(!Array.isArray(s.overridden)) s.overridden = [];
+      });
+    });
+  });
   return b;
 }
 // Dopo aver ripristinato i dati salvati, i contatori usati per assegnare i prossimi id
