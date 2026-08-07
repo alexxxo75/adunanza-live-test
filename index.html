@@ -315,60 +315,67 @@
   .chat-msg.admin b{color:var(--brass);}
 
   /* VISTA CONDOMINO — grande, semplice, accessibile, TEMA SCURO (risparmio batteria OLED) */
-  .condomino-shell{background:#12181F;min-height:100vh;padding:26px;}
-  .condomino-view{max-width:760px;margin:0 auto;background:#1B222B;border-radius:8px;padding:28px;font-size:var(--cv-scale, 17px);color:#F2F0EC;}
+  .condomino-shell{background:#3D3729;min-height:100vh;padding:26px;}
+  .condomino-view{max-width:760px;margin:0 auto;background:#332E22;border-radius:8px;padding:28px;font-size:var(--cv-scale, 17px);color:#F2F0EC;}
   .condomino-view h1{font-size:1.7em;color:#fff;font-family:var(--font-display);margin:0 0 6px;}
-  .condomino-view .sub{font-size:0.95em;color:#B7BEC9;}
+  .condomino-view .sub{font-size:0.95em;color:#C4BCA5;}
+  /* Su schermi piccoli (telefono, il caso reale d'uso per un condòmino): via la barra con
+     "Vista amministratore" e i controlli A-/A+ (inutili per chi non è l'amministratore),
+     lasciando solo il nome del condominio, più piccolo, per non occupare spazio prezioso. */
+  @media (max-width: 640px){
+    .condomino-topbar{ display:none; }
+    .condomino-view h1{ font-size:15px; font-weight:600; margin:0 0 10px; }
+  }
   .condomino-topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;}
   .condomino-topbar .font-ctrl{display:flex;gap:8px;align-items:center;}
-  .font-btn{width:42px;height:42px;border-radius:50%;border:1px solid #3A4452;background:#232B36;color:#F2F0EC;font-size:16px;font-weight:600;cursor:pointer;}
-  .font-btn:hover{background:#2C3644;}
+  .font-btn{width:42px;height:42px;border-radius:50%;border:1px solid #5C5540;background:#453F2E;color:#F2F0EC;font-size:16px;font-weight:600;cursor:pointer;}
+  .font-btn:hover{background:#4F4835;}
   /* --- Video, chat e voto: stile ripreso fedelmente da voto-condominio.html (validato nei
      test reali del giorno prima), adattato ai colori scuri già usati in questa pagina. --- */
   #cv-video-wrap{ width:100%; }
-  #cv-pre-ingresso{ background:#161C24; border:1px solid #3A4452; border-radius:8px; padding:22px 20px; text-align:center; margin-bottom:16px; }
+  #cv-pre-ingresso{ background:#2A2519; border:1px solid #5C5540; border-radius:8px; padding:22px 20px; text-align:center; margin-bottom:16px; }
   #cv-pre-ingresso .titolo{ font-size:17px; font-weight:700; margin:0 0 10px; color:#F2F0EC; }
-  #cv-pre-ingresso .testo{ font-size:14px; line-height:1.5; color:#B7BEC9; margin:0 0 18px; }
+  #cv-pre-ingresso .testo{ font-size:14px; line-height:1.5; color:#C4BCA5; margin:0 0 18px; }
   #cv-btn-entra-video{ width:100%; padding:15px; font-size:16px; font-weight:700; border-radius:8px; border:none; background:var(--sage,#3E7A54); color:#fff; cursor:pointer; }
   #cv-btn-entra-video:active{ transform:scale(0.98); }
   .cv-aiuto-permessi{ margin-top:14px; }
-  .cv-aiuto-permessi summary{ font-size:12.5px; color:#8B93A0; cursor:pointer; text-decoration:underline; list-style:none; }
+  .cv-aiuto-permessi summary{ font-size:12.5px; color:#A39C88; cursor:pointer; text-decoration:underline; list-style:none; }
   .cv-aiuto-permessi summary::-webkit-details-marker{ display:none; }
-  .cv-aiuto-permessi-corpo{ background:#0F141A; border-radius:8px; padding:12px 14px; text-align:left; font-size:12.5px; line-height:1.55; color:#B7BEC9; margin-top:10px; }
+  .cv-aiuto-permessi-corpo{ background:#0F141A; border-radius:8px; padding:12px 14px; text-align:left; font-size:12.5px; line-height:1.55; color:#C4BCA5; margin-top:10px; }
   .cv-aiuto-permessi-corpo b{ color:#F2F0EC; }
   .cv-aiuto-permessi-corpo ol{ margin:6px 0 12px; padding-left:18px; }
 
   #cv-video-box{ width:100%; aspect-ratio:9/16; max-height:70vh; background:#000; overflow:hidden; position:relative; border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,.35); transition:width .35s ease, max-height .35s ease, border-radius .35s ease; margin:0 auto 12px; }
   @media (orientation: landscape){ #cv-video-box{ aspect-ratio:16/9; max-height:75vh; } }
   #cv-video-box iframe{ width:100% !important; height:100% !important; border:0 !important; display:block; }
-  #cv-video-box.video-piccolo{ width:150px; max-height:none; border-radius:8px; border:2px solid #3A4452; }
+  #cv-video-box.video-piccolo{ width:150px; max-height:none; border-radius:8px; border:2px solid #5C5540; }
   #cv-video-toggle-bar{ display:none; margin-bottom:14px; }
   #cv-video-toggle-bar.visibile{ display:block; }
-  #cv-btn-video-toggle{ display:block; width:100%; font-size:13.5px; font-weight:700; color:#F2F0EC; background:#232B36; border:1px solid #3A4452; border-radius:8px; padding:10px 12px; cursor:pointer; }
+  #cv-btn-video-toggle{ display:block; width:100%; font-size:13.5px; font-weight:700; color:#F2F0EC; background:#453F2E; border:1px solid #5C5540; border-radius:8px; padding:10px 12px; cursor:pointer; }
 
   #cv-chat-toggle-bar{ display:none; margin-bottom:10px; }
   #cv-chat-toggle-bar.visibile{ display:block; }
-  #cv-btn-chat-toggle{ display:block; width:100%; font-size:13.5px; font-weight:700; color:#F2F0EC; background:#232B36; border:1px solid #3A4452; border-radius:8px; padding:10px 12px; cursor:pointer; }
+  #cv-btn-chat-toggle{ display:block; width:100%; font-size:13.5px; font-weight:700; color:#F2F0EC; background:#453F2E; border:1px solid #5C5540; border-radius:8px; padding:10px 12px; cursor:pointer; }
 
   #cv-poll-video-scroll-hint{ position:absolute; left:0; right:0; bottom:0; display:flex; align-items:flex-end; justify-content:center; padding-bottom:8px; pointer-events:none; background:linear-gradient(to top, rgba(0,0,0,.55), rgba(0,0,0,0)); height:54px; }
   #cv-poll-video-scroll-hint span{ color:#fff; font-size:22px; line-height:1; animation:cv-scroll-hint-bounce 1.6s ease-in-out infinite; }
   @keyframes cv-scroll-hint-bounce{ 0%,100%{transform:translateY(0);opacity:.65;} 50%{transform:translateY(6px);opacity:1;} }
   #cv-video-box.video-piccolo #cv-poll-video-scroll-hint{ display:none; }
 
-  .cv-voto-btn{ display:block; width:100%; padding:15px 14px; margin-bottom:9px; font-size:15.5px; font-weight:700; border-radius:8px; border:2px solid #3A4452; background:#232B36; color:#F2F0EC; cursor:pointer; text-align:center; transition:padding .22s ease, font-size .22s ease, opacity .22s ease, border-width .22s ease; }
+  .cv-voto-btn{ display:block; width:100%; padding:15px 14px; margin-bottom:9px; font-size:15.5px; font-weight:700; border-radius:8px; border:2px solid #5C5540; background:#453F2E; color:#F2F0EC; cursor:pointer; text-align:center; transition:padding .22s ease, font-size .22s ease, opacity .22s ease, border-width .22s ease; }
   .cv-voto-btn:active{ transform:scale(0.98); }
   .cv-voto-btn.scelto{ border-color:var(--brass); background:#2C2417; color:#F2F0EC; }
   #cv-lista-opzioni.scelta-fatta .cv-voto-btn{ padding:8px 12px; font-size:12.5px; opacity:.5; }
   #cv-lista-opzioni.scelta-fatta .cv-voto-btn.scelto{ padding:20px 16px; font-size:18px; opacity:1; border-width:3px; box-shadow:0 6px 16px rgba(169,130,44,.25); }
-  #cv-btn-conferma-voto{ display:block; width:100%; padding:16px 14px; margin-top:14px; font-size:17px; font-weight:700; border-radius:8px; border:none; background:#3A4452; color:#B7BEC9; cursor:not-allowed; text-align:center; transition:.15s; }
+  #cv-btn-conferma-voto{ display:block; width:100%; padding:16px 14px; margin-top:14px; font-size:17px; font-weight:700; border-radius:8px; border:none; background:#5C5540; color:#C4BCA5; cursor:not-allowed; text-align:center; transition:.15s; }
   #cv-btn-conferma-voto.attivo{ background:var(--sage,#3E7A54); color:#fff; cursor:pointer; }
-  #cv-conferma-voto-box{ text-align:center; background:#161C24; border:1px solid var(--sage,#3E7A54); border-radius:10px; padding:20px; font-size:17px; font-weight:700; color:var(--sage,#3E7A54); }
-  #cv-conferma-voto-box .sub{ display:block; font-size:13px; font-weight:400; color:#B7BEC9; margin-top:6px; }
-  .cv-odg-punto{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:12px 14px; margin-bottom:8px; background:#232B36; border:1px solid #3A4452; border-radius:8px; font-size:13.5px; font-weight:600; color:#F2F0EC; }
-  .cv-odg-badge{ flex-shrink:0; font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:20px; background:#3A4452; color:#B7BEC9; }
+  #cv-conferma-voto-box{ text-align:center; background:#2A2519; border:1px solid var(--sage,#3E7A54); border-radius:10px; padding:20px; font-size:17px; font-weight:700; color:var(--sage,#3E7A54); }
+  #cv-conferma-voto-box .sub{ display:block; font-size:13px; font-weight:400; color:#C4BCA5; margin-top:6px; }
+  .cv-odg-punto{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:12px 14px; margin-bottom:8px; background:#453F2E; border:1px solid #5C5540; border-radius:8px; font-size:13.5px; font-weight:600; color:#F2F0EC; }
+  .cv-odg-badge{ flex-shrink:0; font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:20px; background:#5C5540; color:#C4BCA5; }
   .cv-esito-riga{ margin-bottom:12px; }
   .cv-esito-riga .etichetta{ display:flex; justify-content:space-between; font-size:13.5px; font-weight:600; margin-bottom:4px; color:#F2F0EC; }
-  .cv-esito-barra-sfondo{ background:#3A4452; border-radius:6px; height:16px; overflow:hidden; }
+  .cv-esito-barra-sfondo{ background:#5C5540; border-radius:6px; height:16px; overflow:hidden; }
   .cv-esito-barra-riempita{ background:var(--brass); height:100%; border-radius:6px 0 0 6px; }
   .cv-esito-riga.mia .cv-esito-barra-riempita{ background:var(--sage,#3E7A54); }
   .cv-esito-riga.mia .etichetta{ color:var(--sage,#3E7A54); }
@@ -376,13 +383,13 @@
   .cv-video iframe{width:100%;height:100%;border:0;}
   .big-action-btn{width:100%;padding:22px;font-size:1.15em;font-weight:600;border-radius:6px;border:2px solid var(--brass);background:var(--brass);color:#1B222B;cursor:pointer;margin-top:16px;}
   .big-action-btn.active{background:var(--brick);border-color:var(--brick);color:#fff;}
-  .big-action-btn.exit{background:transparent;color:#8B93A0;border-color:#3A4452;font-size:0.9em;padding:14px;}
-  .assist-panel{background:#232B36;border:1px solid #3A4452;border-radius:6px;padding:18px;margin-top:18px;}
+  .big-action-btn.exit{background:transparent;color:#A39C88;border-color:#5C5540;font-size:0.9em;padding:14px;}
+  .assist-panel{background:#453F2E;border:1px solid #5C5540;border-radius:6px;padding:18px;margin-top:18px;}
   .assist-panel h3{font-size:1.05em;margin:0 0 4px;font-family:var(--font-display);color:#fff;}
-  .cv-chat-log{max-height:150px;overflow-y:auto;background:#161C24;border:1px solid #3A4452;border-radius:4px;padding:10px 12px;margin-bottom:10px;font-size:0.85em;}
-  .cv-chat-log .chat-msg{color:#D8DEE6;}
+  .cv-chat-log{max-height:150px;overflow-y:auto;background:#2A2519;border:1px solid #5C5540;border-radius:4px;padding:10px 12px;margin-bottom:10px;font-size:0.85em;}
+  .cv-chat-log .chat-msg{color:#E5DEC9;}
   .cv-chat-log .chat-msg b{color:var(--brass-soft);}
-  .cv-poll-option-btn{display:block;width:100%;text-align:left;padding:16px;margin-bottom:10px;border-radius:6px;border:1px solid #3A4452;background:#232B36;color:#F2F0EC;font-size:1em;cursor:pointer;}
+  .cv-poll-option-btn{display:block;width:100%;text-align:left;padding:16px;margin-bottom:10px;border-radius:6px;border:1px solid #5C5540;background:#453F2E;color:#F2F0EC;font-size:1em;cursor:pointer;}
   .cv-poll-option-btn:hover{border-color:var(--brass);}
 </style>
 </head>
@@ -404,7 +411,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 07/08/2026 alle 20:26">LIVE-TEST-8</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 07/08/2026 alle 23:11">LIVE-TEST-9</span></div>
   </div>
 
   <!-- MAIN -->
@@ -899,10 +906,9 @@
               </div>
             </div>
             <div class="card" style="margin-top:18px;">
-              <div class="section-title">🎛 Controlli videoconferenza</div>
-              <button class="btn full" onclick="muteAllMics()">🔇 Spegni tutti i microfoni</button>
-              <div class="note">Riaccendere il microfono di qualcun altro da remoto non è possibile, né qui né su Zoom/Teams: è una tutela della privacy. Ogni condòmino deve riattivarlo da sé — puoi solo chiederglielo a voce.</div>
-              <div id="live-participants-list" style="margin-top:14px;" class="muted">Nessun partecipante ancora collegato alla videoconferenza.</div>
+              <div class="section-title">🎛 Videoconferenza</div>
+              <div class="note">I comandi per silenziare/disattivare un partecipante si trovano direttamente dentro la videochiamata (Digital Samba), non qui — passandoci sopra col mouse o toccandolo su schermo, dentro il riquadro video.</div>
+              <div class="muted" style="margin-top:10px;">Per sapere chi è davvero collegato all'assemblea (non solo alla videochiamata), guarda l'Appello qui sotto: è la fonte affidabile, riconosce ciascuno tramite il proprio link personale.</div>
             </div>
           </div>
 
@@ -1108,7 +1114,7 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
             <h3>Chat</h3>
             <div class="cv-chat-log" id="cv-chat-log"></div>
             <div class="row-inline">
-              <input id="cv-chat-input" placeholder="Scrivi qui..." style="background:#161C24;border-color:#3A4452;color:#F2F0EC;" oninput="segnaAttivitaChatCondomino()">
+              <input id="cv-chat-input" placeholder="Scrivi qui..." style="background:#2A2519;border-color:#5C5540;color:#F2F0EC;" oninput="segnaAttivitaChatCondomino()">
               <button class="btn small brass" onclick="sendChatMessage(currentCondomino?nomeCompletoCondomino(currentCondomino):'Condòmino','cv-chat-input');segnaAttivitaChatCondomino();">Invia</button>
             </div>
           </div>
@@ -2832,7 +2838,16 @@ function renderAppello(){
   const b=getActiveBuilding();
   const assemblea=getAssembleaInCorso(b);
   const tbody=document.getElementById('appello-tbody');
-  if(!tbody || !assemblea) return;
+  if(!tbody) return;
+  if(!assemblea){
+    // Rete di sicurezza: se per un attimo i dati (condominio/assemblea) non sono ancora
+    // arrivati dal database condiviso, meglio dirlo chiaramente che restare in silenzio —
+    // si aggiorna comunque da solo non appena arrivano.
+    tbody.innerHTML = '<tr><td colspan="4" class="muted" style="padding:16px;">⏳ In attesa dei dati dell\'assemblea dal database condiviso...</td></tr>';
+    const startEl=document.getElementById('inizia-assemblea-banner');
+    if(startEl) startEl.innerHTML = '';
+    return;
+  }
   const tq = tabellaQuorum(assemblea, b);
   const convocatiList = b.condomini.filter(c=>assemblea.convocati.selezionati.includes(c.id));
   const rappresentati = convocatiList.filter(c=>convocatoRappresentato(c, assemblea, b));
@@ -3945,31 +3960,21 @@ let jitsiApi = null;
 let liveParticipants = []; // {id, displayName}
 
 function startVideo(){
-  const room = 'Adunanza-Demo-' + Math.random().toString(36).slice(2,8);
+  // Stessa stanza fissa Digital Samba usata dalla vista condòmino (LINK_STANZA_DIGITAL_SAMBA):
+  // prima usavamo Jitsi con una stanza generata a caso ogni volta, tenuta solo nella memoria di
+  // questo browser — un condòmino su un altro dispositivo non aveva alcun modo di saperla, e la
+  // videochiamata restava scollegata. Con una stanza fissa e uguale per tutti, il problema
+  // sparisce da solo: non serve nessuna sincronizzazione apposta.
+  document.getElementById('video-box').innerHTML = `<iframe src="${LINK_STANZA_DIGITAL_SAMBA}"
+    allow="camera; microphone; fullscreen; display-capture; autoplay; clipboard-write"
+    allowfullscreen style="width:100%;height:100%;border:0;"></iframe>`;
 
-  // Vista amministratore: usiamo la External API vera, non un semplice iframe,
-  // perché serve per i comandi di moderazione (muta tutti, muta/disattiva singolo partecipante).
-  document.getElementById('video-box').innerHTML = '';
-  try{
-    jitsiApi = new JitsiMeetExternalAPI('meet.jit.si', {
-      roomName: room,
-      parentNode: document.getElementById('video-box'),
-      width:'100%', height:'100%',
-      configOverwrite:{ prejoinPageEnabled:false },
-      interfaceConfigOverwrite:{ DISABLE_DOMINANT_SPEAKER_INDICATOR:false } // chi parla va in primo piano: comportamento nativo di Jitsi
-    });
-    jitsiApi.addEventListener('participantJoined', p=>{ liveParticipants.push({id:p.id, displayName:p.displayName||'Partecipante'}); renderLiveParticipants(); });
-    jitsiApi.addEventListener('participantLeft', p=>{ liveParticipants = liveParticipants.filter(x=>x.id!==p.id); renderLiveParticipants(); });
-    jitsiApi.addEventListener('displayNameChange', p=>{ const part=liveParticipants.find(x=>x.id===p.id); if(part){ part.displayName=p.displayname||p.displayName||part.displayName; renderLiveParticipants(); } });
-  }catch(e){
-    document.getElementById('video-box').innerHTML = '<div class="video-off">Non sono riuscito a caricare la videoconferenza in questo momento.</div>';
-  }
-
-  // Vista condòmino (anteprima): semplice iframe nella stessa stanza, solo per mostrare il layout
+  // Vista condòmino (anteprima locale, solo per mostrare il layout mentre si lavora qui):
+  // la vera videochiamata del condòmino parte dalla sua pagina, non da qui.
   const cvBox = document.getElementById('cv-video-box');
-  if(cvBox) cvBox.innerHTML = `<iframe src="https://meet.jit.si/${room}#config.prejoinPageEnabled=false" allow="camera; microphone; fullscreen; display-capture"></iframe>`;
+  if(cvBox && cvBox.style.display!=='none') cvBox.innerHTML = `<iframe src="${LINK_STANZA_DIGITAL_SAMBA}" allow="camera; microphone; fullscreen; display-capture"></iframe>`;
 
-  toast('Videoconferenza avviata (Jitsi Meet).');
+  toast('Videoconferenza avviata (Digital Samba) — stessa stanza per tutti i dispositivi collegati.');
 }
 
 function muteAllMics(){
@@ -4822,7 +4827,7 @@ function renderCvPollArea(){
     return;
   }
   if(!currentCondomino){
-    el.innerHTML = `<div class="assist-panel"><h3>Votazione in corso</h3><p class="sub">${escapeHtml(activePoll.question)}</p><p class="muted" style="color:#8B93A0;">Non riconosco chi sei in questa anteprima: non posso farti votare senza sapere quali millesimi usare.</p></div>`;
+    el.innerHTML = `<div class="assist-panel"><h3>Votazione in corso</h3><p class="sub">${escapeHtml(activePoll.question)}</p><p class="muted" style="color:#A39C88;">Non riconosco chi sei in questa anteprima: non posso farti votare senza sapere quali millesimi usare.</p></div>`;
     return;
   }
 
@@ -4850,7 +4855,7 @@ function renderCvPollArea(){
   __cvUltimoPuntoRenderizzato = chiave; __cvUltimoStatoRenderizzato = 'aperto';
   sceltaVotoCorrente = null;
   el.innerHTML = `<div class="assist-panel"><p class="sub" style="margin-bottom:4px;font-weight:700;font-size:16px;color:#F2F0EC;">${escapeHtml(activePoll.question)}</p>
-    <p class="muted" style="color:#8B93A0;margin-bottom:12px;">Voterai con i tuoi ${mieiMillesimi} millesimi (tabella: ${escapeHtml(activePoll.tabella)})</p>
+    <p class="muted" style="color:#A39C88;margin-bottom:12px;">Voterai con i tuoi ${mieiMillesimi} millesimi (tabella: ${escapeHtml(activePoll.tabella)})</p>
     <div id="cv-lista-opzioni"></div>
     <button id="cv-btn-conferma-voto" onclick="confermaVotoCondomino()" disabled>Conferma il voto</button>
   </div>`;
@@ -5598,10 +5603,19 @@ function ricalcolaContatoriId(){
 }
 // Applica un pacchetto di dati ricevuto (da localStorage o dal database condiviso) allo stato
 // dell'app: usata sia dal caricamento normale sia dalla sincronizzazione in tempo reale.
-function applicaDatiRicevuti(parsed){
+function applicaDatiRicevuti(parsed, aggiornaAncheNavigazioneLocale){
   if(!(parsed && Array.isArray(parsed.buildings) && parsed.buildings.length)) return false;
   buildings = parsed.buildings.map(miglioraSchemaBuilding);
-  activeBuildingId = (parsed.activeBuildingId===undefined) ? null : parsed.activeBuildingId;
+  // activeBuildingId indica QUALE pagina/condominio sta guardando QUESTO dispositivo in questo
+  // preciso momento: è un'informazione locale (l'amministratore guarda un condominio, un
+  // condòmino ne vede un altro), non qualcosa da imporre a partire da un aggiornamento arrivato
+  // da un ALTRO dispositivo tramite il database condiviso — altrimenti rischierebbe di "strappare
+  // via" la persona dalla pagina che stava guardando ogni volta che arriva un aggiornamento.
+  // La ripristiniamo SOLO al primo caricamento della pagina (per riprendere l'ultima posizione
+  // su QUESTO stesso dispositivo/scheda), mai per gli aggiornamenti successivi in tempo reale.
+  if(aggiornaAncheNavigazioneLocale){
+    activeBuildingId = (parsed.activeBuildingId===undefined) ? null : parsed.activeBuildingId;
+  }
   activePoll = deserializzaPoll(parsed.activePoll);
   activePollOdgId = parsed.activePollOdgId || null;
   amministratore = Object.assign(amministratoreVuoto(), parsed.amministratore||{});
@@ -5622,7 +5636,7 @@ function caricaStato(){
   try{
     const raw = localStorage.getItem('adunanza_stato_v1');
     if(!raw) return false;
-    return applicaDatiRicevuti(JSON.parse(raw));
+    return applicaDatiRicevuti(JSON.parse(raw), true);
   }catch(e){}
   return false;
 }
@@ -5642,7 +5656,12 @@ function rirenderizzaDopoSincronizzazione(){
 }
 caricaStato();
 aggiornaNomeStudioTopbar();
-setInterval(salvaStato, 2000);
+// Il salvataggio automatico ogni 2 secondi è stato tolto: con più dispositivi collegati allo
+// stesso database condiviso, rischiava di sovrascrivere per un attimo un dato appena arrivato
+// da un altro dispositivo (es. un messaggio in chat, una mano alzata), prima che questa pagina
+// avesse fatto in tempo a riceverlo ed elaborarlo — causando ritardi e aggiornamenti persi.
+// Ogni azione reale (voto, messaggio, mano alzata, avvio sondaggio...) chiama già salvaStato()
+// esplicitamente subito dopo essere avvenuta: non serve più un salvataggio "alla cieca" a tempo.
 window.addEventListener('beforeunload', salvaStato);
 window.addEventListener('beforeunload', function(e){
   if(draftBuilding){ e.preventDefault(); e.returnValue=''; }
@@ -5683,7 +5702,7 @@ function collegaAscoltoFirebase(){
     return;
   }
   window.__fbAscoltaStato((dati)=>{
-    const applicato = applicaDatiRicevuti(dati);
+    const applicato = applicaDatiRicevuti(dati, false);
     if(!__primoDatoFirebaseGestito){
       __primoDatoFirebaseGestito = true;
       // Se c'è un token nel link, questa è la prima occasione utile per riconoscere davvero
