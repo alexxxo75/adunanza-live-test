@@ -2166,7 +2166,10 @@ function handleExcelUpload(evt){
         const email=String(r[keyEmail]||'').trim();
         const interno=keyInterno? String(r[keyInterno]||'').trim() : '';
         const unita=keyUnita? String(r[keyUnita]||'').trim() : '';
-        if(!nome || !email) return;
+        // Il nome è l'unico dato davvero indispensabile: l'email può mancare (es. condòmini
+        // anziani senza indirizzo email) — vengono comunque creati, semplicemente non
+        // riceveranno le convocazioni via email finché non gliene viene aggiunta una a mano.
+        if(!nome) return;
         const millesimiGrezzi={};
         millesimiCols.forEach(mc=>{ millesimiGrezzi[mc.tabella] = parseNumeroDecimale(r[mc.header]); });
         righeValide.push({nome, cognome, email, interno, unita, millesimiGrezzi});
@@ -2190,16 +2193,18 @@ function handleExcelUpload(evt){
       building.tabelleMillesimali = [];
       millesimiCols.forEach(mc=>{ if(!building.tabelleMillesimali.includes(mc.tabella)) building.tabelleMillesimali.push(mc.tabella); });
 
-      let importati=0;
+      let importati=0, senzaEmail=0;
       righeValide.forEach(ri=>{
         const millesimi={};
         building.tabelleMillesimali.forEach(t=>millesimi[t]=0);
         millesimiCols.forEach(mc=>{ millesimi[mc.tabella] = arrotondaMillesimi(ri.millesimiGrezzi[mc.tabella]*fattoreScala[mc.tabella]); });
         building.condomini.push({id:idCounter++, nome:ri.nome, cognome:ri.cognome, interno:ri.interno, unita:ri.unita, email:ri.email, millesimi, invitato:false, gruppoCon:null, token: Math.random().toString(36).slice(2,10)});
         importati++;
+        if(!ri.email) senzaEmail++;
       });
       const notaScala = tabelleScalateNote.length ? ` Nota: per ${tabelleScalateNote.join(', ')} ho rilevato valori 1000 volte più grandi del previsto e li ho divisi automaticamente per 1000 — controlla i totali qui sotto.` : '';
-      feedback.textContent = `Anagrafica sostituita: ${importati} righe caricate su "${building.nome}" — tabelle millesimali rilevate: ${millesimiCols.map(m=>m.tabella).join(', ')}.${notaScala}`;
+      const notaSenzaEmail = senzaEmail ? ` Attenzione: ${senzaEmail} condòmin${senzaEmail===1?'o è':'i sono'} senza email — sono stati creati comunque, ma non riceveranno le convocazioni finché non gliene aggiungi una in anagrafica.` : '';
+      feedback.textContent = `Anagrafica sostituita: ${importati} righe caricate su "${building.nome}" — tabelle millesimali rilevate: ${millesimiCols.map(m=>m.tabella).join(', ')}.${notaScala}${notaSenzaEmail}`;
       renderCondomini();
       toast('Anagrafica sostituita con il nuovo file Excel.');
     }catch(err){
