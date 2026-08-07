@@ -793,7 +793,7 @@
             <input type="checkbox" id="ca-remind-30min" onchange="toggleRemind30Min(this.checked)" style="width:20px;height:20px;flex-shrink:0;"> Invio programmato automatico 30 minuti prima dell'assemblea
           </label>
           <div id="ca-sched-list" style="margin-top:12px;"></div>
-          <div class="note">In questa demo gli invii programmati restano solo elencati: non partono davvero a browser chiuso. In produzione basta un servizio email con invio schedulato o un job pianificato lato server.</div>
+          <div class="note">⚠️ Attenzione: questi invii PROGRAMMATI restano solo elencati qui, non partono davvero all'orario previsto (serve un servizio di invio schedulato o un job lato server, non presente in questa fase di test). L'invio VERO e IMMEDIATO è invece quello del pulsante "✉ Salva e invia le email" qui sopra.</div>
         </div>
 
         <div class="card assemblea-row-card" style="margin-bottom:18px;">
@@ -3775,7 +3775,7 @@ function renderAnteprimeEmailConvocazione(a, b){
     const div=document.createElement('div');
     div.className='email-preview';
     div.innerHTML=`
-      <div class="email-head">Da: <b>${(amministratore.indirizzoMittente && amministratore.indirizzoMittente.trim()) ? amministratore.indirizzoMittente : 'assemblee@'+b.nome.toLowerCase().replace(/[^a-z0-9]+/g,'')+'.it'}</b> (indirizzo automatico, non risponde a questa email)<br>A: <b>${c.email}</b><br>Oggetto: <b>${escapeHtml(a.oggetto)}</b></div>
+      <div class="email-head">Anteprima — verrà inviata davvero dal Gmail collegato a EmailJS (non da questo indirizzo dimostrativo)<br>A: <b>${c.email}</b><br>Oggetto: <b>${escapeHtml(a.oggetto)}</b></div>
       <div class="email-body">${corpo}</div>`;
     box.appendChild(div);
   });
