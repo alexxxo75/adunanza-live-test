@@ -315,8 +315,8 @@
   .chat-msg.admin b{color:var(--brass);}
 
   /* VISTA CONDOMINO — grande, semplice, accessibile, TEMA SCURO (risparmio batteria OLED) */
-  .condomino-shell{background:#3D3729;min-height:100vh;padding:26px;}
-  .condomino-view{max-width:760px;margin:0 auto;background:#332E22;border-radius:8px;padding:28px;font-size:var(--cv-scale, 17px);color:#F2F0EC;}
+  .condomino-shell{background:#524A38;min-height:100vh;padding:26px;}
+  .condomino-view{max-width:760px;margin:0 auto;background:#463F2F;border-radius:8px;padding:28px;font-size:var(--cv-scale, 17px);color:#F2F0EC;}
   .condomino-view h1{font-size:1.7em;color:#fff;font-family:var(--font-display);margin:0 0 6px;}
   .condomino-view .sub{font-size:0.95em;color:#C4BCA5;}
   /* Su schermi piccoli (telefono, il caso reale d'uso per un condòmino): via la barra con
@@ -381,7 +381,7 @@
   .cv-esito-riga.mia .etichetta{ color:var(--sage,#3E7A54); }
   .cv-video{background:#000;border-radius:6px;overflow:hidden;aspect-ratio:16/10;margin-bottom:16px;}
   .cv-video iframe{width:100%;height:100%;border:0;}
-  .big-action-btn{width:100%;padding:22px;font-size:1.15em;font-weight:600;border-radius:6px;border:2px solid var(--brass);background:var(--brass);color:#1B222B;cursor:pointer;margin-top:16px;}
+  .big-action-btn{width:100%;padding:11px;font-size:1.15em;font-weight:600;border-radius:6px;border:2px solid var(--brass);background:var(--brass);color:#1B222B;cursor:pointer;margin-top:16px;}
   .big-action-btn.active{background:var(--brick);border-color:var(--brick);color:#fff;}
   .big-action-btn.exit{background:transparent;color:#A39C88;border-color:#5C5540;font-size:0.9em;padding:14px;}
   .assist-panel{background:#453F2E;border:1px solid #5C5540;border-radius:6px;padding:18px;margin-top:18px;}
@@ -411,7 +411,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 08/08/2026 alle 01:41">LIVE-TEST-12</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 08/08/2026 alle 01:54">LIVE-TEST-15</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1068,16 +1068,6 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
     <div class="page hidden" id="page-vista-condomino" style="margin:-30px -44px;">
       <div class="condomino-shell">
         <div class="condomino-view" id="condomino-view-box">
-          <div class="condomino-topbar">
-            <button class="big-action-btn exit" style="margin:0;width:auto;padding:10px 16px;" onclick="goPage('assemblea')">← Vista amministratore</button>
-            <div class="font-ctrl">
-              <button class="font-btn" onclick="adjustFontScale(-1)">A-</button>
-              <button class="font-btn" onclick="adjustFontScale(1)">A+</button>
-            </div>
-          </div>
-          <h1 id="cv-building-name">Assemblea</h1>
-          <p class="sub" id="cv-welcome">—</p>
-
           <div id="cv-video-wrap">
             <div id="cv-pre-ingresso">
               <p class="titolo">📹 Pronto per entrare</p>
@@ -1101,6 +1091,9 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
               <button id="cv-btn-chat-toggle" onclick="apriChatConTastoCondomino()">💬 Chat</button>
             </div>
           </div>
+
+          <h1 id="cv-building-name">Assemblea</h1>
+          <p class="sub" id="cv-welcome">—</p>
 
           <button class="big-action-btn" id="cv-hand-btn" onclick="toggleHandRaise()">✋ Alza la mano</button>
 
@@ -1517,6 +1510,11 @@ function initFromUrlToken(){
       const delegaParam = params.get('delega');
       if(delegaParam){ contestoDelegaAssembleaId = parseInt(delegaParam); return true; }
       segnaOnlinePerLinkPersonale(b, c.id);
+      // Fondamentale ora che gira su dispositivi diversi: nella vecchia demo (un solo browser)
+      // non serviva salvare, perché amministratore e condòmino condividevano la stessa memoria.
+      // Qui, senza questo salvataggio, il condòmino risultava "online" solo nella memoria del
+      // proprio telefono — l'amministratore, su un altro dispositivo, non lo vedeva mai.
+      salvaStato();
       return true;
     }
   }
@@ -5060,6 +5058,18 @@ ${sondaggioTxt}
 
 Struttura il verbale con: intestazione, presenti/assenti, ordine del giorno numerato, discussione sintetica per ogni punto, delibere assunte con relativo esito di voto, chiusura seduta con orario. Usa un tono formale ma scorrevole. Non aggiungere commenti fuori dal testo del verbale.`;
 
+  const idCondominioPerVerbale = buildingAttivo.id;
+  const idAssembleaPerVerbale = assemblea.id;
+  // Recupera gli oggetti VERI e aggiornati (non quelli catturati prima dell'attesa): la
+  // generazione del verbale può richiedere alcuni secondi (una vera chiamata di rete), e in
+  // quell'attesa un aggiornamento dal database condiviso potrebbe aver sostituito l'intero
+  // elenco dei dati — scrivere sul riferimento vecchio, ormai "staccato", farebbe perdere il
+  // verbale in silenzio, esattamente come segnalato.
+  function recuperaRiferimentiFreschiPerVerbale(){
+    const bFresco = buildings.find(x=>x.id===idCondominioPerVerbale);
+    const aFresco = bFresco ? (bFresco.assemblee||[]).find(x=>x.id===idAssembleaPerVerbale) : null;
+    return {bFresco, aFresco};
+  }
   try{
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method:"POST",
@@ -5078,7 +5088,8 @@ Struttura il verbale con: intestazione, presenti/assenti, ordine del giorno nume
       `<div class="verbale-doc">${logoOSigilloVerbale(buildingAttivo.nome)}<h4>Verbale d'assemblea</h4>${escapeHtml(testo)}${tabelleHtml}</div>
        <button class="btn small secondary" style="margin-top:12px;" onclick="scaricaVerbale()">Scarica verbale (.txt)</button>`;
     window._verbaleTesto = testo + tabelleTesto;
-    assemblea.verbale = testo + tabelleTesto;
+    const {aFresco} = recuperaRiferimentiFreschiPerVerbale();
+    if(aFresco) aFresco.verbale = testo + tabelleTesto;
     salvaStato();
     toast('Verbale generato con IA.');
   }catch(e){
@@ -5093,7 +5104,8 @@ Struttura il verbale con: intestazione, presenti/assenti, ordine del giorno nume
       <div class="verbale-doc">${logoOSigilloVerbale(buildingAttivo.nome)}<h4>Verbale d'assemblea</h4>${escapeHtml(testoFallback)}${tabelleHtml}</div>
        <button class="btn small secondary" style="margin-top:12px;" onclick="scaricaVerbale()">Scarica verbale (.txt)</button>`;
     window._verbaleTesto = testoFallback + tabelleTesto;
-    assemblea.verbale = testoFallback + tabelleTesto;
+    const {aFresco} = recuperaRiferimentiFreschiPerVerbale();
+    if(aFresco) aFresco.verbale = testoFallback + tabelleTesto;
     salvaStato();
     toast('IA non disponibile: generato un verbale con modello a testo fisso.');
   }
@@ -5391,7 +5403,10 @@ function terminaAssemblea(){
   const b=getActiveBuilding();
   const a=getAssembleaInCorso(b);
   if(!a){ toast('Nessuna assemblea in corso.'); return; }
-  const prossima = a.assembleaSuccessivaId ? b.assemblee.find(x=>x.id===a.assembleaSuccessivaId) : null;
+  const idCondominio = b.id;
+  const idAssemblea = a.id;
+  const idProssima = a.assembleaSuccessivaId || null;
+  const prossima = idProssima ? b.assemblee.find(x=>x.id===idProssima) : null;
 
   const messaggioConferma = prossima
     ? `Vuoi terminare l'assemblea "${a.oggetto||a.dataSeconda||''}"? Si passerà subito alla prossima assemblea concatenata ("${prossima.oggetto||'(oggetto non indicato)'}") nella STESSA videochiamata, senza disconnettere nessuno.`
@@ -5408,6 +5423,20 @@ function terminaAssemblea(){
       await generaVerbale();
     }
 
+    // Ritroviamo gli oggetti VERI e aggiornati: la generazione del verbale può richiedere
+    // alcuni secondi (una vera chiamata di rete), e in quell'attesa un aggiornamento dal
+    // database condiviso potrebbe aver sostituito l'intero elenco dei dati — continuare a
+    // scrivere sul riferimento catturato PRIMA dell'attesa (ormai "staccato") farebbe perdere
+    // in silenzio proprio le modifiche più importanti (assemblea chiusa, verbale, archiviazione),
+    // esattamente il comportamento segnalato: sembra funzionare ma non si salva nulla.
+    const bReale = buildings.find(x=>x.id===idCondominio);
+    const aReale = bReale ? (bReale.assemblee||[]).find(x=>x.id===idAssemblea) : null;
+    if(!bReale || !aReale){
+      toast('Errore: condominio o assemblea non più trovati (dati cambiati nel frattempo). Riprova.');
+      return;
+    }
+    const prossimaReale = idProssima ? (bReale.assemblee||[]).find(x=>x.id===idProssima) : null;
+
     // 3) ferma e salva SEMPRE la registrazione di questa assemblea: ogni assemblea deve avere
     // la propria registrazione distinta archiviata con il proprio verbale, anche se subito dopo
     // ne parte una nuova per la prossima della catena.
@@ -5416,11 +5445,11 @@ function terminaAssemblea(){
     const oggi=new Date();
     const scadenza=new Date(oggi.getTime()+(amministratore.durataRegistrazioneGiorni||DURATA_REGISTRAZIONE_GIORNI)*24*60*60*1000);
     const scadenzaStr = `${String(scadenza.getDate()).padStart(2,'0')}/${String(scadenza.getMonth()+1).padStart(2,'0')}/${scadenza.getFullYear()}`;
-    a.registrazioneAttiva = eraInRegistrazione;
-    a.registrazioneScadenza = a.registrazioneAttiva ? scadenzaStr : null;
+    aReale.registrazioneAttiva = eraInRegistrazione;
+    aReale.registrazioneScadenza = aReale.registrazioneAttiva ? scadenzaStr : null;
 
     // 4) questa assemblea è comunque conclusa, con il proprio verbale distinto
-    a.stato = 'conclusa';
+    aReale.stato = 'conclusa';
     activePoll=null; activePollOdgId=null;
     // Se un sondaggio era rimasto aperto (l'amministratore ha premuto "Termina" senza prima
     // chiuderlo), il suo riquadro fisico andrebbe altrimenti nascosto solo da closePoll(): qui
@@ -5430,19 +5459,19 @@ function terminaAssemblea(){
     if(nodoSondaggioAttivo) nodoSondaggioAttivo.classList.add('hidden');
     window._verbaleTesto = null;
 
-    if(prossima){
+    if(prossimaReale){
       // Passa alla prossima assemblea della catena, nella stessa videochiamata: chi è ancora
       // collegato viene portato con sé (stesso orario di ingresso), e verrà rivalutato sulla
       // lista dei convocati della nuova assemblea in renderAppello (semaforo rosso se non
       // convocato per questa specifica assemblea).
-      const attiviOnline = a.appello.online.filter(r=>!r.uscita);
-      const attiviPresenza = a.appello.presenzeFisiche.filter(r=>!r.uscita);
-      prossima.appello.online = attiviOnline.map(r=>({...r}));
-      prossima.appello.presenzeFisiche = attiviPresenza.map(r=>({...r}));
-      prossima.stato = 'in-corso';
-      prossima.iniziata = true;
-      prossima.oraInizio = oraAdesso();
-      b.assembleaInCorsoId = prossima.id;
+      const attiviOnline = aReale.appello.online.filter(r=>!r.uscita);
+      const attiviPresenza = aReale.appello.presenzeFisiche.filter(r=>!r.uscita);
+      prossimaReale.appello.online = attiviOnline.map(r=>({...r}));
+      prossimaReale.appello.presenzeFisiche = attiviPresenza.map(r=>({...r}));
+      prossimaReale.stato = 'in-corso';
+      prossimaReale.iniziata = true;
+      prossimaReale.oraInizio = oraAdesso();
+      bReale.assembleaInCorsoId = prossimaReale.id;
       // Si avvia automaticamente una nuova registrazione per questa prossima assemblea: ogni
       // assemblea della catena ha la propria registrazione distinta, coerente con l'avere un
       // proprio verbale separato.
@@ -5452,18 +5481,18 @@ function terminaAssemblea(){
       const outputVerbale=document.getElementById('verbale-output');
       if(outputVerbale) outputVerbale.innerHTML='';
       salvaStato();
-      toast(`"${a.oggetto||'Assemblea'}" conclusa (registrazione salvata). Si prosegue ora con "${prossima.oggetto||'la prossima assemblea'}": nuova registrazione avviata automaticamente, stessa videochiamata.`);
+      toast(`"${aReale.oggetto||'Assemblea'}" conclusa (registrazione salvata). Si prosegue ora con "${prossimaReale.oggetto||'la prossima assemblea'}": nuova registrazione avviata automaticamente, stessa videochiamata.`);
       renderNavSubmenu();
       goPage('assemblea');
     }else{
       // Nessuna assemblea in coda: archiviazione normale, come sempre
-      b.assembleaInCorsoId = null;
+      bReale.assembleaInCorsoId = null;
       liveParticipants = [];
       salvaStato();
-      toast(`Assemblea terminata e archiviata. ${a.registrazioneAttiva ? 'Video disponibile fino al '+scadenzaStr+'.' : ''}`);
+      toast(`Assemblea terminata e archiviata. ${aReale.registrazioneAttiva ? 'Video disponibile fino al '+scadenzaStr+'.' : ''}`);
       renderNavSubmenu();
       goPage('registrazioni');
-      evidenziaAssembleaInArchivio(a.id);
+      evidenziaAssembleaInArchivio(aReale.id);
     }
   };
   generaEProsegui();
