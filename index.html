@@ -384,7 +384,7 @@
   .chat-msg.admin b{color:var(--brass);}
 
   /* VISTA CONDOMINO — grande, semplice, accessibile, TEMA SCURO (risparmio batteria OLED) */
-  .condomino-shell{background:#524A38;min-height:100vh;padding:10px 26px 26px;}
+  .condomino-shell{background:#EFF0F2;min-height:100vh;padding:10px 26px 26px;}
   .condomino-view{max-width:760px;margin:0 auto;background:#463F2F;border-radius:8px;padding:14px 20px 28px;font-size:var(--cv-scale, 17px);color:#F2F0EC;}
   .condomino-view h1{font-size:13px;font-weight:600;color:#fff;font-family:var(--font-display);margin:0 0 10px;background:#000;text-align:center;padding:8px 12px;border-radius:6px;}
   .condomino-view .sub{font-size:0.95em;color:#C4BCA5;}
@@ -483,7 +483,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 08/08/2026 alle 16:21">LIVE-TEST-26</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 08/08/2026 alle 16:47">LIVE-TEST-27</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1143,6 +1143,11 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
       <div class="condomino-shell">
         <div class="condomino-view" id="condomino-view-box">
           <h1 id="cv-building-name">Assemblea</h1>
+          <div id="cv-schermata-rientro" class="assist-panel hidden" style="text-align:center;padding:30px 20px;">
+            <p style="font-size:16px;font-weight:700;margin-bottom:10px;">Sei uscito dall'assemblea</p>
+            <p class="muted" style="color:#A39C88;margin-bottom:18px;">La tua uscita è stata registrata. Se vuoi rientrare, tocca qui sotto.</p>
+            <button class="big-action-btn" onclick="rientraInAssemblea()">↩ Rientra in assemblea</button>
+          </div>
           <div id="cv-video-wrap">
             <div id="cv-pre-ingresso">
               <p class="titolo">📹 Pronto per entrare</p>
@@ -1171,7 +1176,9 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
               <div class="cv-chat-log" id="cv-chat-log"></div>
               <div class="row-inline">
                 <input id="cv-chat-input" placeholder="Scrivi qui..." style="background:#2A2519;border-color:#8C7D57;color:#F2F0EC;" oninput="segnaAttivitaChatCondomino()">
-                <button class="btn small brass" onclick="sendChatMessage(currentCondomino?nomeCompletoCondomino(currentCondomino):'Condòmino','cv-chat-input');segnaAttivitaChatCondomino();">Invia</button>
+                <button class="btn small brass" style="width:44px;height:44px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;" onclick="sendChatMessage(currentCondomino?nomeCompletoCondomino(currentCondomino):'Condòmino','cv-chat-input');segnaAttivitaChatCondomino();" aria-label="Invia">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M8 5v14l11-7L8 5z" fill="#1B222B"/></svg>
+                </button>
               </div>
             </div>
           </div>
@@ -1179,7 +1186,7 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
           <p class="sub" id="cv-welcome">—</p>
 
           <button class="big-action-btn" id="cv-hand-btn" onclick="toggleHandRaise()">✋ Alza la mano</button>
-          <button class="big-action-btn" id="cv-esci-btn" onclick="esciDaAssemblea()" style="background:#5C1A1A;border-color:#5C1A1A;color:#fff;margin-top:10px;">🚪 Esci assemblea</button>
+          <button class="big-action-btn" id="cv-esci-btn" onclick="esciDaAssemblea()" style="background:#5C1A1A;border-color:#5C1A1A;color:#fff;margin-top:10px;">🚪 Lascia l'assemblea</button>
 
           <div id="cv-poll-area"></div>
         </div>
@@ -1543,6 +1550,7 @@ function chatArr(){
   return a.chatMessages;
 }
 let currentCondomino = null; // il condòmino "autenticato" in questa vista — riconosciuto via token o selezionato in anteprima
+let usciteVolontariamenteInAttesaDiRientro = false; // true se questo dispositivo ha premuto "Lascia assemblea" ed è tornato sulla pagina senza aver ancora toccato "Rientra"
 let fontScale = 17;
 
 function getActiveBuilding(){ return buildings.find(b=>b.id===activeBuildingId); }
@@ -1583,6 +1591,16 @@ function initFromUrlToken(){
       activeBuildingId=b.id; currentCondomino=c;
       const delegaParam = params.get('delega');
       if(delegaParam){ contestoDelegaAssembleaId = parseInt(delegaParam); return true; }
+      const assembleaCorrenteToken = getAssembleaInCorso(b);
+      const chiaveUscita = assembleaCorrenteToken ? ('adunanza_uscito_'+assembleaCorrenteToken.id+'_'+c.id) : null;
+      // Se questo stesso dispositivo aveva già dichiarato di essere uscito volontariamente da
+      // QUESTA assemblea (premendo "Lascia assemblea"), non lo rimarchiamo online in automatico
+      // solo perché ha riaperto il link (es. tornando indietro nel browser dopo essere usciti):
+      // aspettiamo un tocco esplicito di "Rientra in assemblea" prima di segnarlo di nuovo.
+      if(chiaveUscita && localStorage.getItem(chiaveUscita)==='true'){
+        usciteVolontariamenteInAttesaDiRientro = true;
+        return true;
+      }
       // Fondamentale ora che gira su dispositivi diversi: nella vecchia demo (un solo browser)
       // non serviva salvare, perché amministratore e condòmino condividevano la stessa memoria.
       // Qui, senza applicarlo anche sui dati veri del server (non solo in locale), il condòmino
@@ -4749,6 +4767,8 @@ function esciDaAssemblea(){
   if(!confirm('Vuoi uscire dall\'assemblea? La tua uscita verrà registrata con l\'orario.')) return;
   const idCondomino = currentCondomino.id;
   const oraOra = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+  const b = getActiveBuilding();
+  const assembleaCorrente = b ? getAssembleaInCorso(b) : null;
   function applicaUscita(){
     buildings.forEach(bb=>{
       const a = getAssembleaInCorso(bb);
@@ -4765,10 +4785,37 @@ function esciDaAssemblea(){
     // la pagina un istante dopo, il server proverebbe a registrare un'uscita già registrata —
     // innocuo, ma inutile) e lo segnaliamo esplicitamente come uscita volontaria.
     if(window.__fbRegistraUscitaVolontaria) window.__fbRegistraUscitaVolontaria(idCondomino);
+    // Ricordiamo, in questo stesso browser, che siamo usciti volontariamente da QUESTA
+    // assemblea: se si torna su questa pagina (es. premendo "indietro" nel browser dopo essere
+    // usciti), non verremo rimarcati online in automatico solo per aver riaperto il link — serve
+    // un tocco esplicito su "Rientra in assemblea".
+    if(assembleaCorrente){
+      try{ localStorage.setItem('adunanza_uscito_'+assembleaCorrente.id+'_'+idCondomino, 'true'); }catch(e){}
+    }
   }catch(e){
     console.error('[Adunanza] Registrazione uscita fallita:', e);
   }
   window.location.href = 'https://www.google.it';
+}
+function rientraInAssemblea(){
+  if(!currentCondomino) return;
+  const b = getActiveBuilding();
+  const assembleaCorrente = b ? getAssembleaInCorso(b) : null;
+  if(assembleaCorrente){
+    try{ localStorage.removeItem('adunanza_uscito_'+assembleaCorrente.id+'_'+currentCondomino.id); }catch(e){}
+  }
+  usciteVolontariamenteInAttesaDiRientro = false;
+  const idCondominoToken = currentCondomino.id;
+  try{
+    eseguiConUnioneSuServer(()=>{
+      const bCorrente = getActiveBuilding();
+      if(bCorrente) segnaOnlinePerLinkPersonale(bCorrente, idCondominoToken);
+    });
+    if(window.__fbRegistraPresenza) window.__fbRegistraPresenza(idCondominoToken);
+  }catch(e){
+    console.error('[Adunanza] Rientro in assemblea fallito:', e);
+  }
+  renderVistaCondomino();
 }
 function renderHandsList(){
   const inlineEl=document.getElementById('hands-inline-control');
@@ -4816,14 +4863,23 @@ function renderChat(elId){
 
 // ---------- VISTA CONDOMINO ----------
 function renderVistaCondomino(){
-  document.getElementById('cv-building-name').textContent = getActiveBuilding().nome;
+  document.getElementById('cv-building-name').textContent = 'Condominio ' + getActiveBuilding().nome;
   document.getElementById('condomino-view-box').style.setProperty('--cv-scale', fontScale+'px');
   const welcomeEl = document.getElementById('cv-welcome');
   if(welcomeEl){
     welcomeEl.textContent = currentCondomino
-      ? `Accesso riconosciuto come ${nomeCompletoCondomino(currentCondomino)}`
+      ? `Accesso come ${nomeCompletoCondomino(currentCondomino)}`
       : 'Nessun condòmino riconosciuto — apri questa vista dal link personale o dal selettore "Anteprima come..." nella Sala assemblea.';
   }
+  const schermataRientro = document.getElementById('cv-schermata-rientro');
+  const restoContenuto = [document.getElementById('cv-video-wrap'), document.getElementById('cv-hand-btn'), document.getElementById('cv-esci-btn'), document.getElementById('cv-poll-area')];
+  if(usciteVolontariamenteInAttesaDiRientro){
+    if(schermataRientro) schermataRientro.classList.remove('hidden');
+    restoContenuto.forEach(el=>{ if(el) el.classList.add('hidden'); });
+    return;
+  }
+  if(schermataRientro) schermataRientro.classList.add('hidden');
+  restoContenuto.forEach(el=>{ if(el) el.classList.remove('hidden'); });
   renderChatCondomino();
   renderCvPollArea();
   const btn=document.getElementById('cv-hand-btn');
