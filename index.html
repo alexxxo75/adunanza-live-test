@@ -31,7 +31,7 @@
   // funzioni che servono vengono "esposte" su window, così il resto del codice (scritto in modo
   // tradizionale) può richiamarle normalmente, senza dover riscrivere tutto in moduli.
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getDatabase, ref, set, onValue, off, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+  import { getDatabase, ref, set, onValue, off, runTransaction, onDisconnect, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBz8btTKtturX6pre9ZmEjb9paowF1Q5Fc",
@@ -48,6 +48,27 @@
   // database condiviso: stesso identico principio già usato e collaudato nei file di prova
   // voto-condominio/regia-condominio, solo applicato qui a tutta Adunanza.
   const statoRef = ref(db, 'adunanza_stato_condiviso');
+  // Nodo SEPARATO, apposta per rilevare quando un condòmino chiude il browser o perde la
+  // connessione: Firebase offre "onDisconnect", un meccanismo che gira DIRETTAMENTE sul server,
+  // non sul telefono — così registra l'uscita anche se il dispositivo si spegne di colpo, senza
+  // fare in tempo a eseguire altro codice (cosa che un normale evento "sto per chiudere la
+  // pagina" non può garantire).
+  const presenzaRefBase = ref(db, 'adunanza_presenza');
+  window.__fbRegistraPresenza = function(condominoId){
+    const mioRef = ref(db, 'adunanza_presenza/' + condominoId);
+    set(mioRef, {stato:'online', quando: serverTimestamp()});
+    // Appena la connessione con QUESTO dispositivo si interrompe (chiusura del browser,
+    // spegnimento, perdita di rete...), il server stesso scrive questo al posto nostro.
+    onDisconnect(mioRef).set({stato:'uscito_disconnessione', quando: serverTimestamp()});
+  };
+  window.__fbRegistraUscitaVolontaria = function(condominoId){
+    const mioRef = ref(db, 'adunanza_presenza/' + condominoId);
+    onDisconnect(mioRef).cancel(); // usciamo volontariamente: non serve più il "piano B" automatico
+    return set(mioRef, {stato:'uscito_volontario', quando: serverTimestamp()});
+  };
+  window.__fbAscoltaPresenza = function(callback){
+    onValue(presenzaRefBase, (snapshot)=>{ callback(snapshot.val()||{}); });
+  };
 
   window.__fbScriviStato = function(dati){
     // Scrittura "sicura" (transazione atomica): prima di scrivere, Firebase stesso controlla
@@ -462,7 +483,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 08/08/2026 alle 16:11">LIVE-TEST-25</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 08/08/2026 alle 16:21">LIVE-TEST-26</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1158,6 +1179,7 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
           <p class="sub" id="cv-welcome">—</p>
 
           <button class="big-action-btn" id="cv-hand-btn" onclick="toggleHandRaise()">✋ Alza la mano</button>
+          <button class="big-action-btn" id="cv-esci-btn" onclick="esciDaAssemblea()" style="background:#5C1A1A;border-color:#5C1A1A;color:#fff;margin-top:10px;">🚪 Esci assemblea</button>
 
           <div id="cv-poll-area"></div>
         </div>
@@ -1577,6 +1599,11 @@ function initFromUrlToken(){
           const bCorrente = buildings.find(x=>x.id===idBuildingToken);
           if(bCorrente) segnaOnlinePerLinkPersonale(bCorrente, idCondominoToken);
         });
+        // Registriamo la presenza di questo dispositivo: se la connessione si interrompe
+        // all'improvviso (chiusura del browser, telefono spento, rete persa), il server stesso
+        // se ne accorgerà e registrerà l'uscita al posto nostro — non serve che il telefono
+        // faccia in tempo a eseguire altro codice in quel momento.
+        if(window.__fbRegistraPresenza) window.__fbRegistraPresenza(idCondominoToken);
       }catch(e){
         console.error('[Adunanza] Segnalazione online fallita (il riconoscimento del condòmino prosegue comunque):', e);
       }
@@ -4717,6 +4744,32 @@ function toggleHandRaise(){
   }
   renderHandsList();
 }
+function esciDaAssemblea(){
+  if(!currentCondomino){ window.location.href='https://www.google.it'; return; }
+  if(!confirm('Vuoi uscire dall\'assemblea? La tua uscita verrà registrata con l\'orario.')) return;
+  const idCondomino = currentCondomino.id;
+  const oraOra = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+  function applicaUscita(){
+    buildings.forEach(bb=>{
+      const a = getAssembleaInCorso(bb);
+      if(!a) return;
+      const recOn = (a.appello.online||[]).find(r=>r.condominoId===idCondomino && !r.uscita);
+      if(recOn) recOn.uscita = oraOra;
+      const recPres = (a.appello.presenzeFisiche||[]).find(r=>r.condominoId===idCondomino && !r.uscita);
+      if(recPres) recPres.uscita = oraOra;
+    });
+  }
+  try{
+    eseguiConUnioneSuServer(applicaUscita);
+    // Usciamo di proposito: annulliamo il "piano B" automatico (altrimenti, chiudendo comunque
+    // la pagina un istante dopo, il server proverebbe a registrare un'uscita già registrata —
+    // innocuo, ma inutile) e lo segnaliamo esplicitamente come uscita volontaria.
+    if(window.__fbRegistraUscitaVolontaria) window.__fbRegistraUscitaVolontaria(idCondomino);
+  }catch(e){
+    console.error('[Adunanza] Registrazione uscita fallita:', e);
+  }
+  window.location.href = 'https://www.google.it';
+}
 function renderHandsList(){
   const inlineEl=document.getElementById('hands-inline-control');
   const floatEl=document.getElementById('floating-hands');
@@ -6046,6 +6099,36 @@ function collegaAscoltoFirebase(){
     }
     const indicatore = document.getElementById('fb-stato-connessione');
     if(indicatore) indicatore.textContent = '🟢 Connesso al database condiviso';
+  });
+  collegaAscoltoPresenza();
+}
+// Ascolta il nodo dedicato alla presenza: quando un condòmino risulta "uscito" (per
+// disconnessione improvvisa o per aver premuto "Esci assemblea"), registriamo la sua uscita
+// nei dati veri dell'appello — chiunque tra i dispositivi collegati se ne accorge per primo lo
+// fa, in modo sicuro grazie alla transazione di unione (che è innocua da ripetere più volte).
+const __presenzaGiaGestita = {}; // evita di rielaborare la stessa uscita più volte inutilmente
+function collegaAscoltoPresenza(){
+  if(!window.__fbAscoltaPresenza) return;
+  window.__fbAscoltaPresenza((presenzaGrezza)=>{
+    Object.keys(presenzaGrezza||{}).forEach(condominoIdStr=>{
+      const rec = presenzaGrezza[condominoIdStr];
+      if(!rec || (rec.stato!=='uscito_disconnessione' && rec.stato!=='uscito_volontario')) return;
+      const chiave = condominoIdStr + ':' + (rec.quando||'');
+      if(__presenzaGiaGestita[chiave]) return;
+      __presenzaGiaGestita[chiave] = true;
+      const condominoId = parseInt(condominoIdStr);
+      eseguiConUnioneSuServer(()=>{
+        buildings.forEach(bb=>{
+          const a = getAssembleaInCorso(bb);
+          if(!a) return;
+          const oraStr = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+          const recOn = (a.appello.online||[]).find(r=>r.condominoId===condominoId && !r.uscita);
+          if(recOn) recOn.uscita = oraStr;
+          const recPres = (a.appello.presenzeFisiche||[]).find(r=>r.condominoId===condominoId && !r.uscita);
+          if(recPres) recPres.uscita = oraStr;
+        });
+      });
+    });
   });
 }
 
