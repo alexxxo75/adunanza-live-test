@@ -492,7 +492,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 08/08/2026 alle 18:03">LIVE-TEST-29</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 08/08/2026 alle 18:27">LIVE-TEST-30</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1156,8 +1156,8 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
             <p class="sub" id="cv-welcome">—</p>
           </div>
           <div id="cv-schermata-rientro" class="assist-panel hidden" style="text-align:center;padding:30px 20px;">
-            <p style="font-size:16px;font-weight:700;margin-bottom:10px;">Sei uscito dall'assemblea</p>
-            <p class="muted" style="color:#A39C88;margin-bottom:18px;">La tua uscita è stata registrata. Se vuoi rientrare, tocca qui sotto.</p>
+            <p style="font-size:19px;font-weight:700;">Hai lasciato l'assemblea, grazie di aver partecipato</p>
+            <p class="muted" style="color:#A39C88;margin:12px 0 18px;">La tua uscita è stata registrata. Video e microfono sono stati disattivati. Se vuoi rientrare, tocca qui sotto.</p>
             <button class="big-action-btn" onclick="rientraInAssemblea()">↩ Rientra in assemblea</button>
           </div>
           <div id="cv-schermata-terminata" class="assist-panel hidden" style="text-align:center;padding:40px 20px;">
@@ -1565,6 +1565,18 @@ function chatArr(){
 }
 let currentCondomino = null; // il condòmino "autenticato" in questa vista — riconosciuto via token o selezionato in anteprima
 let usciteVolontariamenteInAttesaDiRientro = false; // true se questo dispositivo ha premuto "Lascia assemblea" ed è tornato sulla pagina senza aver ancora toccato "Rientra"
+let contestoAssembleaIdCondomino = null; // l'id dell'assemblea specifica indicata nel link personale (parametro "assemblea"): il condòmino resta legato a QUESTA, non a "qualunque cosa l'amministratore abbia aperto ora"
+// Trova l'assemblea giusta per il condòmino: se il link conteneva un id specifico, usa SEMPRE
+// quello (indipendentemente da dove l'amministratore sta navigando in questo momento);
+// altrimenti, per compatibilità con link vecchi senza questo parametro, usa il vecchio
+// comportamento (l'assemblea "in corso" del condominio).
+function getAssembleaContestualizzataCondomino(b){
+  if(!b) return null;
+  if(contestoAssembleaIdCondomino){
+    return (b.assemblee||[]).find(a=>a.id===contestoAssembleaIdCondomino) || null;
+  }
+  return getAssembleaInCorso(b);
+}
 let fontScale = 17;
 
 function getActiveBuilding(){ return buildings.find(b=>b.id===activeBuildingId); }
@@ -1605,7 +1617,9 @@ function initFromUrlToken(){
       activeBuildingId=b.id; currentCondomino=c;
       const delegaParam = params.get('delega');
       if(delegaParam){ contestoDelegaAssembleaId = parseInt(delegaParam); return true; }
-      const assembleaCorrenteToken = getAssembleaInCorso(b);
+      const assembleaParam = params.get('assemblea');
+      if(assembleaParam) contestoAssembleaIdCondomino = parseInt(assembleaParam);
+      const assembleaCorrenteToken = getAssembleaContestualizzataCondomino(b);
       const chiaveUscita = assembleaCorrenteToken ? ('adunanza_uscito_'+assembleaCorrenteToken.id+'_'+c.id) : null;
       // Se questo stesso dispositivo aveva già dichiarato di essere uscito volontariamente da
       // QUESTA assemblea (premendo "Lascia assemblea"), non lo rimarchiamo online in automatico
@@ -3915,7 +3929,12 @@ function costruisciEmail(c, a, b){
   const rigaOggetto = a.oggetto ? `Oggetto: ${a.oggetto}\n\n` : '';
 
   const baseUrl = window.location.origin + window.location.pathname;
-  const link = `${baseUrl}?token=${c.token}`;
+  // L'id dell'assemblea è incluso nel link: così il condòmino resta legato a QUESTA specifica
+  // assemblea, anche se nel frattempo l'amministratore naviga altrove in Adunanza (es. per
+  // controllare un'assemblea precedente) — senza, tutti i condòmini collegati "seguirebbero"
+  // qualunque assemblea l'amministratore avesse aperto in quel momento, con conseguenze molto
+  // confuse (persino vedersi mostrare un'assemblea già conclusa per sbaglio).
+  const link = `${baseUrl}?token=${c.token}&assemblea=${a.id}`;
   const linkDelega = `${baseUrl}?token=${c.token}&delega=${a.id}`;
   // In presenza pura non si può partecipare online: niente link di accesso né di delega
   // digitale — restano fuori dall'email, coerentemente con quanto stabilito.
@@ -4780,12 +4799,12 @@ function toggleHandRaise(){
   renderHandsList();
 }
 function esciDaAssemblea(){
-  if(!currentCondomino){ window.location.href='https://www.google.it'; return; }
+  if(!currentCondomino){ return; }
   if(!confirm('Vuoi uscire dall\'assemblea? La tua uscita verrà registrata con l\'orario.')) return;
   const idCondomino = currentCondomino.id;
   const oraOra = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
   const b = getActiveBuilding();
-  const assembleaCorrente = b ? getAssembleaInCorso(b) : null;
+  const assembleaCorrente = b ? getAssembleaContestualizzataCondomino(b) : null;
   function applicaUscita(){
     buildings.forEach(bb=>{
       const a = getAssembleaInCorso(bb);
@@ -4812,12 +4831,27 @@ function esciDaAssemblea(){
   }catch(e){
     console.error('[Adunanza] Registrazione uscita fallita:', e);
   }
-  window.location.href = 'https://www.google.it';
+  distruggiVideoCondomino();
+  usciteVolontariamenteInAttesaDiRientro = true;
+  renderVistaCondomino();
+}
+// Distrugge davvero il riquadro video (non solo lo nasconde): rimuovendo l'iframe dal DOM,
+// il browser interrompe per davvero microfono, videocamera e collegamento audio/video —
+// niente resta connesso in sottofondo dopo l'uscita.
+function distruggiVideoCondomino(){
+  const videoBox = document.getElementById('cv-video-box');
+  if(videoBox){ videoBox.innerHTML=''; videoBox.style.display='none'; }
+  const preIngresso = document.getElementById('cv-pre-ingresso');
+  if(preIngresso) preIngresso.style.display='block';
+  const videoToggleBar = document.getElementById('cv-video-toggle-bar');
+  if(videoToggleBar) videoToggleBar.classList.remove('visibile');
+  const chatToggleBar = document.getElementById('cv-chat-toggle-bar');
+  if(chatToggleBar) chatToggleBar.classList.remove('visibile');
 }
 function rientraInAssemblea(){
   if(!currentCondomino) return;
   const b = getActiveBuilding();
-  const assembleaCorrente = b ? getAssembleaInCorso(b) : null;
+  const assembleaCorrente = b ? getAssembleaContestualizzataCondomino(b) : null;
   if(assembleaCorrente){
     try{ localStorage.removeItem('adunanza_uscito_'+assembleaCorrente.id+'_'+currentCondomino.id); }catch(e){}
   }
@@ -4899,15 +4933,21 @@ function renderVistaCondomino(){
     return;
   }
   const b = getActiveBuilding();
-  const assembleaCorrente = b ? getAssembleaInCorso(b) : null;
+  const assembleaCorrente = b ? getAssembleaContestualizzataCondomino(b) : null;
   if(assembleaCorrente){ __ultimaAssembleaIdCondomino = assembleaCorrente.id; }
-  const ultimaAssembleaConclusa = (!assembleaCorrente && b && __ultimaAssembleaIdCondomino)
-    ? (b.assemblee||[]).find(a=>a.id===__ultimaAssembleaIdCondomino && a.stato==='conclusa')
-    : null;
-  if(ultimaAssembleaConclusa){
+  // Un'assemblea CONCLUSA ma comunque trovata (perché il link è legato in modo specifico a lei,
+  // indipendentemente da dove l'amministratore sta navigando) va trattata come "terminata" —
+  // non solo il vecchio caso in cui smetteva del tutto di essere "in corso" per il condominio.
+  const assembleaConclusa = (assembleaCorrente && assembleaCorrente.stato==='conclusa')
+    ? assembleaCorrente
+    : ((!assembleaCorrente && b && __ultimaAssembleaIdCondomino)
+        ? (b.assemblee||[]).find(a=>a.id===__ultimaAssembleaIdCondomino && a.stato==='conclusa')
+        : null);
+  if(assembleaConclusa){
     if(schermataRientro) schermataRientro.classList.add('hidden');
     if(schermataTerminata) schermataTerminata.classList.remove('hidden');
     restoContenuto.forEach(el=>{ if(el) el.classList.add('hidden'); });
+    distruggiVideoCondomino();
     return;
   }
   if(schermataTerminata) schermataTerminata.classList.add('hidden');
@@ -5212,13 +5252,17 @@ function renderCvPollArea(){
   const el=document.getElementById('cv-poll-area');
   if(!el) return;
   const b=getActiveBuilding();
-  const assembleaCorrente=getAssembleaInCorso(b);
-  if(!assembleaCorrente){ el.innerHTML=''; applicaVisibilitaElementiCondomino('normale'); return; }
+  const assembleaCorrente=getAssembleaContestualizzataCondomino(b);
+  if(!assembleaCorrente || assembleaCorrente.stato==='conclusa'){ el.innerHTML=''; applicaVisibilitaElementiCondomino('normale'); return; }
 
   // IL SONDAGGIO HA SEMPRE LA PRECEDENZA ASSOLUTA su qualsiasi altra schermata: interrompe
   // anche i primi 10 secondi di "chi c'è" (anche se sono appena iniziati) e nasconde il video
-  // e la chat, per essere impossibile da non vedere — esattamente come richiesto.
-  if(activePoll){
+  // e la chat, per essere impossibile da non vedere — esattamente come richiesto. Mostriamo però
+  // il sondaggio SOLO se appartiene davvero al punto dell'ordine del giorno di QUESTA specifica
+  // assemblea: altrimenti potrebbe trattarsi di un sondaggio aperto altrove dall'amministratore,
+  // su un'assemblea diversa da quella collegata al link di questo condòmino.
+  const sondaggioAppartieneAQuestaAssemblea = activePoll && (assembleaCorrente.odg||[]).some(p=>p.id===activePollOdgId);
+  if(sondaggioAppartieneAQuestaAssemblea){
     applicaVisibilitaElementiCondomino('sondaggio');
     const chiaveSondaggioAttivo = assembleaCorrente.id+':'+activePollOdgId;
     registraTransizionePuntoCondomino(chiaveSondaggioAttivo, 'aperto');
