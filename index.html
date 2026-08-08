@@ -411,7 +411,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 08/08/2026 alle 02:06">LIVE-TEST-16</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 08/08/2026 alle 02:18">LIVE-TEST-17</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1090,6 +1090,15 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
             <div id="cv-chat-toggle-bar">
               <button id="cv-btn-chat-toggle" onclick="apriChatConTastoCondomino()">💬 Chat</button>
             </div>
+            <div class="assist-panel" id="cv-chat-sezione" style="display:none;">
+              <h3>Chat</h3>
+              <p class="muted" style="color:#A39C88;margin-bottom:10px;">Per segnalazioni pratiche (es. "non sento l'audio") — non è la chat per gli interventi formali.</p>
+              <div class="cv-chat-log" id="cv-chat-log"></div>
+              <div class="row-inline">
+                <input id="cv-chat-input" placeholder="Scrivi qui..." style="background:#2A2519;border-color:#5C5540;color:#F2F0EC;" oninput="segnaAttivitaChatCondomino()">
+                <button class="btn small brass" onclick="sendChatMessage(currentCondomino?nomeCompletoCondomino(currentCondomino):'Condòmino','cv-chat-input');segnaAttivitaChatCondomino();">Invia</button>
+              </div>
+            </div>
           </div>
 
           <h1 id="cv-building-name">Assemblea</h1>
@@ -1098,16 +1107,6 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
           <button class="big-action-btn" id="cv-hand-btn" onclick="toggleHandRaise()">✋ Alza la mano</button>
 
           <div id="cv-poll-area"></div>
-
-          <div class="assist-panel" id="cv-chat-sezione" style="display:none;">
-            <h3>Chat</h3>
-            <p class="muted" style="color:#A39C88;margin-bottom:10px;">Per segnalazioni pratiche (es. "non sento l'audio") — non è la chat per gli interventi formali.</p>
-            <div class="cv-chat-log" id="cv-chat-log"></div>
-            <div class="row-inline">
-              <input id="cv-chat-input" placeholder="Scrivi qui..." style="background:#2A2519;border-color:#5C5540;color:#F2F0EC;" oninput="segnaAttivitaChatCondomino()">
-              <button class="btn small brass" onclick="sendChatMessage(currentCondomino?nomeCompletoCondomino(currentCondomino):'Condòmino','cv-chat-input');segnaAttivitaChatCondomino();">Invia</button>
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -4818,7 +4817,7 @@ function renderCvPollArea(){
     __cvPollAppenaConcluso = null;
     __cvUltimoPuntoRenderizzato = null; __cvUltimoStatoRenderizzato = null;
     registraTransizionePuntoCondomino('nessuno', null);
-    if(assembleaCorrente && assembleaCorrente.iniziata && (assembleaCorrente.odg||[]).length){
+    if(assembleaCorrente && (assembleaCorrente.odg||[]).length){
       el.innerHTML = `<div class="assist-panel"><h3>📋 Ordine del giorno</h3><div class="cv-odg-lista">` +
         assembleaCorrente.odg.map((p,i)=>`<div class="cv-odg-punto"><span>${i+1}. ${escapeHtml(p.testo||'(punto da definire)')}</span><span class="cv-odg-badge">${(p.storicoSondaggi&&p.storicoSondaggi.length)?'Votato':'In attesa'}</span></div>`).join('') +
         `</div></div>`;
@@ -4902,12 +4901,21 @@ function confermaVotoCondomino(){
   if(activePoll.voted.has(currentCondomino.id)){ toast('Hai già votato: non puoi votare di nuovo.'); return; }
   const btnConferma = document.getElementById('cv-btn-conferma-voto');
   if(btnConferma){ btnConferma.disabled=true; btnConferma.textContent='Invio in corso...'; }
-  impostaVoto(currentCondomino.id, sceltaVotoCorrente, false);
-  renderPollResults();
-  renderTabellaVotiSondaggio();
-  renderCvPollArea();
-  salvaStato();
-  toast('Voto registrato — grazie.');
+  try{
+    impostaVoto(currentCondomino.id, sceltaVotoCorrente, false);
+    renderPollResults();
+    renderTabellaVotiSondaggio();
+    renderCvPollArea();
+    salvaStato();
+    toast('Voto registrato — grazie.');
+  }catch(e){
+    // Rete di sicurezza: se qualcosa si inceppa per un motivo imprevisto, il pulsante non deve
+    // restare bloccato per sempre su "Invio in corso..." senza spiegazioni — meglio un errore
+    // chiaro (e il voto resta comunque annotato qui sotto: lo si può segnalare all'amministratore).
+    console.error('[Adunanza] confermaVotoCondomino fallito:', e);
+    if(btnConferma){ btnConferma.disabled=false; btnConferma.textContent='Errore — riprova a confermare'; }
+    toast('Si è verificato un errore nell\'invio del voto: riprova. Se persiste, segnalalo all\'amministratore.');
+  }
 }
 
 // ---------- VERBALE IA (chiamata reale all'API Claude) ----------
