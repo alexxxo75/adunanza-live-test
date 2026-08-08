@@ -411,7 +411,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 08/08/2026 alle 01:54">LIVE-TEST-15</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 08/08/2026 alle 02:06">LIVE-TEST-16</span></div>
   </div>
 
   <!-- MAIN -->
@@ -4523,12 +4523,18 @@ function renderTabellaVotiSondaggio(){
   });
 }
 function renderPollResults(){
+  const elStato = document.getElementById('poll-weight-status');
+  const el=document.getElementById('poll-results');
+  // Questi due elementi esistono solo nella pagina dell'amministratore (Sala assemblea):
+  // richiamare questa funzione dalla pagina del cellulare (es. subito dopo un voto, per
+  // aggiornare anche il pannello admin se aperto altrove) non deve bloccarsi con un errore
+  // solo perché qui questi elementi non ci sono — usciamo silenziosamente.
+  if(!elStato || !el) return;
   const totals = calcolaRisultatiSondaggio();
   const totVotatoMill = arrotondaMillesimi(Object.values(totals).reduce((s,v)=>s+v,0));
   const totCondomini = arrotondaMillesimi(getActiveBuilding().condomini.reduce((s,c)=>s+(c.millesimi[activePoll.tabella]||0),0)) || 1;
-  document.getElementById('poll-weight-status').textContent =
+  elStato.textContent =
     `Voto ponderato — ${totVotatoMill} / ${totCondomini} millesimi (${activePoll.tabella}) espressi`;
-  const el=document.getElementById('poll-results');
   el.innerHTML='';
   activePoll.options.forEach(o=>{
     const millesimi = totals[o.id]||0;
@@ -5669,6 +5675,21 @@ function applicaDatiRicevuti(parsed, aggiornaAncheNavigazioneLocale){
   }
   if(typeof parsed.__versione === 'number'){ __versioneStatoLocale = parsed.__versione; }
   buildings = parsed.buildings.map(miglioraSchemaBuilding);
+  // currentCondomino (chi è "autenticato" nella pagina personale, lato cellulare) punta a un
+  // preciso oggetto in memoria: dopo aver sostituito "buildings" con i dati appena arrivati,
+  // quel riferimento resterebbe "staccato" dai nuovi oggetti — cosa che succede in
+  // continuazione, ogni volta che arriva un aggiornamento dal database condiviso. Senza
+  // ricollegarlo qui, tutto quello che dipende da lui (segnalarsi online, votare, alzare la
+  // mano) continuerebbe silenziosamente a operare su una copia ormai abbandonata, mai più
+  // salvata davvero.
+  if(currentCondomino){
+    let ritrovato = null;
+    for(const bb of buildings){
+      const trovato = (bb.condomini||[]).find(c=>c.id===currentCondomino.id);
+      if(trovato){ ritrovato = trovato; break; }
+    }
+    if(ritrovato) currentCondomino = ritrovato;
+  }
   // activeBuildingId indica QUALE pagina/condominio sta guardando QUESTO dispositivo in questo
   // preciso momento: è un'informazione locale (l'amministratore guarda un condominio, un
   // condòmino ne vede un altro), non qualcosa da imporre a partire da un aggiornamento arrivato
