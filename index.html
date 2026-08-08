@@ -62,6 +62,14 @@
         return; // annulla la scrittura: sul server c'è già qualcosa di più recente
       }
       return dati;
+    }).then(risultato=>{
+      // Una transazione può risolversi "con successo" (nessun errore) ma SENZA aver davvero
+      // scritto nulla (es. troppi tentativi falliti per traffico sul database): senza questo
+      // controllo, un fallimento del genere passerebbe inosservato.
+      if(risultato && risultato.committed===false){
+        console.warn('[Adunanza] Scrittura NON confermata dal server (committed:false) — probabile traffico elevato sul database condiviso.');
+      }
+      return risultato;
     });
   };
   // Transazione di UNIONE: usata per le azioni dove il rischio di scritture contemporanee da
@@ -71,17 +79,25 @@
   // quell'istante, così due persone che agiscono nello stesso momento vengono entrambe
   // registrate, invece che una delle due sparire nel nulla.
   window.__fbTransazioneMerge = function(applicaModifica){
+    let erroreInterno = null;
     return runTransaction(statoRef, (statoServer)=>{
       if(!statoServer || !Array.isArray(statoServer.buildings)) return statoServer;
       try{
         const risultato = applicaModifica(statoServer);
         if(risultato===false) return; // il chiamante ha deciso di annullare la transazione
       }catch(e){
+        erroreInterno = e;
         console.error('[Adunanza] errore nella transazione di unione:', e);
         return; // annulla la transazione, non scrive nulla di rotto
       }
       statoServer.__versione = (statoServer.__versione||0) + 1;
       return statoServer;
+    }).then(risultato=>{
+      if(erroreInterno) throw erroreInterno;
+      if(risultato && risultato.committed===false){
+        throw new Error('La scrittura non è stata confermata dal database condiviso (committed:false) — probabile traffico elevato o conflitto ripetuto.');
+      }
+      return risultato;
     });
   };
   window.__fbAscoltaStato = function(callback){
@@ -347,9 +363,9 @@
   .chat-msg.admin b{color:var(--brass);}
 
   /* VISTA CONDOMINO — grande, semplice, accessibile, TEMA SCURO (risparmio batteria OLED) */
-  .condomino-shell{background:#524A38;min-height:100vh;padding:26px;}
-  .condomino-view{max-width:760px;margin:0 auto;background:#463F2F;border-radius:8px;padding:28px;font-size:var(--cv-scale, 17px);color:#F2F0EC;}
-  .condomino-view h1{font-size:15px;font-weight:600;color:#fff;font-family:var(--font-display);margin:0 0 8px;}
+  .condomino-shell{background:#524A38;min-height:100vh;padding:10px 26px 26px;}
+  .condomino-view{max-width:760px;margin:0 auto;background:#463F2F;border-radius:8px;padding:14px 20px 28px;font-size:var(--cv-scale, 17px);color:#F2F0EC;}
+  .condomino-view h1{font-size:13px;font-weight:600;color:#fff;font-family:var(--font-display);margin:0 0 10px;background:#000;text-align:center;padding:8px 12px;border-radius:6px;}
   .condomino-view .sub{font-size:0.95em;color:#C4BCA5;}
   @media (max-width: 640px){
     .condomino-topbar{ display:none; }
@@ -373,8 +389,8 @@
   .cv-aiuto-permessi-corpo b{ color:#F2F0EC; }
   .cv-aiuto-permessi-corpo ol{ margin:6px 0 12px; padding-left:18px; }
 
-  #cv-video-box{ width:100%; aspect-ratio:9/16; max-height:96vh; background:#000; overflow:hidden; position:relative; border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,.35); transition:width .35s ease, max-height .35s ease, border-radius .35s ease; margin:0 auto 12px; }
-  @media (orientation: landscape){ #cv-video-box{ aspect-ratio:16/9; max-height:96vh; } }
+  #cv-video-box{ width:100%; aspect-ratio:9/16; max-height:99vh; background:#000; overflow:hidden; position:relative; border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,.35); transition:width .35s ease, max-height .35s ease, border-radius .35s ease; margin:0 auto 12px; }
+  @media (orientation: landscape){ #cv-video-box{ aspect-ratio:16/9; max-height:99vh; } }
   #cv-video-box iframe{ width:100% !important; height:100% !important; border:0 !important; display:block; }
   #cv-video-box.video-piccolo{ width:150px; max-height:none; border-radius:8px; border:2px solid #8C7D57; }
   #cv-video-toggle-bar{ display:none; margin-bottom:14px; }
@@ -446,7 +462,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 08/08/2026 alle 10:00">LIVE-TEST-21</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 08/08/2026 alle 10:10">LIVE-TEST-23</span></div>
   </div>
 
   <!-- MAIN -->
@@ -671,6 +687,8 @@
             </table>
           </div>
           <div class="empty" id="empty-condomini">Nessun condòmino caricato ancora.</div>
+          <button class="btn brass" style="margin-top:12px;" onclick="salvaStato(); toast('Modifiche ai condòmini salvate.');">💾 Salva modifiche ai condòmini</button>
+          <p class="muted" style="margin-top:6px;font-size:12.5px;">Ogni campo si salva comunque da solo appena esci da esso (es. premendo Tab o cliccando altrove) — questo pulsante è utile come conferma esplicita, specie dopo l'ultima modifica.</p>
         </div>
       </div>
 
@@ -2364,29 +2382,30 @@ function renderCondomini(){
     const tr=document.createElement('tr');
 
     const tdNome=document.createElement('td');
-    const inNome=document.createElement('input'); inNome.className='cell-nome'; inNome.value=c.nome; inNome.oninput=()=>c.nome=inNome.value;
+    const inNome=document.createElement('input'); inNome.className='cell-nome'; inNome.value=c.nome; inNome.oninput=()=>c.nome=inNome.value; inNome.onblur=()=>salvaStato();
     tdNome.appendChild(inNome); tr.appendChild(tdNome);
 
     const tdCognome=document.createElement('td');
-    const inCognome=document.createElement('input'); inCognome.value=c.cognome||''; inCognome.oninput=()=>c.cognome=inCognome.value;
+    const inCognome=document.createElement('input'); inCognome.value=c.cognome||''; inCognome.oninput=()=>c.cognome=inCognome.value; inCognome.onblur=()=>salvaStato();
     tdCognome.appendChild(inCognome); tr.appendChild(tdCognome);
 
     const tdInterno=document.createElement('td');
-    const inInterno=document.createElement('input'); inInterno.value=c.interno||''; inInterno.oninput=()=>c.interno=inInterno.value;
+    const inInterno=document.createElement('input'); inInterno.value=c.interno||''; inInterno.oninput=()=>c.interno=inInterno.value; inInterno.onblur=()=>salvaStato();
     tdInterno.appendChild(inInterno); tr.appendChild(tdInterno);
 
     const tdUnita=document.createElement('td');
-    const inUnita=document.createElement('input'); inUnita.value=c.unita||''; inUnita.oninput=()=>c.unita=inUnita.value;
+    const inUnita=document.createElement('input'); inUnita.value=c.unita||''; inUnita.oninput=()=>c.unita=inUnita.value; inUnita.onblur=()=>salvaStato();
     tdUnita.appendChild(inUnita); tr.appendChild(tdUnita);
 
     const tdEmail=document.createElement('td');
-    const inEmail=document.createElement('input'); inEmail.className='cell-email'; inEmail.value=c.email; inEmail.oninput=()=>c.email=inEmail.value;
+    const inEmail=document.createElement('input'); inEmail.className='cell-email'; inEmail.value=c.email; inEmail.oninput=()=>c.email=inEmail.value; inEmail.onblur=()=>salvaStato();
     tdEmail.appendChild(inEmail); tr.appendChild(tdEmail);
 
     building.tabelleMillesimali.forEach(t=>{
       const tdM=document.createElement('td');
       const inM=document.createElement('input'); inM.type='number'; inM.className='cell-mill'; inM.value=c.millesimi[t]||0;
       inM.oninput=()=>{ c.millesimi[t]=parseFloat(inM.value)||0; renderTotaliMillesimi(); };
+      inM.onblur=()=>salvaStato();
       tdM.appendChild(inM); tr.appendChild(tdM);
     });
 
@@ -3775,11 +3794,13 @@ function renderOdgList(){
       </div>`;
     box.querySelector('[data-act="rm"]').onclick=()=>removeOdgPoint(p.id);
     box.querySelector('.odg-testo').oninput=(e)=>{ p.testo=e.target.value; };
+    box.querySelector('.odg-testo').onblur=()=>salvaStato();
     const pollBtn = box.querySelector('.odg-poll-btn');
     const configEl = box.querySelector('.odg-poll-config');
     pollBtn.onclick=()=>{ p.sondaggioAbilitato=!p.sondaggioAbilitato; renderOdgList(); };
     box.querySelector('.odg-opzioni').oninput=(e)=>{ p.opzioni=e.target.value; };
-    box.querySelector('.odg-tabella').onchange=(e)=>{ p.tabella=e.target.value; };
+    box.querySelector('.odg-opzioni').onblur=()=>salvaStato();
+    box.querySelector('.odg-tabella').onchange=(e)=>{ p.tabella=e.target.value; salvaStato(); };
     el.appendChild(box);
   });
 }
@@ -4370,9 +4391,12 @@ function renderUnanimeButtons(){
 function votoUnanime(optId){
   try{
     let count=0;
+    let diagnostica = '';
     function applicaVotoUnanime(){
       const bCorrente = getActiveBuilding();
+      const assembleaCorrente = getAssembleaInCorso(bCorrente);
       const presenti = presentiDiretti(bCorrente);
+      diagnostica = `Convocati: ${assembleaCorrente?assembleaCorrente.convocati.selezionati.length:'?'} — Online: ${assembleaCorrente?assembleaCorrente.appello.online.filter(r=>!r.uscita).length:'?'} — Presenti in aula: ${assembleaCorrente?assembleaCorrente.appello.presenzeFisiche.filter(r=>!r.uscita).length:'?'} — Trovati per il voto: ${presenti.length}`;
       // "Tutti i presenti" deve valere davvero per tutti: azzeriamo prima eventuali blocchi di
       // "voto impostato manualmente" sui deleganti, altrimenti la propagazione automatica dal
       // loro delegato (che sta per votare qui sotto) li salterebbe lasciando il vecchio voto.
@@ -4389,10 +4413,17 @@ function votoUnanime(optId){
     }
     eseguiConUnioneSuServer(applicaVotoUnanime);
     renderPollResults(); renderTabellaVotiSondaggio(); renderCvPollArea();
-    toast(count>0 ? `Voto unanime assegnato a ${count} presenti (e ai relativi deleganti).` : 'Nessun presente da votare in questo momento.');
+    if(count>0){
+      toast(`Voto unanime assegnato a ${count} presenti (e ai relativi deleganti).`);
+    }else{
+      // Nessuno trovato da votare: questo è probabilmente il "non succede niente" segnalato —
+      // lo mostriamo in modo impossibile da non vedere, con i numeri esatti, invece di un
+      // piccolo messaggio che passa inosservato.
+      alert('ATTENZIONE — Nessun presente trovato da votare.\n\n' + diagnostica + '\n\nQuesto è probabilmente il motivo per cui il pulsante "Tutti i presenti" sembra non fare nulla. Se questi numeri non corrispondono a quello che vedi nell\'Appello, segnalamelo con questo messaggio esatto.');
+    }
   }catch(e){
     console.error('[Adunanza] votoUnanime fallito:', e);
-    toast('Si è verificato un errore nell\'assegnare il voto unanime. Controlla la Console (F12) per i dettagli, o segnalalo.');
+    alert('ERRORE nel voto unanime — copia e segnalami questo messaggio esatto:\n\n' + (e && e.message ? e.message : e) + '\n\n' + (e && e.stack ? e.stack.split('\\n').slice(0,3).join('\\n') : ''));
   }
 }
 
@@ -5038,6 +5069,13 @@ function confermaVotoCondomino(){
   try{
     const idCondominoVotante = currentCondomino.id, opzioneScelta = sceltaVotoCorrente;
     eseguiConUnioneSuServer(()=>{ impostaVoto(idCondominoVotante, opzioneScelta, false); });
+    // Fondamentale: azzeriamo la selezione ORA, subito dopo che il voto è stato registrato —
+    // altrimenti la protezione che evita di perdere una selezione in corso durante una
+    // sincronizzazione (pensata per un altro scopo) impedirebbe per errore anche a QUESTO
+    // ridisegno, immediatamente successivo alla conferma, di mostrare "Hai votato": la pagina
+    // restava quindi bloccata sulla vecchia schermata con il pulsante "Invio in corso...",
+    // anche se il voto era già stato registrato correttamente nei dati.
+    sceltaVotoCorrente = null;
     renderPollResults();
     renderTabellaVotiSondaggio();
     renderCvPollArea();
@@ -5048,7 +5086,7 @@ function confermaVotoCondomino(){
     // chiaro (e il voto resta comunque annotato qui sotto: lo si può segnalare all'amministratore).
     console.error('[Adunanza] confermaVotoCondomino fallito:', e);
     if(btnConferma){ btnConferma.disabled=false; btnConferma.textContent='Errore — riprova a confermare'; }
-    toast('Si è verificato un errore nell\'invio del voto: riprova. Se persiste, segnalalo all\'amministratore.');
+    alert('ERRORE nell\'invio del voto — copia e segnalami questo messaggio esatto:\n\n' + (e && e.message ? e.message : e));
   }
 }
 
