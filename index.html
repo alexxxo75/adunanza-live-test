@@ -64,6 +64,26 @@
       return dati;
     });
   };
+  // Transazione di UNIONE: usata per le azioni dove il rischio di scritture contemporanee da
+  // dispositivi diversi è più concreto (segnalarsi online, votare, alzare la mano). A differenza
+  // della scrittura sopra — che se "perde" scarta l'intera modifica — questa applica la
+  // modifica richiesta DIRETTAMENTE sui dati veri e più recenti presenti sul server in
+  // quell'istante, così due persone che agiscono nello stesso momento vengono entrambe
+  // registrate, invece che una delle due sparire nel nulla.
+  window.__fbTransazioneMerge = function(applicaModifica){
+    return runTransaction(statoRef, (statoServer)=>{
+      if(!statoServer || !Array.isArray(statoServer.buildings)) return statoServer;
+      try{
+        const risultato = applicaModifica(statoServer);
+        if(risultato===false) return; // il chiamante ha deciso di annullare la transazione
+      }catch(e){
+        console.error('[Adunanza] errore nella transazione di unione:', e);
+        return; // annulla la transazione, non scrive nulla di rotto
+      }
+      statoServer.__versione = (statoServer.__versione||0) + 1;
+      return statoServer;
+    });
+  };
   window.__fbAscoltaStato = function(callback){
     onValue(statoRef, (snapshot)=>{ callback(snapshot.val()); });
   };
@@ -357,8 +377,8 @@
   .cv-aiuto-permessi-corpo b{ color:#F2F0EC; }
   .cv-aiuto-permessi-corpo ol{ margin:6px 0 12px; padding-left:18px; }
 
-  #cv-video-box{ width:100%; aspect-ratio:9/16; max-height:70vh; background:#000; overflow:hidden; position:relative; border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,.35); transition:width .35s ease, max-height .35s ease, border-radius .35s ease; margin:0 auto 12px; }
-  @media (orientation: landscape){ #cv-video-box{ aspect-ratio:16/9; max-height:75vh; } }
+  #cv-video-box{ width:100%; aspect-ratio:9/16; max-height:88vh; background:#000; overflow:hidden; position:relative; border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,.35); transition:width .35s ease, max-height .35s ease, border-radius .35s ease; margin:0 auto 12px; }
+  @media (orientation: landscape){ #cv-video-box{ aspect-ratio:16/9; max-height:88vh; } }
   #cv-video-box iframe{ width:100% !important; height:100% !important; border:0 !important; display:block; }
   #cv-video-box.video-piccolo{ width:150px; max-height:none; border-radius:8px; border:2px solid #8C7D57; }
   #cv-video-toggle-bar{ display:none; margin-bottom:14px; }
@@ -430,7 +450,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 08/08/2026 alle 08:55">LIVE-TEST-18</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 08/08/2026 alle 09:21">LIVE-TEST-19</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1527,12 +1547,16 @@ function initFromUrlToken(){
       activeBuildingId=b.id; currentCondomino=c;
       const delegaParam = params.get('delega');
       if(delegaParam){ contestoDelegaAssembleaId = parseInt(delegaParam); return true; }
-      segnaOnlinePerLinkPersonale(b, c.id);
       // Fondamentale ora che gira su dispositivi diversi: nella vecchia demo (un solo browser)
       // non serviva salvare, perché amministratore e condòmino condividevano la stessa memoria.
-      // Qui, senza questo salvataggio, il condòmino risultava "online" solo nella memoria del
-      // proprio telefono — l'amministratore, su un altro dispositivo, non lo vedeva mai.
-      salvaStato();
+      // Qui, senza applicarlo anche sui dati veri del server (non solo in locale), il condòmino
+      // rischiava di risultare "online" solo nella memoria del proprio telefono — specie se
+      // un'altra persona si collegava nello stesso istante da un altro dispositivo.
+      const idBuildingToken = b.id, idCondominoToken = c.id;
+      eseguiConUnioneSuServer(()=>{
+        const bCorrente = buildings.find(x=>x.id===idBuildingToken);
+        if(bCorrente) segnaOnlinePerLinkPersonale(bCorrente, idCondominoToken);
+      });
       return true;
     }
   }
@@ -4340,23 +4364,26 @@ function renderUnanimeButtons(){
 }
 function votoUnanime(optId){
   try{
-    const b=getActiveBuilding();
-    const presenti = presentiDiretti(b);
     let count=0;
-    // "Tutti i presenti" deve valere davvero per tutti: azzeriamo prima eventuali blocchi di
-    // "voto impostato manualmente" sui deleganti, altrimenti la propagazione automatica dal loro
-    // delegato (che sta per votare qui sotto) li salterebbe lasciando il vecchio voto manuale.
-    activePoll.overridden.clear();
-    presenti.forEach(c=>{
-      // Il pulsante "tutti i presenti" è un'azione amministrativa esplicita rivolta a tutti i
-      // presenti in questo momento: si applica quindi a tutti, sovrascrivendo anche eventuali
-      // voti individuali già dati (di proposito: l'amministratore l'ha scelto apposta cliccando
-      // questo pulsante, non è un effetto collaterale automatico).
-      impostaVoto(c.id, optId, false, true);
-      count++;
-    });
+    function applicaVotoUnanime(){
+      const bCorrente = getActiveBuilding();
+      const presenti = presentiDiretti(bCorrente);
+      // "Tutti i presenti" deve valere davvero per tutti: azzeriamo prima eventuali blocchi di
+      // "voto impostato manualmente" sui deleganti, altrimenti la propagazione automatica dal
+      // loro delegato (che sta per votare qui sotto) li salterebbe lasciando il vecchio voto.
+      activePoll.overridden.clear();
+      count=0;
+      presenti.forEach(c=>{
+        // Il pulsante "tutti i presenti" è un'azione amministrativa esplicita rivolta a tutti i
+        // presenti in questo momento: si applica quindi a tutti, sovrascrivendo anche eventuali
+        // voti individuali già dati (di proposito: l'amministratore l'ha scelto apposta cliccando
+        // questo pulsante, non è un effetto collaterale automatico).
+        impostaVoto(c.id, optId, false, true);
+        count++;
+      });
+    }
+    eseguiConUnioneSuServer(applicaVotoUnanime);
     renderPollResults(); renderTabellaVotiSondaggio(); renderCvPollArea();
-    salvaStato();
     toast(count>0 ? `Voto unanime assegnato a ${count} presenti (e ai relativi deleganti).` : 'Nessun presente da votare in questo momento.');
   }catch(e){
     console.error('[Adunanza] votoUnanime fallito:', e);
@@ -4611,19 +4638,35 @@ function closePoll(){
 // ---------- MANI ALZATE ----------
 function toggleHandRaise(){
   if(!currentCondomino){ toast('Nessun condòmino riconosciuto in questa vista.'); return; }
-  const btn = document.getElementById('cv-hand-btn');
+  // Decidiamo l'azione (alzare o abbassare) UNA SOLA VOLTA, guardando lo stato che abbiamo qui
+  // in locale — poi la applichiamo in modo esplicito, non con un "interruttore" che ribalta lo
+  // stato trovato: un interruttore applicato due volte (una in locale, una sui dati veri del
+  // server) rischierebbe di annullarsi a vicenda se i due stati non coincidono esattamente.
   const arr = handsArr();
-  const idx = arr.findIndex(h=>h.condominoId===currentCondomino.id);
-  if(idx>=0){
-    arr.splice(idx,1);
-    btn.classList.remove('active');
-    btn.textContent='✋ Alza la mano';
-  }else{
-    arr.push({condominoId:currentCondomino.id, nome: nomeCompletoCondomino(currentCondomino), ora: new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})});
-    btn.classList.add('active');
-    btn.textContent='✋ Mano alzata — tocca per abbassare';
+  const giaAlzata = arr.some(h=>h.condominoId===currentCondomino.id);
+  const vogliamoAlzare = !giaAlzata;
+  const idCondomino = currentCondomino.id;
+  const nomeCondomino = nomeCompletoCondomino(currentCondomino);
+  const oraOra = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+
+  function applicaAzioneManoAlzata(){
+    const a = getAssembleaInCorso(getActiveBuilding());
+    if(!a) return;
+    if(!Array.isArray(a.handsRaised)) a.handsRaised = [];
+    const idx = a.handsRaised.findIndex(h=>h.condominoId===idCondomino);
+    if(vogliamoAlzare){
+      if(idx<0) a.handsRaised.push({condominoId:idCondomino, nome:nomeCondomino, ora:oraOra});
+    }else{
+      if(idx>=0) a.handsRaised.splice(idx,1);
+    }
   }
-  salvaStato();
+  eseguiConUnioneSuServer(applicaAzioneManoAlzata);
+
+  const btn = document.getElementById('cv-hand-btn');
+  if(btn){
+    if(vogliamoAlzare){ btn.classList.add('active'); btn.textContent='✋ Mano alzata — tocca per abbassare'; }
+    else{ btn.classList.remove('active'); btn.textContent='✋ Alza la mano'; }
+  }
   renderHandsList();
 }
 function renderHandsList(){
@@ -4876,8 +4919,15 @@ function costruisciRisultatoSondaggioPerPunto(s, condomino){
 }
 // Il sondaggio ATTIVO in questo momento: sempre "in primo piano", sopra l'ordine del giorno.
 function costruisciBloccoSondaggioAttivo(assembleaCorrente, b){
+  // "Punto X — [testo del punto]", mostrato sopra la domanda del sondaggio, per dare sempre
+  // contesto su quale voce dell'ordine del giorno si sta votando in questo momento.
+  const indicePunto = (assembleaCorrente.odg||[]).findIndex(p=>p.id===activePollOdgId);
+  const puntoCorrente = indicePunto>=0 ? assembleaCorrente.odg[indicePunto] : null;
+  const etichettaPunto = puntoCorrente
+    ? `<p class="muted" style="color:#C4BCA5;font-weight:700;margin-bottom:2px;">Punto ${indicePunto+1} — ${escapeHtml(puntoCorrente.testo||'(oggetto non indicato)')}</p>`
+    : '';
   if(!currentCondomino){
-    return `<div class="assist-panel" style="border-left:4px solid var(--brass);margin-bottom:18px;"><h3>Votazione in corso</h3><p class="sub">${escapeHtml(activePoll.question)}</p><p class="muted" style="color:#A39C88;">Non riconosco chi sei in questa anteprima: non posso farti votare senza sapere quali millesimi usare.</p></div>`;
+    return `<div class="assist-panel" style="border-left:4px solid var(--brass);margin-bottom:18px;"><h3>Votazione in corso</h3>${etichettaPunto}<p class="sub">${escapeHtml(activePoll.question)}</p><p class="muted" style="color:#A39C88;">Non riconosco chi sei in questa anteprima: non posso farti votare senza sapere quali millesimi usare.</p></div>`;
   }
   const giaVotato = activePoll.voted.has(currentCondomino.id);
   const mieiMillesimi = pesoVoto(currentCondomino, b, assembleaCorrente);
@@ -4885,14 +4935,15 @@ function costruisciBloccoSondaggioAttivo(assembleaCorrente, b){
     const idScelto = activePoll.scelte ? activePoll.scelte[currentCondomino.id] : null;
     const optScelta = activePoll.options.find(o=>o.id===idScelto);
     const etichetta = optScelta ? optScelta.label : 'registrato';
-    return `<div id="cv-conferma-voto-box" style="margin-bottom:18px;">Hai votato: ${escapeHtml(etichetta)}<span class="sub">Voto registrato con i tuoi ${mieiMillesimi} millesimi (${escapeHtml(activePoll.tabella)}). In attesa che l'amministratore chiuda il sondaggio...</span></div>`;
+    return `<div id="cv-conferma-voto-box" style="margin-bottom:18px;">${etichettaPunto}Hai votato: ${escapeHtml(etichetta)}<span class="sub">Voto registrato con i tuoi ${mieiMillesimi} millesimi (${escapeHtml(activePoll.tabella)}). In attesa che l'amministratore chiuda il sondaggio...</span></div>`;
   }
   const attivo = recordAttivo(assembleaCorrente, currentCondomino.id);
   if(!attivo){
-    return `<div class="assist-panel" style="border-left:4px solid var(--brass);margin-bottom:18px;"><h3>Votazione in corso</h3><p class="sub" style="margin-bottom:10px;">${escapeHtml(activePoll.question)}</p>
+    return `<div class="assist-panel" style="border-left:4px solid var(--brass);margin-bottom:18px;"><h3>Votazione in corso</h3>${etichettaPunto}<p class="sub" style="margin-bottom:10px;">${escapeHtml(activePoll.question)}</p>
       <div class="note" style="border-color:var(--brick);color:var(--brick);">Non risulti online o presente in sala in questo momento: non puoi votare finché non rientri in assemblea.</div></div>`;
   }
   return `<div class="assist-panel" id="cv-sondaggio-attivo-blocco" style="border-left:4px solid var(--brass);margin-bottom:18px;">
+    ${etichettaPunto}
     <p class="sub" style="margin-bottom:4px;font-weight:700;font-size:16px;color:#F2F0EC;">${escapeHtml(activePoll.question)}</p>
     <p class="muted" style="color:#A39C88;margin-bottom:12px;">Voterai con i tuoi ${mieiMillesimi} millesimi (tabella: ${escapeHtml(activePoll.tabella)})</p>
     <div id="cv-lista-opzioni"></div>
@@ -4980,11 +5031,11 @@ function confermaVotoCondomino(){
   const btnConferma = document.getElementById('cv-btn-conferma-voto');
   if(btnConferma){ btnConferma.disabled=true; btnConferma.textContent='Invio in corso...'; }
   try{
-    impostaVoto(currentCondomino.id, sceltaVotoCorrente, false);
+    const idCondominoVotante = currentCondomino.id, opzioneScelta = sceltaVotoCorrente;
+    eseguiConUnioneSuServer(()=>{ impostaVoto(idCondominoVotante, opzioneScelta, false); });
     renderPollResults();
     renderTabellaVotiSondaggio();
     renderCvPollArea();
-    salvaStato();
     toast('Voto registrato — grazie.');
   }catch(e){
     // Rete di sicurezza: se qualcosa si inceppa per un motivo imprevisto, il pulsante non deve
@@ -5658,6 +5709,39 @@ function salvaStato(){
     console.error('[Adunanza] salvaStato FALLITO:', e);
     return false;
   }
+}
+// Esegue un'azione (es. "segnati online", "vota") applicandola DIRETTAMENTE sui dati veri e
+// più recenti presenti sul database condiviso, invece che sulla nostra copia locale — che
+// potrebbe non contenere ancora un'azione fatta da un'altra persona nello stesso istante.
+// Riusa le stesse identiche funzioni già scritte per il resto del programma, scambiando per un
+// attimo le variabili globali con quelle "vere" del server, per poi ripristinarle subito dopo
+// (il dispositivo continua comunque a vedere la propria copia locale, che si aggiorna da sola
+// pochi istanti dopo tramite la normale sincronizzazione).
+function eseguiConUnioneSuServer(azione){
+  // Applichiamo comunque subito l'azione in locale, per una risposta immediata sullo schermo,
+  // e la salviamo come sempre (rete di sicurezza/localStorage) — poi, in aggiunta, la
+  // applichiamo anche direttamente sul server con la transazione di unione.
+  azione();
+  salvaStato();
+  if(!window.__fbTransazioneMerge) return;
+  window.__fbTransazioneMerge((statoServer)=>{
+    const buildingsLocaliDiBackup = buildings;
+    const activePollLocaleDiBackup = activePoll;
+    const activePollOdgIdLocaleDiBackup = activePollOdgId;
+    try{
+      buildings = statoServer.buildings.map(miglioraSchemaBuilding);
+      activePoll = deserializzaPoll(statoServer.activePoll);
+      activePollOdgId = statoServer.activePollOdgId;
+      azione();
+      statoServer.buildings = buildings;
+      statoServer.activePoll = serializzaPoll(activePoll);
+      statoServer.activePollOdgId = activePollOdgId;
+    }finally{
+      buildings = buildingsLocaliDiBackup;
+      activePoll = activePollLocaleDiBackup;
+      activePollOdgId = activePollOdgIdLocaleDiBackup;
+    }
+  }).catch(e=>console.error('[Adunanza] Transazione di unione fallita:', e));
 }
 // Alcuni condomìni salvati da versioni precedenti della demo possono avere uno schema
 // diverso (es. un singolo campo "assemblea" invece dell'elenco "assemblee", oppure privo
