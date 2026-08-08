@@ -441,6 +441,10 @@
   .cv-odg-punto-blocco .cv-odg-punto{ margin-bottom:0; }
   .cv-risultato-sotto-punto{ background:#3A331F; border:1px solid #5E5439; border-radius:0 0 8px 8px; padding:12px 14px; margin-top:-1px; }
   .cv-presenti-conteggio{ font-size:13.5px; color:#C4BCA5; margin-bottom:12px; }
+  /* Quando il sondaggio ha la precedenza assoluta: occupa tutto lo spazio disponibile e il suo
+     contenuto viene centrato verticalmente, per essere impossibile da non vedere. */
+  .cv-sondaggio-esclusivo{ min-height:70vh; display:flex; flex-direction:column; justify-content:center; }
+  .cv-sondaggio-esclusivo .assist-panel{ width:100%; }
   .cv-presenti-elenco{ max-height:260px; overflow-y:auto; }
   .cv-presente-riga{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:9px 12px; margin-bottom:6px; background:#5E5439; border:1px solid #8C7D57; border-radius:6px; font-size:13px; }
   .cv-presente-stato{ color:#C4BCA5; flex-shrink:0; text-align:right; }
@@ -483,7 +487,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 08/08/2026 alle 16:47">LIVE-TEST-27</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 08/08/2026 alle 17:03">LIVE-TEST-28</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1143,6 +1147,7 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
       <div class="condomino-shell">
         <div class="condomino-view" id="condomino-view-box">
           <h1 id="cv-building-name">Assemblea</h1>
+          <p class="sub" id="cv-welcome">—</p>
           <div id="cv-schermata-rientro" class="assist-panel hidden" style="text-align:center;padding:30px 20px;">
             <p style="font-size:16px;font-weight:700;margin-bottom:10px;">Sei uscito dall'assemblea</p>
             <p class="muted" style="color:#A39C88;margin-bottom:18px;">La tua uscita è stata registrata. Se vuoi rientrare, tocca qui sotto.</p>
@@ -1176,14 +1181,12 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
               <div class="cv-chat-log" id="cv-chat-log"></div>
               <div class="row-inline">
                 <input id="cv-chat-input" placeholder="Scrivi qui..." style="background:#2A2519;border-color:#8C7D57;color:#F2F0EC;" oninput="segnaAttivitaChatCondomino()">
-                <button class="btn small brass" style="width:44px;height:44px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;" onclick="sendChatMessage(currentCondomino?nomeCompletoCondomino(currentCondomino):'Condòmino','cv-chat-input');segnaAttivitaChatCondomino();" aria-label="Invia">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M8 5v14l11-7L8 5z" fill="#1B222B"/></svg>
+                <button class="btn small brass" style="width:40px;height:40px;padding:0;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;" onclick="sendChatMessage(currentCondomino?nomeCompletoCondomino(currentCondomino):'Condòmino','cv-chat-input');segnaAttivitaChatCondomino();" aria-label="Invia">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M20 5v6a3 3 0 0 1-3 3H6" stroke="#1B222B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.5 10.5 5 14l4.5 3.5" stroke="#1B222B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 </button>
               </div>
             </div>
           </div>
-
-          <p class="sub" id="cv-welcome">—</p>
 
           <button class="big-action-btn" id="cv-hand-btn" onclick="toggleHandRaise()">✋ Alza la mano</button>
           <button class="big-action-btn" id="cv-esci-btn" onclick="esciDaAssemblea()" style="background:#5C1A1A;border-color:#5C1A1A;color:#fff;margin-top:10px;">🚪 Lascia l'assemblea</button>
@@ -4959,25 +4962,34 @@ function chatAttivaAdessoCondomino(){
 }
 function rivalutaCondizioniDinamicheCondomino(){
   if(currentPage !== 'vista-condomino') return;
-  const sondaggioAperto = !!activePoll;
+  const pollAreaEl = document.getElementById('cv-poll-area');
+  const vistaAttuale = pollAreaEl ? pollAreaEl.getAttribute('data-vista') : 'normale';
+
+  // La schermata "chi c'è" a schermo pieno dei primi 10 secondi scade da sola: quando succede,
+  // ridisegniamo tutto (passerà alla vista normale, o al sondaggio se nel frattempo ne è
+  // partito uno — che ha comunque sempre la precedenza).
+  if(vistaAttuale==='presenti-iniziale'){
+    const b2 = getActiveBuilding();
+    const assembleaCorrente2 = b2 ? getAssembleaInCorso(b2) : null;
+    if(!activePoll && assembleaCorrente2 && !siamoNeiPrimi10SecondiDiAssemblea(assembleaCorrente2)){
+      renderCvPollArea();
+    }
+    return; // video e chat restano nascosti durante questa schermata: nulla da fare qui
+  }
+  if(vistaAttuale==='sondaggio'){
+    return; // il sondaggio ha sempre la precedenza: video e chat restano nascosti finché non si chiude
+  }
+
+  // Vista normale (nessun sondaggio, nessuna schermata iniziale in corso): qui valgono le
+  // regole originali di rimpicciolimento video/comparsa chat in base all'attività.
   const chatAttiva = chatAttivaAdessoCondomino();
-  const videoDeveEssereGrande = !(sondaggioAperto || chatAttiva);
+  const videoDeveEssereGrande = !chatAttiva;
   if(videoDeveEssereGrande !== __cvUltimoValoreCondizioneVideo){
     __cvUltimoValoreCondizioneVideo = videoDeveEssereGrande;
     if(videoDeveEssereGrande) espandiVideoCondomino(); else rimpicciolisciVideoCondomino();
   }
   const chatSezione = document.getElementById('cv-chat-sezione');
   if(chatSezione) chatSezione.style.display = chatAttiva ? 'block' : 'none';
-  // La schermata "chi c'è" a schermo pieno dei primi 30 secondi scade da sola: quando succede,
-  // passiamo alla vista normale (ordine del giorno) senza aspettare un'altra sincronizzazione.
-  const pollAreaEl = document.getElementById('cv-poll-area');
-  if(pollAreaEl && pollAreaEl.getAttribute('data-vista')==='presenti-iniziale'){
-    const b2 = getActiveBuilding();
-    const assembleaCorrente2 = b2 ? getAssembleaInCorso(b2) : null;
-    if(assembleaCorrente2 && !siamoNeiPrimi30SecondiDiAssemblea(assembleaCorrente2)){
-      renderCvPollArea();
-    }
-  }
 }
 setInterval(rivalutaCondizioniDinamicheCondomino, 1000);
 function segnaAttivitaChatCondomino(){
@@ -5048,15 +5060,33 @@ function costruisciSezionePresenti(assemblea, b){
     <div class="cv-presenti-elenco">${righeHtml}</div>
   </div>`;
 }
-// Nei primi 30 secondi dopo l'avvio dell'assemblea, mostriamo SOLO questa sezione a schermo
+// Nei primi 10 secondi dopo l'avvio dell'assemblea, mostriamo SOLO questa sezione a schermo
 // pieno (chi c'è, teste e millesimi) — poi si passa automaticamente alla vista con l'ordine
 // del giorno, e questa stessa sezione si sposta in fondo alla pagina, restando sempre aggiornata.
-function siamoNeiPrimi30SecondiDiAssemblea(assemblea){
+// ECCEZIONE: se nel frattempo parte un sondaggio, questo ha SEMPRE la precedenza assoluta,
+// anche durante questi primi 10 secondi (vedi renderCvPollArea).
+function siamoNeiPrimi10SecondiDiAssemblea(assemblea){
   if(!assemblea || !assemblea.iniziata || !assemblea.oraInizioEpoch) return false;
-  return (Date.now() - assemblea.oraInizioEpoch) < 30000;
+  return (Date.now() - assemblea.oraInizioEpoch) < 10000;
 }
 
 
+// Decide cosa mostrare/nascondere in base a chi ha la priorità in questo momento: il
+// sondaggio (se aperto) vince sempre su tutto, poi la schermata "chi c'è" dei primi 10 secondi,
+// altrimenti la vista normale con tutto visibile.
+function applicaVisibilitaElementiCondomino(modalita){
+  const videoWrap = document.getElementById('cv-video-wrap');
+  const handBtn = document.getElementById('cv-hand-btn');
+  const esciBtn = document.getElementById('cv-esci-btn');
+  const nascondiIlResto = (modalita==='sondaggio' || modalita==='presenti-iniziale');
+  if(videoWrap) videoWrap.classList.toggle('hidden', nascondiIlResto);
+  if(handBtn) handBtn.classList.toggle('hidden', nascondiIlResto);
+  if(esciBtn) esciBtn.classList.toggle('hidden', nascondiIlResto);
+  if(nascondiIlResto){
+    const chatSezione = document.getElementById('cv-chat-sezione');
+    if(chatSezione) chatSezione.style.display = 'none';
+  }
+}
 let sceltaVotoCorrente = null;
 let __cvUltimoPuntoRenderizzato = null;
 let __cvUltimoStatoRenderizzato = null;
@@ -5125,50 +5155,55 @@ function renderCvPollArea(){
   if(!el) return;
   const b=getActiveBuilding();
   const assembleaCorrente=getAssembleaInCorso(b);
-  if(!assembleaCorrente){ el.innerHTML=''; return; }
+  if(!assembleaCorrente){ el.innerHTML=''; applicaVisibilitaElementiCondomino('normale'); return; }
 
-  // Nei primi 30 secondi dopo l'avvio, mostriamo SOLO "chi c'è" a schermo pieno; poi si passa
-  // da soli alla vista normale (gestito anche dal timer di rivalutaCondizioniDinamicheCondomino).
-  if(siamoNeiPrimi30SecondiDiAssemblea(assembleaCorrente)){
+  // IL SONDAGGIO HA SEMPRE LA PRECEDENZA ASSOLUTA su qualsiasi altra schermata: interrompe
+  // anche i primi 10 secondi di "chi c'è" (anche se sono appena iniziati) e nasconde il video
+  // e la chat, per essere impossibile da non vedere — esattamente come richiesto.
+  if(activePoll){
+    applicaVisibilitaElementiCondomino('sondaggio');
+    const chiaveSondaggioAttivo = assembleaCorrente.id+':'+activePollOdgId;
+    registraTransizionePuntoCondomino(chiaveSondaggioAttivo, 'aperto');
+    // Se l'utente ha già selezionato un'opzione ma non ancora confermato, e siamo ancora sullo
+    // stesso identico sondaggio, non ricostruiamo tutto: perderemmo la sua selezione in corso a
+    // ogni sincronizzazione (che può avvenire più volte al minuto).
+    if(sceltaVotoCorrente!=null && __cvUltimoPuntoRenderizzato===chiaveSondaggioAttivo && document.getElementById('cv-lista-opzioni')){
+      return;
+    }
+    __cvUltimoPuntoRenderizzato = chiaveSondaggioAttivo;
+    el.setAttribute('data-vista', 'sondaggio');
+    el.innerHTML = `<div class="cv-sondaggio-esclusivo">${costruisciBloccoSondaggioAttivo(assembleaCorrente, b)}</div>`;
+    if(currentCondomino && !activePoll.voted.has(currentCondomino.id) && recordAttivo(assembleaCorrente, currentCondomino.id)){
+      sceltaVotoCorrente = null;
+      collegaInterazioneSondaggioAttivo();
+    }
+    return;
+  }
+
+  if(siamoNeiPrimi10SecondiDiAssemblea(assembleaCorrente)){
+    applicaVisibilitaElementiCondomino('presenti-iniziale');
     __cvUltimoPuntoRenderizzato = null;
     el.setAttribute('data-vista', 'presenti-iniziale');
     el.innerHTML = costruisciSezionePresenti(assembleaCorrente, b);
     return;
   }
+
+  applicaVisibilitaElementiCondomino('normale');
   el.setAttribute('data-vista', 'normale');
+  __cvUltimoPuntoRenderizzato = null;
 
-  const chiaveSondaggioAttivo = activePoll ? (assembleaCorrente.id+':'+activePollOdgId) : null;
-  registraTransizionePuntoCondomino(chiaveSondaggioAttivo || 'nessuno', activePoll?'aperto':null);
-
-  // Se l'utente ha già selezionato un'opzione ma non ancora confermato, e siamo ancora sullo
-  // stesso identico sondaggio, non ricostruiamo tutto: perderemmo la sua selezione in corso a
-  // ogni sincronizzazione (che può avvenire più volte al minuto). La sezione "chi c'è" in fondo
-  // resterà quindi ferma per quei pochi istanti, cosa di poco conto rispetto a perdere il voto
-  // che si sta per confermare.
-  if(sceltaVotoCorrente!=null && __cvUltimoPuntoRenderizzato===chiaveSondaggioAttivo && document.getElementById('cv-lista-opzioni')){
-    return;
-  }
-  __cvUltimoPuntoRenderizzato = chiaveSondaggioAttivo;
-
-  const sondaggioAttivoHtml = activePoll ? costruisciBloccoSondaggioAttivo(assembleaCorrente, b) : '';
   const odgHtml = (assembleaCorrente.odg||[]).map((p,i)=>{
     const storico = p.storicoSondaggi||[];
     const risultatiHtml = storico.map(s=>costruisciRisultatoSondaggioPerPunto(s, currentCondomino)).join('');
-    const inCorso = activePoll && activePollOdgId===p.id;
     return `<div class="cv-odg-punto-blocco">
-      <div class="cv-odg-punto"><span>${i+1}. ${escapeHtml(p.testo||'(punto da definire)')}</span><span class="cv-odg-badge">${inCorso?'In corso':(storico.length?'Votato':'In attesa')}</span></div>
+      <div class="cv-odg-punto"><span>${i+1}. ${escapeHtml(p.testo||'(punto da definire)')}</span><span class="cv-odg-badge">${storico.length?'Votato':'In attesa'}</span></div>
       ${risultatiHtml}
     </div>`;
   }).join('');
 
-  el.innerHTML = sondaggioAttivoHtml +
+  el.innerHTML =
     `<div class="assist-panel"><h3>📋 Ordine del giorno</h3><div class="cv-odg-lista">${odgHtml || '<p class="muted" style="color:#A39C88;">Nessun punto ancora inserito.</p>'}</div></div>` +
     costruisciSezionePresenti(assembleaCorrente, b);
-
-  if(activePoll && currentCondomino && !activePoll.voted.has(currentCondomino.id) && recordAttivo(assembleaCorrente, currentCondomino.id)){
-    sceltaVotoCorrente = null;
-    collegaInterazioneSondaggioAttivo();
-  }
 }
 function selezionaOpzioneCondomino(optionId){
   sceltaVotoCorrente = optionId;
