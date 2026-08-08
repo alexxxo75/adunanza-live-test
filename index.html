@@ -55,11 +55,14 @@
   // pagina" non può garantire).
   const presenzaRefBase = ref(db, 'adunanza_presenza');
   window.__fbRegistraPresenza = function(condominoId){
+    console.log('[Adunanza][presenza] Registro presenza e piano di disconnessione per condòmino', condominoId);
     const mioRef = ref(db, 'adunanza_presenza/' + condominoId);
     set(mioRef, {stato:'online', quando: serverTimestamp()});
     // Appena la connessione con QUESTO dispositivo si interrompe (chiusura del browser,
     // spegnimento, perdita di rete...), il server stesso scrive questo al posto nostro.
-    onDisconnect(mioRef).set({stato:'uscito_disconnessione', quando: serverTimestamp()});
+    onDisconnect(mioRef).set({stato:'uscito_disconnessione', quando: serverTimestamp()}).then(()=>{
+      console.log('[Adunanza][presenza] Piano di disconnessione confermato dal server per', condominoId);
+    }).catch(e=>console.error('[Adunanza][presenza] Registrazione del piano di disconnessione FALLITA:', e));
   };
   window.__fbRegistraUscitaVolontaria = function(condominoId){
     const mioRef = ref(db, 'adunanza_presenza/' + condominoId);
@@ -386,8 +389,10 @@
   /* VISTA CONDOMINO — grande, semplice, accessibile, TEMA SCURO (risparmio batteria OLED) */
   .condomino-shell{background:#EFF0F2;min-height:100vh;padding:10px 26px 26px;}
   .condomino-view{max-width:760px;margin:0 auto;background:#463F2F;border-radius:8px;padding:14px 20px 28px;font-size:var(--cv-scale, 17px);color:#F2F0EC;}
-  .condomino-view h1{font-size:13px;font-weight:600;color:#fff;font-family:var(--font-display);margin:0 0 10px;background:#000;text-align:center;padding:8px 12px;border-radius:6px;}
+  #cv-testata{background:#000;border-radius:6px;padding:10px 12px;margin-bottom:10px;text-align:center;}
+  .condomino-view h1{font-size:13px;font-weight:600;color:#fff;font-family:var(--font-display);margin:0;}
   .condomino-view .sub{font-size:0.95em;color:#C4BCA5;}
+  #cv-welcome{font-size:0.85em;margin-top:4px;text-align:center;}
   @media (max-width: 640px){
     .condomino-topbar{ display:none; }
   }
@@ -487,7 +492,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 08/08/2026 alle 17:03">LIVE-TEST-28</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 08/08/2026 alle 18:03">LIVE-TEST-29</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1146,12 +1151,18 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
     <div class="page hidden" id="page-vista-condomino" style="margin:-30px -44px;">
       <div class="condomino-shell">
         <div class="condomino-view" id="condomino-view-box">
-          <h1 id="cv-building-name">Assemblea</h1>
-          <p class="sub" id="cv-welcome">—</p>
+          <div id="cv-testata">
+            <h1 id="cv-building-name">Assemblea</h1>
+            <p class="sub" id="cv-welcome">—</p>
+          </div>
           <div id="cv-schermata-rientro" class="assist-panel hidden" style="text-align:center;padding:30px 20px;">
             <p style="font-size:16px;font-weight:700;margin-bottom:10px;">Sei uscito dall'assemblea</p>
             <p class="muted" style="color:#A39C88;margin-bottom:18px;">La tua uscita è stata registrata. Se vuoi rientrare, tocca qui sotto.</p>
             <button class="big-action-btn" onclick="rientraInAssemblea()">↩ Rientra in assemblea</button>
+          </div>
+          <div id="cv-schermata-terminata" class="assist-panel hidden" style="text-align:center;padding:40px 20px;">
+            <p style="font-size:19px;font-weight:700;">L'assemblea è terminata</p>
+            <p class="muted" style="color:#A39C88;margin-top:10px;">Grazie per aver partecipato. Il verbale sarà reso disponibile dall'amministratore.</p>
           </div>
           <div id="cv-video-wrap">
             <div id="cv-pre-ingresso">
@@ -1181,8 +1192,8 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
               <div class="cv-chat-log" id="cv-chat-log"></div>
               <div class="row-inline">
                 <input id="cv-chat-input" placeholder="Scrivi qui..." style="background:#2A2519;border-color:#8C7D57;color:#F2F0EC;" oninput="segnaAttivitaChatCondomino()">
-                <button class="btn small brass" style="width:40px;height:40px;padding:0;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;" onclick="sendChatMessage(currentCondomino?nomeCompletoCondomino(currentCondomino):'Condòmino','cv-chat-input');segnaAttivitaChatCondomino();" aria-label="Invia">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M20 5v6a3 3 0 0 1-3 3H6" stroke="#1B222B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.5 10.5 5 14l4.5 3.5" stroke="#1B222B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <button class="btn small brass" style="width:32px;height:32px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;" onclick="sendChatMessage(currentCondomino?nomeCompletoCondomino(currentCondomino):'Condòmino','cv-chat-input');segnaAttivitaChatCondomino();" aria-label="Invia">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 5v6a3 3 0 0 1-3 3H6" stroke="#1B222B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.5 10.5 5 14l4.5 3.5" stroke="#1B222B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 </button>
               </div>
             </div>
@@ -4710,7 +4721,10 @@ function closePoll(){
           // Voti individuali (chi ha votato cosa) conservati per intero, non solo il totale:
           // servono per poter riaprire il sondaggio in futuro senza perdere i voti già dati.
           scelte: {...activePoll.scelte},
-          overridden: Array.from(activePoll.overridden||[])
+          overridden: Array.from(activePoll.overridden||[]),
+          // Orario preciso di chiusura: usato lato cellulare per mostrare il risultato a tutta
+          // pagina per i primi 10 secondi, prima che si riduca al suo posto sotto il punto.
+          chiusoEpoch: Date.now()
         });
       }
     }
@@ -4865,6 +4879,7 @@ function renderChat(elId){
 }
 
 // ---------- VISTA CONDOMINO ----------
+let __ultimaAssembleaIdCondomino = null; // ricordiamo l'ultima assemblea vista, per poter controllare se è stata terminata anche dopo che "in corso" smette di puntarci
 function renderVistaCondomino(){
   document.getElementById('cv-building-name').textContent = 'Condominio ' + getActiveBuilding().nome;
   document.getElementById('condomino-view-box').style.setProperty('--cv-scale', fontScale+'px');
@@ -4875,12 +4890,27 @@ function renderVistaCondomino(){
       : 'Nessun condòmino riconosciuto — apri questa vista dal link personale o dal selettore "Anteprima come..." nella Sala assemblea.';
   }
   const schermataRientro = document.getElementById('cv-schermata-rientro');
+  const schermataTerminata = document.getElementById('cv-schermata-terminata');
   const restoContenuto = [document.getElementById('cv-video-wrap'), document.getElementById('cv-hand-btn'), document.getElementById('cv-esci-btn'), document.getElementById('cv-poll-area')];
   if(usciteVolontariamenteInAttesaDiRientro){
+    if(schermataTerminata) schermataTerminata.classList.add('hidden');
     if(schermataRientro) schermataRientro.classList.remove('hidden');
     restoContenuto.forEach(el=>{ if(el) el.classList.add('hidden'); });
     return;
   }
+  const b = getActiveBuilding();
+  const assembleaCorrente = b ? getAssembleaInCorso(b) : null;
+  if(assembleaCorrente){ __ultimaAssembleaIdCondomino = assembleaCorrente.id; }
+  const ultimaAssembleaConclusa = (!assembleaCorrente && b && __ultimaAssembleaIdCondomino)
+    ? (b.assemblee||[]).find(a=>a.id===__ultimaAssembleaIdCondomino && a.stato==='conclusa')
+    : null;
+  if(ultimaAssembleaConclusa){
+    if(schermataRientro) schermataRientro.classList.add('hidden');
+    if(schermataTerminata) schermataTerminata.classList.remove('hidden');
+    restoContenuto.forEach(el=>{ if(el) el.classList.add('hidden'); });
+    return;
+  }
+  if(schermataTerminata) schermataTerminata.classList.add('hidden');
   if(schermataRientro) schermataRientro.classList.add('hidden');
   restoContenuto.forEach(el=>{ if(el) el.classList.remove('hidden'); });
   renderChatCondomino();
@@ -4975,6 +5005,18 @@ function rivalutaCondizioniDinamicheCondomino(){
       renderCvPollArea();
     }
     return; // video e chat restano nascosti durante questa schermata: nulla da fare qui
+  }
+  // Il risultato di un sondaggio appena chiuso, mostrato in evidenza, scade da solo dopo 10
+  // secondi: quando succede, ridisegniamo tutto (passerà alla vista normale, con il risultato
+  // ormai ridotto al suo posto sotto il punto — a meno che nel frattempo non sia già partito un
+  // altro sondaggio, che ha comunque sempre la precedenza).
+  if(vistaAttuale==='risultato-recente'){
+    const b3 = getActiveBuilding();
+    const assembleaCorrente3 = b3 ? getAssembleaInCorso(b3) : null;
+    if(!activePoll && assembleaCorrente3 && !trovaRisultatoSondaggioRecentementeChiuso(assembleaCorrente3)){
+      renderCvPollArea();
+    }
+    return;
   }
   if(vistaAttuale==='sondaggio'){
     return; // il sondaggio ha sempre la precedenza: video e chat restano nascosti finché non si chiude
@@ -5150,6 +5192,22 @@ function collegaInterazioneSondaggioAttivo(){
     cont.appendChild(optBtn);
   });
 }
+// Trova, se esiste, l'ultimo sondaggio chiuso negli ultimi 10 secondi — usato per mostrarlo
+// in evidenza a tutta pagina prima che si riduca da solo al suo posto.
+function trovaRisultatoSondaggioRecentementeChiuso(assemblea){
+  if(!assemblea || !assemblea.odg) return null;
+  let piuRecente = null;
+  assemblea.odg.forEach((p,i)=>{
+    const storico = p.storicoSondaggi||[];
+    const ultimo = storico[storico.length-1];
+    if(ultimo && ultimo.chiusoEpoch && (Date.now()-ultimo.chiusoEpoch)<10000){
+      if(!piuRecente || ultimo.chiusoEpoch > piuRecente.info.chiusoEpoch){
+        piuRecente = {punto:p, info:ultimo, indice:i};
+      }
+    }
+  });
+  return piuRecente;
+}
 function renderCvPollArea(){
   const el=document.getElementById('cv-poll-area');
   if(!el) return;
@@ -5177,6 +5235,21 @@ function renderCvPollArea(){
       sceltaVotoCorrente = null;
       collegaInterazioneSondaggioAttivo();
     }
+    return;
+  }
+
+  // Un sondaggio appena chiuso (negli ultimi 10 secondi) viene mostrato in evidenza, a tutta
+  // pagina, prima di ridursi da solo al suo posto sotto il punto dell'ordine del giorno.
+  const risultatoRecente = trovaRisultatoSondaggioRecentementeChiuso(assembleaCorrente);
+  if(risultatoRecente){
+    applicaVisibilitaElementiCondomino('sondaggio');
+    __cvUltimoPuntoRenderizzato = null;
+    el.setAttribute('data-vista', 'risultato-recente');
+    el.innerHTML = `<div class="cv-sondaggio-esclusivo"><div class="assist-panel" style="border-left:4px solid var(--sage,#3E7A54);">
+      <p class="muted" style="color:#C4BCA5;font-weight:700;margin-bottom:2px;">Punto ${risultatoRecente.indice+1} — ${escapeHtml(risultatoRecente.punto.testo||'(oggetto non indicato)')}</p>
+      <h3 style="margin-top:0;">📊 Risultato del sondaggio</h3>
+      ${costruisciRisultatoSondaggioPerPunto(risultatoRecente.info, currentCondomino)}
+    </div></div>`;
     return;
   }
 
@@ -6199,14 +6272,20 @@ function collegaAscoltoFirebase(){
 // fa, in modo sicuro grazie alla transazione di unione (che è innocua da ripetere più volte).
 const __presenzaGiaGestita = {}; // evita di rielaborare la stessa uscita più volte inutilmente
 function collegaAscoltoPresenza(){
-  if(!window.__fbAscoltaPresenza) return;
+  if(!window.__fbAscoltaPresenza){
+    console.warn('[Adunanza][presenza] __fbAscoltaPresenza non disponibile: Firebase non raggiungibile in questa sessione.');
+    return;
+  }
+  console.log('[Adunanza][presenza] Ascolto attivato su questo dispositivo.');
   window.__fbAscoltaPresenza((presenzaGrezza)=>{
+    console.log('[Adunanza][presenza] Dati ricevuti dal nodo presenza:', presenzaGrezza);
     Object.keys(presenzaGrezza||{}).forEach(condominoIdStr=>{
       const rec = presenzaGrezza[condominoIdStr];
       if(!rec || (rec.stato!=='uscito_disconnessione' && rec.stato!=='uscito_volontario')) return;
       const chiave = condominoIdStr + ':' + (rec.quando||'');
       if(__presenzaGiaGestita[chiave]) return;
       __presenzaGiaGestita[chiave] = true;
+      console.log('[Adunanza][presenza] Rilevata uscita da applicare per il condòmino', condominoIdStr, '— stato:', rec.stato);
       const condominoId = parseInt(condominoIdStr);
       eseguiConUnioneSuServer(()=>{
         buildings.forEach(bb=>{
