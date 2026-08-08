@@ -450,7 +450,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 08/08/2026 alle 09:21">LIVE-TEST-19</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 08/08/2026 alle 09:45">LIVE-TEST-20</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1552,11 +1552,20 @@ function initFromUrlToken(){
       // Qui, senza applicarlo anche sui dati veri del server (non solo in locale), il condòmino
       // rischiava di risultare "online" solo nella memoria del proprio telefono — specie se
       // un'altra persona si collegava nello stesso istante da un altro dispositivo.
-      const idBuildingToken = b.id, idCondominoToken = c.id;
-      eseguiConUnioneSuServer(()=>{
-        const bCorrente = buildings.find(x=>x.id===idBuildingToken);
-        if(bCorrente) segnaOnlinePerLinkPersonale(bCorrente, idCondominoToken);
-      });
+      // Isolato in un try/catch apposito: il riconoscimento del condòmino e l'ingresso nella
+      // pagina giusta NON devono MAI dipendere dalla buona riuscita di questo passaggio — se
+      // qualcosa andasse storto qui, l'importante è che la persona arrivi comunque alla pagina
+      // corretta; lo stato "online" si aggiornerà comunque poco dopo tramite la normale
+      // sincronizzazione periodica.
+      try{
+        const idBuildingToken = b.id, idCondominoToken = c.id;
+        eseguiConUnioneSuServer(()=>{
+          const bCorrente = buildings.find(x=>x.id===idBuildingToken);
+          if(bCorrente) segnaOnlinePerLinkPersonale(bCorrente, idCondominoToken);
+        });
+      }catch(e){
+        console.error('[Adunanza] Segnalazione online fallita (il riconoscimento del condòmino prosegue comunque):', e);
+      }
       return true;
     }
   }
@@ -5717,6 +5726,7 @@ function salvaStato(){
 // attimo le variabili globali con quelle "vere" del server, per poi ripristinarle subito dopo
 // (il dispositivo continua comunque a vedere la propria copia locale, che si aggiorna da sola
 // pochi istanti dopo tramite la normale sincronizzazione).
+let __transazioneMergeInCorso = false;
 function eseguiConUnioneSuServer(azione){
   // Applichiamo comunque subito l'azione in locale, per una risposta immediata sullo schermo,
   // e la salviamo come sempre (rete di sicurezza/localStorage) — poi, in aggiunta, la
@@ -5728,6 +5738,12 @@ function eseguiConUnioneSuServer(azione){
     const buildingsLocaliDiBackup = buildings;
     const activePollLocaleDiBackup = activePoll;
     const activePollOdgIdLocaleDiBackup = activePollOdgId;
+    // Segnaliamo che stiamo lavorando temporaneamente sui dati del server (non sui nostri):
+    // Firebase può, in alcuni casi, far scattare l'ascolto in tempo reale proprio durante
+    // questo scambio — questa bandiera dice all'ascoltatore di ignorare quell'aggiornamento
+    // specifico (arriverà comunque il prossimo, quello vero e definitivo, appena la
+    // transazione sarà confermata dal server).
+    __transazioneMergeInCorso = true;
     try{
       buildings = statoServer.buildings.map(miglioraSchemaBuilding);
       activePoll = deserializzaPoll(statoServer.activePoll);
@@ -5740,6 +5756,7 @@ function eseguiConUnioneSuServer(azione){
       buildings = buildingsLocaliDiBackup;
       activePoll = activePollLocaleDiBackup;
       activePollOdgId = activePollOdgIdLocaleDiBackup;
+      __transazioneMergeInCorso = false;
     }
   }).catch(e=>console.error('[Adunanza] Transazione di unione fallita:', e));
 }
@@ -5956,6 +5973,13 @@ function collegaAscoltoFirebase(){
     return;
   }
   window.__fbAscoltaStato((dati)=>{
+    if(__transazioneMergeInCorso){
+      // Siamo nel bel mezzo di una transazione di unione: i dati globali sono temporaneamente
+      // scambiati con quelli del server per applicarci una modifica precisa. Ignoriamo questo
+      // aggiornamento specifico (ne arriverà comunque uno corretto appena la transazione sarà
+      // confermata) invece di rischiare interferenze.
+      return;
+    }
     const applicato = applicaDatiRicevuti(dati, false);
     if(!__primoDatoFirebaseGestito){
       __primoDatoFirebaseGestito = true;
