@@ -462,7 +462,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 08/08/2026 alle 10:10">LIVE-TEST-23</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 08/08/2026 alle 16:11">LIVE-TEST-25</span></div>
   </div>
 
   <!-- MAIN -->
@@ -4433,6 +4433,18 @@ function votoUnanime(optId){
 // individuale: un successivo click su un'altra scelta unanime potrà sovrascriverlo.
 function impostaVoto(condominoId, optId, isPropagazioneAutomatica, isVotoInBlocco){
   const assemblea=getAssembleaInCorso(getActiveBuilding());
+  // Rete di sicurezza definitiva, DIRETTAMENTE nel punto dove si scrive: qualsiasi sia la
+  // ragione per cui uno di questi pezzi possa mancare in questo preciso istante (il database
+  // condiviso può omettere campi vuoti, e nonostante le correzioni già fatte più a monte
+  // continuavano a presentarsi casi non coperti) — qui viene sistemato una volta per tutte,
+  // PRIMA di usarlo, invece di continuare a inseguire ogni possibile origine del problema.
+  if(!activePoll.scelte || typeof activePoll.scelte!=='object') activePoll.scelte = {};
+  if(!(activePoll.voted instanceof Set)) activePoll.voted = new Set(Array.isArray(activePoll.voted)?activePoll.voted:[]);
+  if(!(activePoll.votatoInBlocco instanceof Set)) activePoll.votatoInBlocco = new Set(Array.isArray(activePoll.votatoInBlocco)?activePoll.votatoInBlocco:[]);
+  if(!(activePoll.overridden instanceof Set)) activePoll.overridden = new Set(Array.isArray(activePoll.overridden)?activePoll.overridden:[]);
+  if(!assemblea.appello) assemblea.appello = {online:[], presenzeFisiche:[], deleghe:{}};
+  if(!assemblea.appello.deleghe || typeof assemblea.appello.deleghe!=='object') assemblea.appello.deleghe = {};
+
   activePoll.scelte[condominoId]=optId;
   activePoll.voted.add(condominoId);
   if(isVotoInBlocco) activePoll.votatoInBlocco.add(condominoId);
@@ -5693,7 +5705,13 @@ function serializzaPoll(p){
 }
 function deserializzaPoll(p){
   if(!p) return null;
-  return {...p, voted: new Set(p.voted||[]), overridden: new Set(p.overridden||[]), votatoInBlocco: new Set(p.votatoInBlocco||[])};
+  // Firebase omette del tutto i campi che risultano vuoti quando li salva (stesso
+  // comportamento già visto per le liste vuote altrove) — "scelte" parte sempre vuoto appena
+  // un sondaggio viene aperto (nessuno ha ancora votato), quindi Firebase spesso non lo salva
+  // affatto. Senza questa correzione, il primissimo voto su un sondaggio appena aperto andava
+  // sempre in errore ("Cannot set properties of undefined"), sia dal cellulare sia con
+  // "Tutti i presenti" (che si bloccava sulla primissima persona).
+  return {...p, scelte: p.scelte||{}, voted: new Set(p.voted||[]), overridden: new Set(p.overridden||[]), votatoInBlocco: new Set(p.votatoInBlocco||[])};
 }
 function ripristinaDemo(){
   if(!confirm('Vuoi cancellare tutti i dati salvati in questo browser e ripartire da zero con la demo? L\'operazione non si può annullare.')) return;
