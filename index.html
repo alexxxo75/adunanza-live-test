@@ -349,14 +349,10 @@
   /* VISTA CONDOMINO — grande, semplice, accessibile, TEMA SCURO (risparmio batteria OLED) */
   .condomino-shell{background:#524A38;min-height:100vh;padding:26px;}
   .condomino-view{max-width:760px;margin:0 auto;background:#463F2F;border-radius:8px;padding:28px;font-size:var(--cv-scale, 17px);color:#F2F0EC;}
-  .condomino-view h1{font-size:1.7em;color:#fff;font-family:var(--font-display);margin:0 0 6px;}
+  .condomino-view h1{font-size:15px;font-weight:600;color:#fff;font-family:var(--font-display);margin:0 0 8px;}
   .condomino-view .sub{font-size:0.95em;color:#C4BCA5;}
-  /* Su schermi piccoli (telefono, il caso reale d'uso per un condòmino): via la barra con
-     "Vista amministratore" e i controlli A-/A+ (inutili per chi non è l'amministratore),
-     lasciando solo il nome del condominio, più piccolo, per non occupare spazio prezioso. */
   @media (max-width: 640px){
     .condomino-topbar{ display:none; }
-    .condomino-view h1{ font-size:15px; font-weight:600; margin:0 0 10px; }
   }
   .condomino-topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;}
   .condomino-topbar .font-ctrl{display:flex;gap:8px;align-items:center;}
@@ -377,8 +373,8 @@
   .cv-aiuto-permessi-corpo b{ color:#F2F0EC; }
   .cv-aiuto-permessi-corpo ol{ margin:6px 0 12px; padding-left:18px; }
 
-  #cv-video-box{ width:100%; aspect-ratio:9/16; max-height:88vh; background:#000; overflow:hidden; position:relative; border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,.35); transition:width .35s ease, max-height .35s ease, border-radius .35s ease; margin:0 auto 12px; }
-  @media (orientation: landscape){ #cv-video-box{ aspect-ratio:16/9; max-height:88vh; } }
+  #cv-video-box{ width:100%; aspect-ratio:9/16; max-height:96vh; background:#000; overflow:hidden; position:relative; border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,.35); transition:width .35s ease, max-height .35s ease, border-radius .35s ease; margin:0 auto 12px; }
+  @media (orientation: landscape){ #cv-video-box{ aspect-ratio:16/9; max-height:96vh; } }
   #cv-video-box iframe{ width:100% !important; height:100% !important; border:0 !important; display:block; }
   #cv-video-box.video-piccolo{ width:150px; max-height:none; border-radius:8px; border:2px solid #8C7D57; }
   #cv-video-toggle-bar{ display:none; margin-bottom:14px; }
@@ -450,7 +446,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 08/08/2026 alle 09:45">LIVE-TEST-20</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 08/08/2026 alle 10:00">LIVE-TEST-21</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1107,6 +1103,7 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
     <div class="page hidden" id="page-vista-condomino" style="margin:-30px -44px;">
       <div class="condomino-shell">
         <div class="condomino-view" id="condomino-view-box">
+          <h1 id="cv-building-name">Assemblea</h1>
           <div id="cv-video-wrap">
             <div id="cv-pre-ingresso">
               <p class="titolo">📹 Pronto per entrare</p>
@@ -1140,7 +1137,6 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
             </div>
           </div>
 
-          <h1 id="cv-building-name">Assemblea</h1>
           <p class="sub" id="cv-welcome">—</p>
 
           <button class="big-action-btn" id="cv-hand-btn" onclick="toggleHandRaise()">✋ Alza la mano</button>
@@ -4608,31 +4604,31 @@ function renderPollResults(){
 }
 function closePoll(){
   const puntoAppenaChiuso = activePollOdgId; // lo salviamo prima che venga azzerato
-  if(activePoll && activePollOdgId){
-    const b=getActiveBuilding();
-    const assemblea=getAssembleaInCorso(b);
-    const p=assemblea.odg.find(x=>x.id===activePollOdgId);
-    if(p){
-      p.storicoSondaggi = p.storicoSondaggi||[];
-      p.storicoSondaggi.push({
-        question: activePoll.question,
-        tabella: activePoll.tabella,
-        options: activePoll.options.map(o=>({id:o.id, label:o.label})),
-        risultatiFinali: calcolaRisultatiSondaggio(),
-        // Voti individuali (chi ha votato cosa) conservati per intero, non solo il totale:
-        // servono per poter riaprire il sondaggio in futuro senza perdere i voti già dati.
-        scelte: {...activePoll.scelte},
-        overridden: Array.from(activePoll.overridden||[])
-      });
+  eseguiConUnioneSuServer(()=>{
+    if(activePoll && activePollOdgId){
+      const b=getActiveBuilding();
+      const assemblea=getAssembleaInCorso(b);
+      const p=assemblea ? assemblea.odg.find(x=>x.id===activePollOdgId) : null;
+      if(p){
+        p.storicoSondaggi = p.storicoSondaggi||[];
+        p.storicoSondaggi.push({
+          question: activePoll.question,
+          tabella: activePoll.tabella,
+          options: activePoll.options.map(o=>({id:o.id, label:o.label})),
+          risultatiFinali: calcolaRisultatiSondaggio(),
+          // Voti individuali (chi ha votato cosa) conservati per intero, non solo il totale:
+          // servono per poter riaprire il sondaggio in futuro senza perdere i voti già dati.
+          scelte: {...activePoll.scelte},
+          overridden: Array.from(activePoll.overridden||[])
+        });
+      }
     }
-  }
+    activePoll=null;
+    activePollOdgId=null;
+  });
   document.getElementById('active-poll').classList.add('hidden');
-  document.getElementById('cv-poll-area').innerHTML='';
-  activePoll=null;
-  activePollOdgId=null;
   renderOdgBlocks();
   renderFloatingActivePoll();
-  salvaStato();
   toast('Sondaggio chiuso. Il risultato resta visibile nel blocco e sarà incluso nel verbale.');
   // Il riquadro del sondaggio che scompare fa "accorciare" la pagina: senza intervenire, lo
   // scorrimento può scivolare verso quello che si trova più sotto (es. il Verbale), lasciando
