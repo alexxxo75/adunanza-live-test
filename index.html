@@ -506,7 +506,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 09/08/2026 alle 18:56">LIVE-TEST-41</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 09/08/2026 alle 19:16">LIVE-TEST-42</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1550,6 +1550,16 @@ function testoDefaultPerModalita(modalita){
 }
 
 let assembleaIdCounter = 1;
+// Invece di un semplice contatore che cresce di uno alla volta (rischioso se questo browser
+// fosse rimasto aperto a lungo senza ricevere gli ultimi aggiornamenti, magari perché in
+// secondo piano — rischiando di assegnare a una NUOVA assemblea lo stesso identificativo di
+// una VECCHIA già conclusa, con conseguenze molto serie: la nuova erediterebbe di fatto tutti
+// i dati di quella vecchia, appello e verbale compresi), usiamo l'orario preciso più una
+// piccola parte casuale: praticamente impossibile che due assemblee — anche create nello
+// stesso istante da dispositivi diversi — finiscano per avere lo stesso identificativo.
+function generaIdAssembleaUnivoco(){
+  return Date.now() * 1000 + Math.floor(Math.random()*1000);
+}
 function nuovaAssembleaVuota(){
   const modalitaIniziale = amministratore.modalitaDefault || 'mista';
   return {
@@ -3508,7 +3518,7 @@ function duplicaAssemblea(assembleaId){
   const originale = b.assemblee.find(a=>a.id===assembleaId);
   if(!originale) return;
   const copia = JSON.parse(JSON.stringify(originale));
-  copia.id = assembleaIdCounter++;
+  copia.id = generaIdAssembleaUnivoco();
   copia.stato = 'bozza';
   copia.iniziata = false; copia.oraInizio = null;
   copia.invitiInviati = false;
@@ -3566,7 +3576,7 @@ function aggiungiAssembleaInCoda(){
   const b = getActiveBuilding();
   const precedente = salvaAssembleaInElenco(); // assicura che questa assemblea abbia un id reale salvato
   const nuova = nuovaAssembleaVuota();
-  nuova.id = assembleaIdCounter++;
+  nuova.id = generaIdAssembleaUnivoco();
   nuova.assembleaPrecedenteId = precedente.id;
   precedente.assembleaSuccessivaId = nuova.id;
   // La nuova assemblea eredita di default la stessa modalità di svolgimento della precedente:
@@ -4108,7 +4118,7 @@ function salvaAssembleaInElenco(){
   const a=workingAssembly;
   salvaCampiAssemblea();
   if(a.id==null){
-    a.id = assembleaIdCounter++;
+    a.id = generaIdAssembleaUnivoco();
     b.assemblee.push(a);
   }
   return a;
@@ -6266,7 +6276,7 @@ function miglioraSchemaBuilding(b){
     // non un elenco) invece di perderla.
     if(b.assemblea && typeof b.assemblea === 'object'){
       const vuota = nuovaAssembleaVuota();
-      b.assemblee.push(Object.assign(vuota, b.assemblea, {id: assembleaIdCounter++}));
+      b.assemblee.push(Object.assign(vuota, b.assemblea, {id: generaIdAssembleaUnivoco()}));
     }
   }
   delete b.assemblea;
