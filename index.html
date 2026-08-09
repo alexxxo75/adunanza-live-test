@@ -48,42 +48,13 @@
   // database condiviso: stesso identico principio già usato e collaudato nei file di prova
   // voto-condominio/regia-condominio, solo applicato qui a tutta Adunanza.
   const statoRef = ref(db, 'adunanza_stato_condiviso');
-  // Nodo SEPARATO per il rilevamento della presenza, con il metodo "a battito" (heartbeat):
-  // ogni dispositivo collegato scrive periodicamente un segnale con l'orario; chi ascolta
-  // controlla quanto tempo è passato dall'ultimo battito ricevuto. Se manca per più di un
-  // battito di fila, si considera davvero disconnesso — un solo battito mancato non basta,
-  // proprio per evitare i falsi allarmi dovuti a un attimo di segnale debole (es. in auto).
-  // Molto più affidabile del precedente sistema basato sulla disconnessione automatica di
-  // Firebase, che si è dimostrato troppo sensibile a interruzioni di rete brevissime.
-  const battitoRefBase = ref(db, 'adunanza_battito');
-  window.__fbInviaBattito = function(condominoId){
-    console.log('[Adunanza][battito] Invio battito per condòmino', condominoId, 'in corso...');
-    return set(ref(db, 'adunanza_battito/' + condominoId), serverTimestamp())
-      .then(()=>{ console.log('[Adunanza][battito] Battito per condòmino', condominoId, 'confermato dal server.'); return true; })
-      .catch(e=>{ console.error('[Adunanza][battito] Invio battito FALLITO per condòmino', condominoId, ':', e); throw e; });
-  };
+  // Il rilevamento di chi è davvero collegato ("battito") NON usa più un nodo Firebase a parte:
+  // viaggia dentro lo stesso identico canale già usato per tutto il resto (sondaggi, chat,
+  // appello) — un dato in più dentro l'assemblea, sincronizzato con lo stesso meccanismo che
+  // già sappiamo funzionare bene anche nei browser più limitati (come quello integrato in
+  // Gmail). Niente nodi separati, niente ascolti indipendenti da tenere in piedi.
   window.__fbRegistraUscitaVolontaria = function(condominoId){
-    // Uscita esplicita (ha premuto "Lascia assemblea"): rimuoviamo subito il suo battito, così
-    // risulta chiaramente assente da qui in avanti, senza dover aspettare che "scada" da solo.
-    return set(ref(db, 'adunanza_battito/' + condominoId), null);
-  };
-  window.__fbAscoltaBattiti = function(callback){
-    onValue(battitoRefBase, (snapshot)=>{ callback(snapshot.val()||{}); });
-  };
-  // "PING": invece di far mantenere al cellulare del condòmino un proprio timer sempre attivo
-  // (che nei browser integrati di altre app, come quello di Gmail, viene spesso rallentato o
-  // sospeso quando non è in primo piano — la causa reale del mancato invio dei battiti),
-  // capovolgiamo il verso: Adunanza invia periodicamente un segnale, e la pagina del cellulare
-  // lo ASCOLTA in modo passivo — esattamente come già fa per ricevere un sondaggio appena
-  // avviato, cosa che si è dimostrata affidabile anche in quei browser più limitati — e
-  // risponde subito con il proprio battito solo quando lo riceve, senza bisogno di un proprio
-  // timer indipendente.
-  const pingRefBase = ref(db, 'adunanza_ping');
-  window.__fbInviaPing = function(){
-    set(pingRefBase, serverTimestamp()).catch(e=>console.error('[Adunanza][battito] Invio ping fallito:', e));
-  };
-  window.__fbAscoltaPing = function(callback){
-    onValue(pingRefBase, (snapshot)=>{ if(snapshot.val()!=null) callback(snapshot.val()); });
+    return Promise.resolve(); // gestito ora direttamente nei dati dell'assemblea, vedi esciDaAssemblea
   };
 
   window.__fbScriviStato = function(dati){
@@ -506,7 +477,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 09/08/2026 alle 23:32">LIVE-TEST-44</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 09/08/2026 alle 23:42">LIVE-TEST-45</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1605,59 +1576,59 @@ function chatArr(){
 }
 let currentCondomino = null; // il condòmino "autenticato" in questa vista — riconosciuto via token o selezionato in anteprima
 let usciteVolontariamenteInAttesaDiRientro = false; // true se questo dispositivo ha premuto "Lascia assemblea" ed è tornato sulla pagina senza aver ancora toccato "Rientra"
-// Sistema "a battito" (heartbeat) per sapere chi è davvero collegato: questo dispositivo invia
-// un segnale periodico finché resta sulla pagina dell'assemblea; chi ascolta considera
-// "davvero disconnesso" solo chi non manda un segnale da più di un giro — un solo battito
-// mancato non basta, per evitare falsi allarmi dovuti a un attimo di segnale debole.
-// Fase di test: un battito ogni 10 secondi. A regime, alzare a 30 secondi (e la soglia
-// "offline" di conseguenza) per non consumare troppa batteria/dati sul telefono.
-const INTERVALLO_BATTITO_MS = 10000;
-let __intervalloBattitoAttivo = null;
-let __pingListenerAttivo = false;
+// Sistema "a battito" (heartbeat), riscritto in modo semplice: il battito non usa più un
+// canale Firebase a parte, ma viaggia dentro l'assemblea stessa (un campo "pingAmministratore"
+// e un elenco "battiti"), sincronizzato con lo STESSO meccanismo già usato per tutto il resto
+// (sondaggi, chat, appello) — quello che già sappiamo funzionare bene anche nei browser più
+// limitati. L'amministratore aggiorna "pingAmministratore" ogni tot secondi; il cellulare del
+// condòmino, ogni volta che riceve un aggiornamento (cosa che già fa in continuazione per
+// tutto il resto), controlla se è cambiato e, se sì, risponde scrivendo il proprio orario in
+// "battiti". Niente ascolti separati da tenere in piedi, niente tentativi da ripetere.
+const INTERVALLO_BATTITO_MS = 10000; // fase di test: 10 secondi. A regime, alzare a 30.
+let __battitoAttivoPerCondomino = null; // id del condòmino per cui questo dispositivo deve rispondere al ping, o null se non in ascolto
+let __ultimoPingVisto = null; // per accorgerci quando l'amministratore invia un NUOVO ping (valore diverso dall'ultimo)
 function mostraDiagnosticaBattito(testo){
   const el = document.getElementById('cv-diagnostica-battito');
   if(el) el.textContent = testo;
 }
-function inviaBattitoConDiagnostica(condominoId, motivo){
-  if(!window.__fbInviaBattito) return;
-  mostraDiagnosticaBattito('Battito: invio in corso (' + motivo + ')...');
-  window.__fbInviaBattito(condominoId).then(()=>{
-    const ora = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-    mostraDiagnosticaBattito('Battito: ultimo inviato con successo alle ' + ora + ' (' + motivo + ')');
-  }).catch(()=>{
-    mostraDiagnosticaBattito('Battito: ⚠️ ultimo invio FALLITO — nessuna connessione al database condiviso');
-  });
-}
 function avviaInvioBattitoPeriodico(condominoId){
-  fermaInvioBattitoPeriodico();
-  __pingListenerAttivo = true;
-  mostraDiagnosticaBattito('Battito: in attesa di collegamento...');
-  function collegaAscolto(){
-    if(!__pingListenerAttivo) return; // nel frattempo si è già usciti: non serve più collegarsi
-    if(!window.__fbAscoltaPing || !window.__fbInviaBattito){
-      // Lo script di Firebase potrebbe non essere ancora pronto: riproviamo tra poco invece
-      // di abbandonare per sempre — altrimenti il battito non partirebbe mai per tutta la
-      // sessione, senza che nessuno se ne accorga.
-      mostraDiagnosticaBattito('Battito: Firebase non ancora pronto, riprovo...');
-      setTimeout(collegaAscolto, 500);
-      return;
-    }
-    console.log('[Adunanza][battito] In ascolto del ping da Adunanza per condòmino', condominoId, '— risponderò con il mio battito ogni volta che arriva, invece di usare un timer mio (più fragile nei browser integrati come quello di Gmail).');
-    // Ascolto PASSIVO, non un nostro timer: rispondiamo solo quando arriva un ping da
-    // Adunanza — esattamente come già facciamo per ricevere un sondaggio appena avviato,
-    // meccanismo che si è dimostrato affidabile anche nei browser più limitati.
-    window.__fbAscoltaPing(()=>{
-      if(!__pingListenerAttivo) return;
-      inviaBattitoConDiagnostica(condominoId, 'risposta a un ping');
-    });
-    inviaBattitoConDiagnostica(condominoId, 'primo invio'); // il primo, subito, senza aspettare il primo ping
-  }
-  collegaAscolto();
+  __battitoAttivoPerCondomino = condominoId;
+  __ultimoPingVisto = null; // forza una risposta al prossimo controllo, anche se il ping è "vecchio"
+  mostraDiagnosticaBattito('Battito: in attesa del prossimo segnale da Adunanza...');
+  rispondiAlPingSeNecessario(); // non aspettiamo il giro successivo: rispondiamo subito una prima volta
 }
 function fermaInvioBattitoPeriodico(){
-  __pingListenerAttivo = false;
-  if(__intervalloBattitoAttivo){ clearInterval(__intervalloBattitoAttivo); __intervalloBattitoAttivo=null; }
-  mostraDiagnosticaBattito('Battito: fermato (uscito dall\'assemblea)');
+  __battitoAttivoPerCondomino = null;
+  mostraDiagnosticaBattito('Battito: fermato (uscito dall\u2019assemblea)');
+}
+// Chiamata ogni volta che arrivano dati nuovi dal database condiviso (in applicaDatiRicevuti,
+// esattamente lo stesso punto che già gestisce l'arrivo di un sondaggio): se il ping
+// dell'amministratore è cambiato da quando l'abbiamo visto l'ultima volta, rispondiamo.
+function rispondiAlPingSeNecessario(){
+  if(!__battitoAttivoPerCondomino) return;
+  const b = getActiveBuilding();
+  const a = b ? getAssembleaContestualizzataCondomino(b) : null;
+  if(!a) return;
+  const pingAttuale = a.pingAmministratore || null;
+  if(pingAttuale === __ultimoPingVisto) return; // nessun ping nuovo: niente da fare
+  __ultimoPingVisto = pingAttuale;
+  const condominoId = __battitoAttivoPerCondomino;
+  const oraInvio = Date.now();
+  mostraDiagnosticaBattito('Battito: invio in corso...');
+  try{
+    eseguiConUnioneSuServer(()=>{
+      const bCorrente = getActiveBuilding();
+      const aCorrente = bCorrente ? getAssembleaContestualizzataCondomino(bCorrente) : null;
+      if(!aCorrente) return;
+      aCorrente.battiti = aCorrente.battiti || {};
+      aCorrente.battiti[condominoId] = oraInvio;
+    });
+    const ora = new Date(oraInvio).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    mostraDiagnosticaBattito('Battito: ultimo inviato con successo alle ' + ora);
+  }catch(e){
+    console.error('[Adunanza][battito] Invio fallito:', e);
+    mostraDiagnosticaBattito('Battito: \u26a0\ufe0f ultimo invio FALLITO');
+  }
 }
 let contestoAssembleaIdCondomino = null; // l'id dell'assemblea specifica indicata nel link personale (parametro "assemblea"): il condòmino resta legato a QUESTA, non a "qualunque cosa l'amministratore abbia aperto ora"
 // Trova l'assemblea giusta per il condòmino: se il link conteneva un id specifico, usa SEMPRE
@@ -6312,6 +6283,7 @@ function miglioraSchemaBuilding(b){
     if(!Array.isArray(a.appello.online)) a.appello.online = [];
     if(!Array.isArray(a.appello.presenzeFisiche)) a.appello.presenzeFisiche = [];
     if(!a.appello.deleghe || typeof a.appello.deleghe!=='object') a.appello.deleghe = {};
+    if(!a.battiti || typeof a.battiti!=='object') a.battiti = {};
     if(a.invioVerbaleDocumenti && !Array.isArray(a.invioVerbaleDocumenti.storicoInvii)) a.invioVerbaleDocumenti.storicoInvii = [];
     a.odg.forEach(p=>{
       if(!Array.isArray(p.storicoSondaggi)) p.storicoSondaggi = [];
@@ -6413,6 +6385,9 @@ function applicaDatiRicevuti(parsed, aggiornaAncheNavigazioneLocale){
     const puntoValido = assembleaAttiva && (assembleaAttiva.odg||[]).some(p=>p.id===activePollOdgId);
     if(!puntoValido){ activePoll=null; activePollOdgId=null; }
   }
+  // Ogni volta che arrivano dati nuovi (esattamente come per un sondaggio appena avviato),
+  // controlliamo se l'amministratore ha mandato un nuovo "ping": se sì, rispondiamo subito.
+  rispondiAlPingSeNecessario();
   return true;
 }
 function caricaStato(){
@@ -6507,14 +6482,24 @@ function collegaAscoltoFirebase(){
     const indicatore = document.getElementById('fb-stato-connessione');
     if(indicatore) indicatore.textContent = '🟢 Connesso al database condiviso';
   });
-  collegaAscoltoPresenza();
   // Solo l'amministratore (chi non ha un link personale con token) invia il "ping" periodico:
   // è lui che tiene viva l'assemblea da Adunanza, quindi il suo dispositivo — normalmente un
   // browser vero, non integrato dentro un'altra app — è quello più affidabile per mantenere
-  // un timer attivo. I cellulari dei condòmini si limitano ad ascoltarlo e rispondere.
-  if(!__haTokenNelLink && window.__fbInviaPing){
-    window.__fbInviaPing(); // il primo, subito
-    setInterval(()=>window.__fbInviaPing(), INTERVALLO_BATTITO_MS);
+  // un timer attivo. Il ping viaggia dentro l'assemblea stessa, con lo stesso meccanismo
+  // sicuro già usato per registrare un voto: niente canali Firebase separati.
+  if(!__haTokenNelLink){
+    function inviaPingAmministratore(){
+      const b = getActiveBuilding();
+      if(!b || !getAssembleaInCorso(b)) return; // nessuna assemblea in corso: niente da fare
+      eseguiConUnioneSuServer(()=>{
+        const bCorrente = getActiveBuilding();
+        const aCorrente = bCorrente ? getAssembleaInCorso(bCorrente) : null;
+        if(aCorrente) aCorrente.pingAmministratore = Date.now();
+      });
+    }
+    inviaPingAmministratore(); // il primo, subito
+    setInterval(inviaPingAmministratore, INTERVALLO_BATTITO_MS);
+    setInterval(verificaBattitiScaduti, INTERVALLO_BATTITO_MS);
   }
 }
 // Ascolta il nodo dedicato alla presenza: quando un condòmino risulta "uscito" (per
@@ -6527,7 +6512,6 @@ function collegaAscoltoFirebase(){
 // secondi: un'interruzione di rete più breve di così (es. un attimo di segnale debole in
 // auto) non fa quindi scattare un'uscita per errore.
 const SOGLIA_OFFLINE_MS = INTERVALLO_BATTITO_MS * 2 + 5000;
-let __ultimiBattitiConosciuti = {}; // condominoId (stringa) -> orario dell'ultimo battito ricevuto
 let __condominiGiaSegnatiUsciti = {}; // evita di riapplicare l'uscita più volte per la stessa persona
 function applicaUscitaPerCondomino(condominoId){
   eseguiConUnioneSuServer(()=>{
@@ -6543,26 +6527,23 @@ function applicaUscitaPerCondomino(condominoId){
   });
 }
 // Controllo periodico: per ogni condòmino attualmente segnato online, verifichiamo quanto
-// tempo è passato dal suo ultimo battito conosciuto — se supera la soglia, lo consideriamo
-// davvero uscito. Chi non ha ancora mandato nessun battito (es. connessione appena aperta,
-// prima ancora del primo invio) viene lasciato stare per prudenza, non segnato come uscito.
+// tempo è passato dal suo ultimo battito conosciuto — letto DIRETTAMENTE dai dati già
+// sincronizzati (a.battiti), senza bisogno di un ascolto separato. Se supera la soglia, lo
+// consideriamo davvero uscito. Chi non ha ancora mandato nessun battito (es. connessione
+// appena aperta) viene lasciato stare per prudenza, non segnato come uscito.
 function verificaBattitiScaduti(){
-  let controllatiCount = 0;
   buildings.forEach(bb=>{
     const a = getAssembleaInCorso(bb);
     if(!a) return;
     (a.appello.online||[]).forEach(rec=>{
       if(rec.uscita) return;
-      controllatiCount++;
       const chiaveGia = rec.condominoId + ':' + a.id;
-      const ultimoBattito = __ultimiBattitiConosciuti[String(rec.condominoId)];
-      const eta = ultimoBattito ? (Date.now() - ultimoBattito) : null;
-      console.log('[Adunanza][battito] Controllo condòmino', rec.condominoId, '— ultimo battito ricevuto:', ultimoBattito ? new Date(ultimoBattito).toLocaleTimeString('it-IT') : 'MAI RICEVUTO', '— età:', eta!==null ? Math.round(eta/1000)+'s' : '—', '— soglia:', SOGLIA_OFFLINE_MS/1000+'s');
+      const ultimoBattito = (a.battiti||{})[rec.condominoId] || (a.battiti||{})[String(rec.condominoId)];
       if(!ultimoBattito) return;
+      const eta = Date.now() - ultimoBattito;
       if(eta > SOGLIA_OFFLINE_MS){
         if(__condominiGiaSegnatiUsciti[chiaveGia]) return;
         __condominiGiaSegnatiUsciti[chiaveGia] = true;
-        console.log('[Adunanza][battito] ⚠️ SOGLIA SUPERATA per il condòmino', rec.condominoId, '— applico uscita ORA.');
         applicaUscitaPerCondomino(rec.condominoId);
         renderAppello(); // aggiorniamo subito la tabella visibile, senza aspettare l'eco di Firebase
       }else{
@@ -6570,16 +6551,6 @@ function verificaBattitiScaduti(){
       }
     });
   });
-  console.log('[Adunanza][battito] Giro di controllo completato —', controllatiCount, 'persone online controllate. Elenco battiti grezzi conosciuti:', __ultimiBattitiConosciuti);
-}
-function collegaAscoltoPresenza(){
-  if(!window.__fbAscoltaBattiti){
-    console.warn('[Adunanza][battito] __fbAscoltaBattiti non disponibile: Firebase non raggiungibile in questa sessione.');
-    return;
-  }
-  console.log('[Adunanza][battito] Ascolto battiti attivato su questo dispositivo.');
-  window.__fbAscoltaBattiti((battitiGrezzi)=>{ __ultimiBattitiConosciuti = battitiGrezzi || {}; });
-  setInterval(verificaBattitiScaduti, INTERVALLO_BATTITO_MS);
 }
 
 if(!__haTokenNelLink){
