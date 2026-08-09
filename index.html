@@ -57,8 +57,10 @@
   // Firebase, che si è dimostrato troppo sensibile a interruzioni di rete brevissime.
   const battitoRefBase = ref(db, 'adunanza_battito');
   window.__fbInviaBattito = function(condominoId){
+    console.log('[Adunanza][battito] Invio battito per condòmino', condominoId, 'in corso...');
     set(ref(db, 'adunanza_battito/' + condominoId), serverTimestamp())
-      .catch(e=>console.error('[Adunanza][battito] Invio battito fallito:', e));
+      .then(()=>console.log('[Adunanza][battito] Battito per condòmino', condominoId, 'confermato dal server.'))
+      .catch(e=>console.error('[Adunanza][battito] Invio battito FALLITO per condòmino', condominoId, ':', e));
   };
   window.__fbRegistraUscitaVolontaria = function(condominoId){
     // Uscita esplicita (ha premuto "Lascia assemblea"): rimuoviamo subito il suo battito, così
@@ -489,7 +491,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 09/08/2026 alle 11:27">LIVE-TEST-38</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 09/08/2026 alle 11:42">LIVE-TEST-39</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1584,7 +1586,16 @@ const INTERVALLO_BATTITO_MS = 10000;
 let __intervalloBattitoAttivo = null;
 function avviaInvioBattitoPeriodico(condominoId){
   fermaInvioBattitoPeriodico();
-  if(!window.__fbInviaBattito) return;
+  if(!window.__fbInviaBattito){
+    // La funzione di invio potrebbe non essere ancora pronta (lo script di Firebase parte un
+    // attimo dopo il resto del programma, per una regola del browser): invece di abbandonare
+    // per sempre, riproviamo tra poco — altrimenti il battito non partirebbe mai per tutta la
+    // sessione, senza che nessuno se ne accorga.
+    console.warn('[Adunanza][battito] Invio non ancora pronto per condòmino', condominoId, '— riprovo tra un istante.');
+    setTimeout(()=>avviaInvioBattitoPeriodico(condominoId), 500);
+    return;
+  }
+  console.log('[Adunanza][battito] Avvio invio periodico per condòmino', condominoId, '— un battito ogni', INTERVALLO_BATTITO_MS/1000, 'secondi.');
   window.__fbInviaBattito(condominoId); // il primo, subito
   __intervalloBattitoAttivo = setInterval(()=>window.__fbInviaBattito(condominoId), INTERVALLO_BATTITO_MS);
 }
