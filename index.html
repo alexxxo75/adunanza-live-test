@@ -31,7 +31,7 @@
   // funzioni che servono vengono "esposte" su window, così il resto del codice (scritto in modo
   // tradizionale) può richiamarle normalmente, senza dover riscrivere tutto in moduli.
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getDatabase, ref, set, get, onValue, off, runTransaction, onDisconnect, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+  import { getDatabase, ref, set, onValue, off, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBz8btTKtturX6pre9ZmEjb9paowF1Q5Fc",
@@ -48,52 +48,25 @@
   // database condiviso: stesso identico principio già usato e collaudato nei file di prova
   // voto-condominio/regia-condominio, solo applicato qui a tutta Adunanza.
   const statoRef = ref(db, 'adunanza_stato_condiviso');
-  // Nodo SEPARATO, apposta per rilevare quando un condòmino chiude il browser o perde la
-  // connessione: Firebase offre "onDisconnect", un meccanismo che gira DIRETTAMENTE sul server,
-  // non sul telefono — così registra l'uscita anche se il dispositivo si spegne di colpo, senza
-  // fare in tempo a eseguire altro codice (cosa che un normale evento "sto per chiudere la
-  // pagina" non può garantire).
-  const presenzaRefBase = ref(db, 'adunanza_presenza');
-  // Un solo condòmino "attivo" per volta su questo dispositivo: se la connessione si interrompe
-  // e si ristabilisce da sola (cosa comune sul cellulare — schermo bloccato, passaggio da WiFi a
-  // dati mobili...), dobbiamo ripetere la registrazione per la NUOVA connessione, altrimenti il
-  // "piano B" registrato per quella vecchia scatterebbe comunque, facendo risultare la persona
-  // "uscita" anche se in realtà è sempre rimasta collegata (falso allarme).
-  let __condominoAttualmentePresente = null;
-  function registraPresenzaSuConnessioneAttuale(){
-    if(!__condominoAttualmentePresente) return;
-    const condominoId = __condominoAttualmentePresente;
-    console.log('[Adunanza][presenza] (Ri)registro presenza e piano di disconnessione per condòmino', condominoId);
-    const mioRef = ref(db, 'adunanza_presenza/' + condominoId);
-    set(mioRef, {stato:'online', quando: serverTimestamp()});
-    onDisconnect(mioRef).set({stato:'uscito_disconnessione', quando: serverTimestamp()}).then(()=>{
-      console.log('[Adunanza][presenza] Piano di disconnessione confermato dal server per', condominoId);
-    }).catch(e=>console.error('[Adunanza][presenza] Registrazione del piano di disconnessione FALLITA:', e));
-  }
-  // ".info/connected" è un nodo speciale di Firebase: diventa true ogni volta che QUESTO
-  // dispositivo si collega o si ricollega al database — è il modo corretto, raccomandato da
-  // Firebase stesso, per gestire le riconnessioni automatiche (non solo il primo collegamento).
-  onValue(ref(db, '.info/connected'), (snap)=>{
-    if(snap.val()===true) registraPresenzaSuConnessioneAttuale();
-  });
-  window.__fbRegistraPresenza = function(condominoId){
-    __condominoAttualmentePresente = condominoId;
-    registraPresenzaSuConnessioneAttuale();
+  // Nodo SEPARATO per il rilevamento della presenza, con il metodo "a battito" (heartbeat):
+  // ogni dispositivo collegato scrive periodicamente un segnale con l'orario; chi ascolta
+  // controlla quanto tempo è passato dall'ultimo battito ricevuto. Se manca per più di un
+  // battito di fila, si considera davvero disconnesso — un solo battito mancato non basta,
+  // proprio per evitare i falsi allarmi dovuti a un attimo di segnale debole (es. in auto).
+  // Molto più affidabile del precedente sistema basato sulla disconnessione automatica di
+  // Firebase, che si è dimostrato troppo sensibile a interruzioni di rete brevissime.
+  const battitoRefBase = ref(db, 'adunanza_battito');
+  window.__fbInviaBattito = function(condominoId){
+    set(ref(db, 'adunanza_battito/' + condominoId), serverTimestamp())
+      .catch(e=>console.error('[Adunanza][battito] Invio battito fallito:', e));
   };
   window.__fbRegistraUscitaVolontaria = function(condominoId){
-    __condominoAttualmentePresente = null; // usciamo di proposito: non ri-registrare più nulla
-    const mioRef = ref(db, 'adunanza_presenza/' + condominoId);
-    onDisconnect(mioRef).cancel(); // usciamo volontariamente: non serve più il "piano B" automatico
-    return set(mioRef, {stato:'uscito_volontario', quando: serverTimestamp()});
+    // Uscita esplicita (ha premuto "Lascia assemblea"): rimuoviamo subito il suo battito, così
+    // risulta chiaramente assente da qui in avanti, senza dover aspettare che "scada" da solo.
+    return set(ref(db, 'adunanza_battito/' + condominoId), null);
   };
-  window.__fbAscoltaPresenza = function(callback){
-    onValue(presenzaRefBase, (snapshot)=>{ callback(snapshot.val()||{}); });
-  };
-  // Rilettura "una tantum" (non un ascolto continuo) del valore attuale di presenza per una
-  // persona: usata per il controllo dopo l'attesa di sicurezza, così sappiamo se nel frattempo
-  // si è ricollegata (falso allarme) o è rimasta davvero disconnessa.
-  window.__fbLeggiPresenzaOra = function(condominoId){
-    return get(ref(db, 'adunanza_presenza/' + condominoId)).then(snap=>snap.val());
+  window.__fbAscoltaBattiti = function(callback){
+    onValue(battitoRefBase, (snapshot)=>{ callback(snapshot.val()||{}); });
   };
 
   window.__fbScriviStato = function(dati){
@@ -516,7 +489,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 09/08/2026 alle 10:47">LIVE-TEST-35</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 09/08/2026 alle 11:01">LIVE-TEST-36</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1601,6 +1574,23 @@ function chatArr(){
 }
 let currentCondomino = null; // il condòmino "autenticato" in questa vista — riconosciuto via token o selezionato in anteprima
 let usciteVolontariamenteInAttesaDiRientro = false; // true se questo dispositivo ha premuto "Lascia assemblea" ed è tornato sulla pagina senza aver ancora toccato "Rientra"
+// Sistema "a battito" (heartbeat) per sapere chi è davvero collegato: questo dispositivo invia
+// un segnale periodico finché resta sulla pagina dell'assemblea; chi ascolta considera
+// "davvero disconnesso" solo chi non manda un segnale da più di un giro — un solo battito
+// mancato non basta, per evitare falsi allarmi dovuti a un attimo di segnale debole.
+// Fase di test: un battito ogni 10 secondi. A regime, alzare a 30 secondi (e la soglia
+// "offline" di conseguenza) per non consumare troppa batteria/dati sul telefono.
+const INTERVALLO_BATTITO_MS = 10000;
+let __intervalloBattitoAttivo = null;
+function avviaInvioBattitoPeriodico(condominoId){
+  fermaInvioBattitoPeriodico();
+  if(!window.__fbInviaBattito) return;
+  window.__fbInviaBattito(condominoId); // il primo, subito
+  __intervalloBattitoAttivo = setInterval(()=>window.__fbInviaBattito(condominoId), INTERVALLO_BATTITO_MS);
+}
+function fermaInvioBattitoPeriodico(){
+  if(__intervalloBattitoAttivo){ clearInterval(__intervalloBattitoAttivo); __intervalloBattitoAttivo=null; }
+}
 let contestoAssembleaIdCondomino = null; // l'id dell'assemblea specifica indicata nel link personale (parametro "assemblea"): il condòmino resta legato a QUESTA, non a "qualunque cosa l'amministratore abbia aperto ora"
 // Trova l'assemblea giusta per il condòmino: se il link conteneva un id specifico, usa SEMPRE
 // quello (indipendentemente da dove l'amministratore sta navigando in questo momento);
@@ -1701,7 +1691,7 @@ function initFromUrlToken(){
         // all'improvviso (chiusura del browser, telefono spento, rete persa), il server stesso
         // se ne accorgerà e registrerà l'uscita al posto nostro — non serve che il telefono
         // faccia in tempo a eseguire altro codice in quel momento.
-        if(window.__fbRegistraPresenza) window.__fbRegistraPresenza(idCondominoToken);
+        avviaInvioBattitoPeriodico(idCondominoToken);
       }catch(e){
         console.error('[Adunanza] Segnalazione online fallita (il riconoscimento del condòmino prosegue comunque):', e);
       }
@@ -4887,9 +4877,9 @@ function esciDaAssemblea(){
   }
   try{
     eseguiConUnioneSuServer(applicaUscita);
-    // Usciamo di proposito: annulliamo il "piano B" automatico (altrimenti, chiudendo comunque
-    // la pagina un istante dopo, il server proverebbe a registrare un'uscita già registrata —
-    // innocuo, ma inutile) e lo segnaliamo esplicitamente come uscita volontaria.
+    // Usciamo di proposito: fermiamo subito l'invio del battito e rimuoviamo quello registrato,
+    // così risultiamo chiaramente assenti da qui in avanti senza dover aspettare che "scada".
+    fermaInvioBattitoPeriodico();
     if(window.__fbRegistraUscitaVolontaria) window.__fbRegistraUscitaVolontaria(idCondomino);
     // Ricordiamo, in questo stesso browser, che siamo usciti volontariamente da QUESTA
     // assemblea: se si torna su questa pagina (es. premendo "indietro" nel browser dopo essere
@@ -4932,7 +4922,7 @@ function rientraInAssemblea(){
       const bCorrente = getActiveBuilding();
       if(bCorrente) segnaOnlinePerLinkPersonale(bCorrente, idCondominoToken);
     });
-    if(window.__fbRegistraPresenza) window.__fbRegistraPresenza(idCondominoToken);
+    avviaInvioBattitoPeriodico(idCondominoToken);
   }catch(e){
     console.error('[Adunanza] Rientro in assemblea fallito:', e);
   }
@@ -6384,13 +6374,14 @@ function collegaAscoltoFirebase(){
 // disconnessione improvvisa o per aver premuto "Esci assemblea"), registriamo la sua uscita
 // nei dati veri dell'appello — chiunque tra i dispositivi collegati se ne accorge per primo lo
 // fa, in modo sicuro grazie alla transazione di unione (che è innocua da ripetere più volte).
-// SOGLIA DI SICUREZZA: una disconnessione (a differenza di un'uscita volontaria, sempre
-// immediata) viene considerata vera solo se dura più di questo tempo — così una breve
-// interruzione di rete (schermo bloccato, galleria/zona con segnale debole in auto, passaggio
-// da WiFi a dati mobili) non fa scattare un'uscita per errore mentre la persona è ancora lì.
-// 10 secondi per i test attuali; da alzare a 60 secondi quando si andrà oltre la fase di test.
-const SOGLIA_DISCONNESSIONE_MS = 10000;
-const __presenzaGiaGestita = {}; // evita di rielaborare la stessa uscita più volte inutilmente
+// SOGLIA "OFFLINE": consideriamo davvero disconnesso solo chi non manda un battito da più di
+// UN giro intero (non basta un solo battito mancato) — con un margine in più per la normale
+// variabilità della rete. Con un battito ogni 10 secondi, la soglia risulta di circa 25
+// secondi: un'interruzione di rete più breve di così (es. un attimo di segnale debole in
+// auto) non fa quindi scattare un'uscita per errore.
+const SOGLIA_OFFLINE_MS = INTERVALLO_BATTITO_MS * 2 + 5000;
+let __ultimiBattitiConosciuti = {}; // condominoId (stringa) -> orario dell'ultimo battito ricevuto
+let __condominiGiaSegnatiUsciti = {}; // evita di riapplicare l'uscita più volte per la stessa persona
 function applicaUscitaPerCondomino(condominoId){
   eseguiConUnioneSuServer(()=>{
     buildings.forEach(bb=>{
@@ -6404,60 +6395,39 @@ function applicaUscitaPerCondomino(condominoId){
     });
   });
 }
-function collegaAscoltoPresenza(){
-  if(!window.__fbAscoltaPresenza){
-    console.warn('[Adunanza][presenza] __fbAscoltaPresenza non disponibile: Firebase non raggiungibile in questa sessione.');
-    return;
-  }
-  console.log('[Adunanza][presenza] Ascolto attivato su questo dispositivo.');
-  window.__fbAscoltaPresenza((presenzaGrezza)=>{
-    console.log('[Adunanza][presenza] Dati ricevuti dal nodo presenza:', presenzaGrezza);
-    Object.keys(presenzaGrezza||{}).forEach(condominoIdStr=>{
-      const rec = presenzaGrezza[condominoIdStr];
-      if(!rec || (rec.stato!=='uscito_disconnessione' && rec.stato!=='uscito_volontario')) return;
-      const chiave = condominoIdStr + ':' + (rec.quando||'');
-      if(__presenzaGiaGestita[chiave]) return;
-      __presenzaGiaGestita[chiave] = true;
-      const condominoId = parseInt(condominoIdStr);
-      if(rec.stato==='uscito_volontario'){
-        // Uscita esplicita (ha premuto "Lascia assemblea"): nessuna attesa, è già una scelta
-        // consapevole della persona, non un possibile falso allarme.
-        console.log('[Adunanza][presenza] Uscita VOLONTARIA per il condòmino', condominoIdStr, '— applicata subito.');
-        applicaUscitaPerCondomino(condominoId);
-        return;
+// Controllo periodico: per ogni condòmino attualmente segnato online, verifichiamo quanto
+// tempo è passato dal suo ultimo battito conosciuto — se supera la soglia, lo consideriamo
+// davvero uscito. Chi non ha ancora mandato nessun battito (es. connessione appena aperta,
+// prima ancora del primo invio) viene lasciato stare per prudenza, non segnato come uscito.
+function verificaBattitiScaduti(){
+  buildings.forEach(bb=>{
+    const a = getAssembleaInCorso(bb);
+    if(!a) return;
+    (a.appello.online||[]).forEach(rec=>{
+      const chiaveGia = rec.condominoId + ':' + a.id;
+      if(rec.uscita){ delete __condominiGiaSegnatiUsciti[chiaveGia]; return; }
+      const ultimoBattito = __ultimiBattitiConosciuti[String(rec.condominoId)];
+      if(!ultimoBattito) return;
+      const eta = Date.now() - ultimoBattito;
+      if(eta > SOGLIA_OFFLINE_MS){
+        if(__condominiGiaSegnatiUsciti[chiaveGia]) return;
+        __condominiGiaSegnatiUsciti[chiaveGia] = true;
+        console.log('[Adunanza][battito] Nessun battito da', Math.round(eta/1000), 'secondi per il condòmino', rec.condominoId, '— applico uscita.');
+        applicaUscitaPerCondomino(rec.condominoId);
+      }else{
+        delete __condominiGiaSegnatiUsciti[chiaveGia]; // battito tornato fresco: ripuliamo un eventuale segnale vecchio
       }
-      // Disconnessione: aspettiamo la soglia di sicurezza prima di crederci davvero.
-      console.log('[Adunanza][presenza] Disconnessione rilevata per il condòmino', condominoIdStr, '(orario:', rec.quando, ') — attendo', SOGLIA_DISCONNESSIONE_MS/1000, 'secondi prima di applicarla, per escludere un falso allarme.');
-      setTimeout(()=>{
-        if(!window.__fbLeggiPresenzaOra){
-          // Senza modo di riverificare, per prudenza NON applichiamo l'uscita: è meglio
-          // lasciare per qualche istante in più qualcuno che è già uscito davvero, piuttosto
-          // che segnare erroneamente come uscito chi è ancora regolarmente collegato.
-          console.warn('[Adunanza][presenza] Impossibile riverificare (funzione non disponibile): NESSUNA uscita applicata per prudenza.');
-          return;
-        }
-        window.__fbLeggiPresenzaOra(condominoIdStr).then(valoreAttuale=>{
-          console.log('[Adunanza][presenza] Ricontrollo dopo attesa per', condominoIdStr, '— valore attuale sul server:', valoreAttuale);
-          // Ricontrolliamo DOPO l'attesa guardando lo STATO attuale (non l'orario esatto, che
-          // in alcuni casi può risultare leggermente diverso tra due letture pur trattandosi
-          // dello stesso identico evento): se nel frattempo il dispositivo si è ricollegato,
-          // lo stato sarà tornato "online" — in quel caso NON applichiamo l'uscita, era solo
-          // un campanello d'allarme falso.
-          const ancoraDisconnesso = valoreAttuale && valoreAttuale.stato==='uscito_disconnessione';
-          if(ancoraDisconnesso){
-            console.log('[Adunanza][presenza] Disconnessione confermata dopo attesa per', condominoIdStr, '- applico uscita.');
-            applicaUscitaPerCondomino(condominoId);
-          }else{
-            console.log('[Adunanza][presenza] FALSO ALLARME per', condominoIdStr, '— risulta di nuovo collegato, nessuna uscita applicata.');
-          }
-        }).catch(e=>{
-          // Anche qui: se la riverifica fallisce per un problema tecnico, NON applichiamo
-          // l'uscita per prudenza — meglio un falso "ancora dentro" che un falso "uscito".
-          console.error('[Adunanza][presenza] Impossibile riverificare dopo attesa: NESSUNA uscita applicata per prudenza. Errore:', e);
-        });
-      }, SOGLIA_DISCONNESSIONE_MS);
     });
   });
+}
+function collegaAscoltoPresenza(){
+  if(!window.__fbAscoltaBattiti){
+    console.warn('[Adunanza][battito] __fbAscoltaBattiti non disponibile: Firebase non raggiungibile in questa sessione.');
+    return;
+  }
+  console.log('[Adunanza][battito] Ascolto battiti attivato su questo dispositivo.');
+  window.__fbAscoltaBattiti((battitiGrezzi)=>{ __ultimiBattitiConosciuti = battitiGrezzi || {}; });
+  setInterval(verificaBattitiScaduti, INTERVALLO_BATTITO_MS);
 }
 
 if(!__haTokenNelLink){
