@@ -448,7 +448,7 @@
   .cv-sondaggio-esclusivo{ min-height:70vh; display:flex; flex-direction:column; justify-content:center; }
   .cv-sondaggio-esclusivo .assist-panel{ width:100%; }
   .cv-presenti-elenco{ /* nessuna altezza fissa: il riquadro prende tutto lo spazio del contenuto, si scorre con la pagina */ }
-  .cv-presente-riga{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:9px 12px; margin-bottom:6px; background:#5E5439; border:1px solid #8C7D57; border-radius:6px; font-size:13px; }
+  .cv-presente-riga{ display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:6px 10px; padding:9px 12px; margin-bottom:6px; background:#5E5439; border:1px solid #8C7D57; border-radius:6px; font-size:13px; }
   .cv-presente-stato{ color:#C4BCA5; flex-shrink:0; text-align:right; }
   .cv-odg-badge{ flex-shrink:0; font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:20px; background:#8C7D57; color:#C4BCA5; }
   .cv-esito-riga{ margin-bottom:12px; }
@@ -489,7 +489,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 09/08/2026 alle 11:01">LIVE-TEST-36</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 09/08/2026 alle 11:27">LIVE-TEST-38</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1210,7 +1210,7 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
           <div id="cv-poll-area"></div>
 
           <div id="cv-torna-su-bar" style="margin-top:14px;">
-            <button id="cv-btn-torna-su" onclick="window.scrollTo({top:0, behavior:'smooth'})">⬆ Torna a inizio pagina</button>
+            <button id="cv-btn-torna-su" onclick="tornaAllaVistaNormaleCondomino()">⬆ Torna a inizio pagina</button>
           </div>
         </div>
       </div>
@@ -1702,8 +1702,39 @@ function initFromUrlToken(){
 }
 
 // ---------- NAV ----------
+// ---------- SCHERMO SEMPRE ACCESO DURANTE L'ASSEMBLEA ----------
+// Usa il "Wake Lock" del browser, pensato apposta per questo: impedisce che lo schermo si
+// spenga da solo per inattività mentre si sta guardando questa pagina (anche senza toccare
+// nulla, es. leggendo l'ordine del giorno). Se il browser non lo supporta, semplicemente non
+// succede nulla — nessun errore, l'app funziona comunque normalmente.
+let __wakeLockAttivo = null;
+async function attivaSchermoSempreAcceso(){
+  if(!('wakeLock' in navigator)) return;
+  try{
+    __wakeLockAttivo = await navigator.wakeLock.request('screen');
+  }catch(e){
+    console.warn('[Adunanza] Impossibile mantenere lo schermo acceso:', e);
+  }
+}
+function disattivaSchermoSempreAcceso(){
+  if(__wakeLockAttivo){ __wakeLockAttivo.release().catch(()=>{}); __wakeLockAttivo = null; }
+}
+// Il browser rilascia da solo il "wake lock" quando la pagina va in secondo piano (es. si
+// cambia app per un attimo): lo riattiviamo appena si torna a guardarla, altrimenti
+// resterebbe disattivato per il resto della sessione senza che nessuno se ne accorga.
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState==='visible' && (currentPage==='vista-condomino' || currentPage==='assemblea')){
+    attivaSchermoSempreAcceso();
+  }
+});
 function goPage(name){
   aggiornaNomeStudioTopbar();
+  // Impedisce che lo schermo del telefono si spenga da solo per inattività mentre si è in
+  // assemblea (utile soprattutto quando non si sta guardando il video, ma leggendo l'ordine
+  // del giorno o aspettando un sondaggio) — si disattiva da sola quando si esce da queste
+  // pagine, per non consumare batteria inutilmente nel resto dell'app.
+  if(name==='vista-condomino' || name==='assemblea'){ attivaSchermoSempreAcceso(); }
+  else{ disattivaSchermoSempreAcceso(); }
   // Un condòmino che arriva dal proprio link personale non deve vedere la barra di
   // navigazione dell'amministratore (altri condomìni, profilo, ripristina demo...): la
   // nascondiamo del tutto in queste pagine, comprimendo lo spazio lasciato libero.
@@ -4681,7 +4712,17 @@ function renderTabellaVotiSondaggio(){
   b.condomini.filter(c=>assemblea.convocati.selezionati.includes(c.id)).forEach(c=>{
     const attivo = recordAttivo(assemblea, c.id);
     const delegatoId = assemblea.appello.deleghe[c.id];
+    // Chi non è mai comparso a questa assemblea (mai online, mai in presenza) e non ha
+    // delegato nessuno non compare più nell'elenco: non c'è nulla da fare per lui in questo
+    // sondaggio, e la sua riga occuperebbe solo spazio senza motivo.
+    const recOnUscito = (assemblea.appello.online||[]).find(r=>r.condominoId===c.id && r.uscita);
+    const recPresUscito = (assemblea.appello.presenzeFisiche||[]).find(r=>r.condominoId===c.id && r.uscita);
+    const eUscito = !attivo && !delegatoId && (recOnUscito || recPresUscito);
+    if(!attivo && !delegatoId && !eUscito) return; // mai comparso: non mostrarlo
+
     const tr=document.createElement('tr');
+    if(delegatoId) tr.style.background = '#F1EFE9'; // riga chiara: presente per delega
+    if(eUscito) tr.style.background = '#DCD8CC'; // riga più scura: uscito, voto da registrare solo se comunicato a voce
 
     const tdNome=document.createElement('td'); tdNome.textContent=nomeCompletoCondomino(c); tr.appendChild(tdNome);
 
@@ -4693,6 +4734,7 @@ function renderTabellaVotiSondaggio(){
     if(attivo && attivo.tipo==='online') tdStato.innerHTML='<span class="badge">🟢 Online</span>';
     else if(attivo && attivo.tipo==='presenza') tdStato.innerHTML='<span class="badge pending">🏠 In presenza</span>';
     else if(delegatoId){ tdStato.innerHTML=`<span class="badge">📝 Delega a ${nomeDelegato(delegatoId, b, assemblea)}</span>`; }
+    else if(eUscito){ const orarioUscita=(recOnUscito||recPresUscito).uscita; tdStato.innerHTML=`<span class="muted">🚪 Uscito alle ${orarioUscita}</span>`; }
     else tdStato.innerHTML='<span class="muted">⚪ Assente</span>';
     tr.appendChild(tdStato);
 
@@ -4731,18 +4773,30 @@ function renderTabellaVotiSondaggio(){
         const note=document.createElement('span'); note.className='muted'; note.style.marginLeft='6px'; note.textContent='(sbloccato per pochi secondi)';
         tdVoto.appendChild(note);
       }
-    }else{
-      // Chi è assente e non ha delegato nessuno non può votare direttamente: il voto (nuovo o
-      // di modifica) resta bloccato finché non risulta online o presente in sala. Un voto già
-      // dato in precedenza, mentre era presente, resta valido e visibile (solo non modificabile).
-      const puoVotareDirettamente = !!attivo;
-      if(!puoVotareDirettamente) sel.disabled = true;
-      tdVoto.appendChild(sel);
-      if(!puoVotareDirettamente){
-        const note=document.createElement('span'); note.className='muted'; note.style.marginLeft='6px';
-        note.textContent = activePoll.scelte[c.id]!=null ? '(assente: voto già dato mantenuto)' : '(assente: non può votare finché non entra)';
+    }else if(eUscito){
+      // Chi è uscito potrebbe aver comunicato la propria scelta a voce all'amministratore
+      // prima di andarsene: stesso meccanismo di sblocco temporaneo già usato per le deleghe
+      // (un click chiede conferma, poi si sblocca per pochi secondi e si riblocca da solo) —
+      // evita di registrare per sbaglio un voto per chi non è più presente.
+      const bloccato = votoDeleganteBloccato(c.id);
+      sel.disabled = bloccato;
+      const wrap=document.createElement('span'); wrap.style.cssText='position:relative;display:inline-block;';
+      wrap.appendChild(sel);
+      if(bloccato){
+        const overlay=document.createElement('span');
+        overlay.style.cssText='position:absolute;inset:0;cursor:pointer;';
+        overlay.title='Questa persona è uscita — clicca per registrare un voto che ha comunicato a voce';
+        overlay.onclick=()=>richiediSbloccoVotoDelegante(c.id);
+        wrap.appendChild(overlay);
+      }
+      tdVoto.appendChild(wrap);
+      if(!bloccato){
+        const note=document.createElement('span'); note.className='muted'; note.style.marginLeft='6px'; note.textContent='(sbloccato per pochi secondi)';
         tdVoto.appendChild(note);
       }
+    }else{
+      // Presente (online o in aula): può votare direttamente, senza blocchi.
+      tdVoto.appendChild(sel);
     }
     if(delegatoId && activePoll.scelte[c.id]!=null && !activePoll.overridden.has(c.id)){
       const note=document.createElement('span'); note.className='muted'; note.style.marginLeft='6px'; note.textContent='(segue il delegato)';
@@ -5230,6 +5284,15 @@ function applicaVisibilitaElementiCondomino(modalita){
   }
 }
 let sceltaVotoCorrente = null;
+// Quando l'utente tocca "Torna a inizio pagina" mentre è su una delle due schermate fisse
+// (chi c'è iniziale, risultato appena concluso), questa bandiera fa saltare subito alla vista
+// normale, invece di aspettare che scadano da sole — un solo utilizzo, poi si azzera.
+let __forzaVistaNormaleCondomino = false;
+function tornaAllaVistaNormaleCondomino(){
+  __forzaVistaNormaleCondomino = true;
+  renderCvPollArea();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
 let __cvUltimoPuntoRenderizzato = null;
 let __cvUltimoStatoRenderizzato = null;
 // Un risultato di sondaggio concluso, mostrato in modo permanente sotto il proprio punto
@@ -5344,7 +5407,9 @@ function renderCvPollArea(){
 
   // Un sondaggio appena chiuso (negli ultimi 10 secondi) viene mostrato in evidenza, a tutta
   // pagina, prima di ridursi da solo al suo posto sotto il punto dell'ordine del giorno.
-  const risultatoRecente = trovaRisultatoSondaggioRecentementeChiuso(assembleaCorrente);
+  // ECCEZIONE: se l'utente ha toccato "Torna a inizio pagina" mentre era su una di queste due
+  // schermate fisse, saltiamo subito alla vista normale, senza aspettare che scadano da sole.
+  const risultatoRecente = __forzaVistaNormaleCondomino ? null : trovaRisultatoSondaggioRecentementeChiuso(assembleaCorrente);
   if(risultatoRecente){
     applicaVisibilitaElementiCondomino('sondaggio');
     __cvUltimoPuntoRenderizzato = null;
@@ -5357,13 +5422,14 @@ function renderCvPollArea(){
     return;
   }
 
-  if(siamoNeiPrimi10SecondiDiAssemblea(assembleaCorrente)){
+  if(!__forzaVistaNormaleCondomino && siamoNeiPrimi10SecondiDiAssemblea(assembleaCorrente)){
     applicaVisibilitaElementiCondomino('presenti-iniziale');
     __cvUltimoPuntoRenderizzato = null;
     el.setAttribute('data-vista', 'presenti-iniziale');
     el.innerHTML = costruisciSezionePresenti(assembleaCorrente, b);
     return;
   }
+  __forzaVistaNormaleCondomino = false; // consumata: la prossima schermata fissa che arriva (nuovo sondaggio, nuovo avvio) tornerà a comportarsi normalmente
 
   applicaVisibilitaElementiCondomino('normale');
   el.setAttribute('data-vista', 'normale');
@@ -6400,25 +6466,30 @@ function applicaUscitaPerCondomino(condominoId){
 // davvero uscito. Chi non ha ancora mandato nessun battito (es. connessione appena aperta,
 // prima ancora del primo invio) viene lasciato stare per prudenza, non segnato come uscito.
 function verificaBattitiScaduti(){
+  let controllatiCount = 0;
   buildings.forEach(bb=>{
     const a = getAssembleaInCorso(bb);
     if(!a) return;
     (a.appello.online||[]).forEach(rec=>{
+      if(rec.uscita) return;
+      controllatiCount++;
       const chiaveGia = rec.condominoId + ':' + a.id;
-      if(rec.uscita){ delete __condominiGiaSegnatiUsciti[chiaveGia]; return; }
       const ultimoBattito = __ultimiBattitiConosciuti[String(rec.condominoId)];
+      const eta = ultimoBattito ? (Date.now() - ultimoBattito) : null;
+      console.log('[Adunanza][battito] Controllo condòmino', rec.condominoId, '— ultimo battito ricevuto:', ultimoBattito ? new Date(ultimoBattito).toLocaleTimeString('it-IT') : 'MAI RICEVUTO', '— età:', eta!==null ? Math.round(eta/1000)+'s' : '—', '— soglia:', SOGLIA_OFFLINE_MS/1000+'s');
       if(!ultimoBattito) return;
-      const eta = Date.now() - ultimoBattito;
       if(eta > SOGLIA_OFFLINE_MS){
         if(__condominiGiaSegnatiUsciti[chiaveGia]) return;
         __condominiGiaSegnatiUsciti[chiaveGia] = true;
-        console.log('[Adunanza][battito] Nessun battito da', Math.round(eta/1000), 'secondi per il condòmino', rec.condominoId, '— applico uscita.');
+        console.log('[Adunanza][battito] ⚠️ SOGLIA SUPERATA per il condòmino', rec.condominoId, '— applico uscita ORA.');
         applicaUscitaPerCondomino(rec.condominoId);
+        renderAppello(); // aggiorniamo subito la tabella visibile, senza aspettare l'eco di Firebase
       }else{
         delete __condominiGiaSegnatiUsciti[chiaveGia]; // battito tornato fresco: ripuliamo un eventuale segnale vecchio
       }
     });
   });
+  console.log('[Adunanza][battito] Giro di controllo completato —', controllatiCount, 'persone online controllate. Elenco battiti grezzi conosciuti:', __ultimiBattitiConosciuti);
 }
 function collegaAscoltoPresenza(){
   if(!window.__fbAscoltaBattiti){
