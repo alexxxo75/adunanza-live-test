@@ -469,7 +469,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 00:20">LIVE-TEST-49</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 00:26">LIVE-TEST-50</span></div>
   </div>
 
   <!-- MAIN -->
@@ -6225,11 +6225,16 @@ function eseguiConUnioneSuServer(azione){
     try{
       buildings = statoServer.buildings.map(miglioraSchemaBuilding);
       activePoll = deserializzaPoll(statoServer.activePoll);
-      activePollOdgId = statoServer.activePollOdgId;
+      // Se sul server questo campo non è mai stato scritto (il caso normale quando nessun
+      // sondaggio è in corso), leggerlo dà "undefined", non "null" — e Firebase RIFIUTA in
+      // blocco qualunque scrittura che contenga "undefined" da qualche parte. Qui lo
+      // riportiamo sempre a "null" per sicurezza, altrimenti la transazione fallisce sempre
+      // quando nessun sondaggio è aperto (cioè quasi sempre).
+      activePollOdgId = statoServer.activePollOdgId || null;
       azione();
       statoServer.buildings = buildings;
       statoServer.activePoll = serializzaPoll(activePoll);
-      statoServer.activePollOdgId = activePollOdgId;
+      statoServer.activePollOdgId = activePollOdgId || null;
     }finally{
       buildings = buildingsLocaliDiBackup;
       activePoll = activePollLocaleDiBackup;
