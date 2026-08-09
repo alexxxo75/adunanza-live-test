@@ -48,14 +48,6 @@
   // database condiviso: stesso identico principio già usato e collaudato nei file di prova
   // voto-condominio/regia-condominio, solo applicato qui a tutta Adunanza.
   const statoRef = ref(db, 'adunanza_stato_condiviso');
-  // Il rilevamento di chi è davvero collegato ("battito") NON usa più un nodo Firebase a parte:
-  // viaggia dentro lo stesso identico canale già usato per tutto il resto (sondaggi, chat,
-  // appello) — un dato in più dentro l'assemblea, sincronizzato con lo stesso meccanismo che
-  // già sappiamo funzionare bene anche nei browser più limitati (come quello integrato in
-  // Gmail). Niente nodi separati, niente ascolti indipendenti da tenere in piedi.
-  window.__fbRegistraUscitaVolontaria = function(condominoId){
-    return Promise.resolve(); // gestito ora direttamente nei dati dell'assemblea, vedi esciDaAssemblea
-  };
 
   window.__fbScriviStato = function(dati){
     // Scrittura "sicura" (transazione atomica): prima di scrivere, Firebase stesso controlla
@@ -477,7 +469,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 09/08/2026 alle 23:52">LIVE-TEST-46</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 00:13">LIVE-TEST-47</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1576,60 +1568,64 @@ function chatArr(){
 }
 let currentCondomino = null; // il condòmino "autenticato" in questa vista — riconosciuto via token o selezionato in anteprima
 let usciteVolontariamenteInAttesaDiRientro = false; // true se questo dispositivo ha premuto "Lascia assemblea" ed è tornato sulla pagina senza aver ancora toccato "Rientra"
-// Sistema "a battito" (heartbeat), riscritto in modo semplice: il battito non usa più un
-// canale Firebase a parte, ma viaggia dentro l'assemblea stessa (un campo "pingAmministratore"
-// e un elenco "battiti"), sincronizzato con lo STESSO meccanismo già usato per tutto il resto
-// (sondaggi, chat, appello) — quello che già sappiamo funzionare bene anche nei browser più
-// limitati. L'amministratore aggiorna "pingAmministratore" ogni tot secondi; il cellulare del
-// condòmino, ogni volta che riceve un aggiornamento (cosa che già fa in continuazione per
-// tutto il resto), controlla se è cambiato e, se sì, risponde scrivendo il proprio orario in
-// "battiti". Niente ascolti separati da tenere in piedi, niente tentativi da ripetere.
-const INTERVALLO_BATTITO_MS = 10000; // fase di test: 10 secondi. A regime, alzare a 30.
-let __battitoAttivoPerCondomino = null; // id del condòmino per cui questo dispositivo deve rispondere al ping, o null se non in ascolto
-let __ultimoPingVisto = null; // per accorgerci quando l'amministratore invia un NUOVO ping (valore diverso dall'ultimo)
-function mostraDiagnosticaBattito(testo){
+
+// ---------- RILEVAMENTO PRESENZA: PING NUMERICO PER OGNI CONDÒMINO ----------
+// Ogni condòmino online riceve, ogni pochi secondi, un numero a 8 cifre diverso dal precedente
+// (dentro l'assemblea stessa, con lo stesso identico canale già usato per sondaggi e chat — non
+// un sistema a parte). Il suo cellulare, appena lo riceve, lo rimanda indietro identico. Se per
+// 3 volte di fila non arriva risposta, quella persona viene segnata come uscita e l'invio dei
+// numeri si ferma SOLO per lei, finché non risulterà di nuovo online tramite il proprio link.
+// Fase di test: un numero ogni 5 secondi. Da allungare quando si uscirà dalla fase di prova.
+const INTERVALLO_PING_MS = 5000;
+const TENTATIVI_PING_PRIMA_DI_USCITA = 3;
+
+// --- lato condòmino: rispondere subito quando arriva un numero nuovo ---
+let __condominoInAscoltoPing = null; // id del condòmino per cui questo dispositivo deve rispondere, o null se non in ascolto
+let __ultimoNumeroPingRisposto = null; // per accorgerci quando arriva un numero DIVERSO da quello a cui abbiamo già risposto
+function mostraStatoPingCondomino(testo){
   const el = document.getElementById('cv-diagnostica-battito');
   if(el) el.textContent = testo;
 }
-function avviaInvioBattitoPeriodico(condominoId){
-  __battitoAttivoPerCondomino = condominoId;
-  __ultimoPingVisto = null; // forza una risposta al prossimo controllo, anche se il ping è "vecchio"
-  mostraDiagnosticaBattito('Battito: in attesa del prossimo segnale da Adunanza...');
-  rispondiAlPingSeNecessario(); // non aspettiamo il giro successivo: rispondiamo subito una prima volta
+function avviaRispostaPing(condominoId){
+  __condominoInAscoltoPing = condominoId;
+  __ultimoNumeroPingRisposto = null; // forza una risposta al prossimo controllo, anche se il numero è "vecchio"
+  mostraStatoPingCondomino('In attesa del primo numero da Adunanza...');
+  rispondiSeNuovoNumeroPing(); // non aspettiamo il prossimo aggiornamento: controlliamo subito
 }
-function fermaInvioBattitoPeriodico(){
-  __battitoAttivoPerCondomino = null;
-  mostraDiagnosticaBattito('Battito: fermato (uscito dall\u2019assemblea)');
+function fermaRispostaPing(){
+  __condominoInAscoltoPing = null;
+  mostraStatoPingCondomino('Fermato (uscito dall\u2019assemblea)');
 }
 // Chiamata ogni volta che arrivano dati nuovi dal database condiviso (in applicaDatiRicevuti,
-// esattamente lo stesso punto che già gestisce l'arrivo di un sondaggio): se il ping
-// dell'amministratore è cambiato da quando l'abbiamo visto l'ultima volta, rispondiamo.
-function rispondiAlPingSeNecessario(){
-  if(!__battitoAttivoPerCondomino) return;
+// lo stesso identico punto che già gestisce l'arrivo di un sondaggio): se il numero destinato a
+// questo condòmino è cambiato rispetto all'ultimo a cui abbiamo risposto, rispondiamo subito.
+function rispondiSeNuovoNumeroPing(){
+  if(!__condominoInAscoltoPing) return;
   const b = getActiveBuilding();
   const a = b ? getAssembleaContestualizzataCondomino(b) : null;
   if(!a) return;
-  const pingAttuale = a.pingAmministratore || null;
-  if(pingAttuale === __ultimoPingVisto) return; // nessun ping nuovo: niente da fare
-  __ultimoPingVisto = pingAttuale;
-  const condominoId = __battitoAttivoPerCondomino;
-  const oraInvio = Date.now();
-  mostraDiagnosticaBattito('Battito: invio in corso...');
+  const numeroRicevuto = (a.pingNumeri||{})[__condominoInAscoltoPing];
+  if(numeroRicevuto == null) return; // l'amministratore non ha ancora mandato nulla per noi
+  if(numeroRicevuto === __ultimoNumeroPingRisposto) return; // già risposto a questo numero
+  __ultimoNumeroPingRisposto = numeroRicevuto;
+  const condominoId = __condominoInAscoltoPing;
+  mostraStatoPingCondomino('Numero ricevuto: ' + numeroRicevuto + ' — rispondo...');
   try{
     eseguiConUnioneSuServer(()=>{
       const bCorrente = getActiveBuilding();
       const aCorrente = bCorrente ? getAssembleaContestualizzataCondomino(bCorrente) : null;
       if(!aCorrente) return;
-      aCorrente.battiti = aCorrente.battiti || {};
-      aCorrente.battiti[condominoId] = oraInvio;
+      aCorrente.pingRisposte = aCorrente.pingRisposte || {};
+      aCorrente.pingRisposte[condominoId] = numeroRicevuto;
     });
-    const ora = new Date(oraInvio).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-    mostraDiagnosticaBattito('Battito: ultimo inviato con successo alle ' + ora);
+    const ora = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    mostraStatoPingCondomino('Ultima risposta: ' + numeroRicevuto + ' alle ' + ora);
   }catch(e){
-    console.error('[Adunanza][battito] Invio fallito:', e);
-    mostraDiagnosticaBattito('Battito: \u26a0\ufe0f ultimo invio FALLITO');
+    console.error('[Adunanza][ping] Risposta fallita:', e);
+    mostraStatoPingCondomino('\u26a0\ufe0f Risposta al numero ' + numeroRicevuto + ' FALLITA');
   }
 }
+
 let contestoAssembleaIdCondomino = null; // l'id dell'assemblea specifica indicata nel link personale (parametro "assemblea"): il condòmino resta legato a QUESTA, non a "qualunque cosa l'amministratore abbia aperto ora"
 // Trova l'assemblea giusta per il condòmino: se il link conteneva un id specifico, usa SEMPRE
 // quello (indipendentemente da dove l'amministratore sta navigando in questo momento);
@@ -1730,7 +1726,7 @@ function initFromUrlToken(){
         // all'improvviso (chiusura del browser, telefono spento, rete persa), il server stesso
         // se ne accorgerà e registrerà l'uscita al posto nostro — non serve che il telefono
         // faccia in tempo a eseguire altro codice in quel momento.
-        avviaInvioBattitoPeriodico(idCondominoToken);
+        avviaRispostaPing(idCondominoToken);
       }catch(e){
         console.error('[Adunanza] Segnalazione online fallita (il riconoscimento del condòmino prosegue comunque):', e);
       }
@@ -4970,10 +4966,9 @@ function esciDaAssemblea(){
   }
   try{
     eseguiConUnioneSuServer(applicaUscita);
-    // Usciamo di proposito: fermiamo subito l'invio del battito e rimuoviamo quello registrato,
-    // così risultiamo chiaramente assenti da qui in avanti senza dover aspettare che "scada".
-    fermaInvioBattitoPeriodico();
-    if(window.__fbRegistraUscitaVolontaria) window.__fbRegistraUscitaVolontaria(idCondomino);
+    // Usciamo di proposito: fermiamo subito la risposta ai numeri di controllo, così questo
+    // dispositivo smette di rispondere anche se ne arriva ancora uno.
+    fermaRispostaPing();
     // Ricordiamo, in questo stesso browser, che siamo usciti volontariamente da QUESTA
     // assemblea: se si torna su questa pagina (es. premendo "indietro" nel browser dopo essere
     // usciti), non verremo rimarcati online in automatico solo per aver riaperto il link — serve
@@ -5015,7 +5010,7 @@ function rientraInAssemblea(){
       const bCorrente = getActiveBuilding();
       if(bCorrente) segnaOnlinePerLinkPersonale(bCorrente, idCondominoToken);
     });
-    avviaInvioBattitoPeriodico(idCondominoToken);
+    avviaRispostaPing(idCondominoToken);
   }catch(e){
     console.error('[Adunanza] Rientro in assemblea fallito:', e);
   }
@@ -6283,7 +6278,9 @@ function miglioraSchemaBuilding(b){
     if(!Array.isArray(a.appello.online)) a.appello.online = [];
     if(!Array.isArray(a.appello.presenzeFisiche)) a.appello.presenzeFisiche = [];
     if(!a.appello.deleghe || typeof a.appello.deleghe!=='object') a.appello.deleghe = {};
-    if(!a.battiti || typeof a.battiti!=='object') a.battiti = {};
+    if(!a.pingNumeri || typeof a.pingNumeri!=='object') a.pingNumeri = {};
+    if(!a.pingRisposte || typeof a.pingRisposte!=='object') a.pingRisposte = {};
+    if(!a.pingMancate || typeof a.pingMancate!=='object') a.pingMancate = {};
     if(a.invioVerbaleDocumenti && !Array.isArray(a.invioVerbaleDocumenti.storicoInvii)) a.invioVerbaleDocumenti.storicoInvii = [];
     a.odg.forEach(p=>{
       if(!Array.isArray(p.storicoSondaggi)) p.storicoSondaggi = [];
@@ -6387,7 +6384,7 @@ function applicaDatiRicevuti(parsed, aggiornaAncheNavigazioneLocale){
   }
   // Ogni volta che arrivano dati nuovi (esattamente come per un sondaggio appena avviato),
   // controlliamo se l'amministratore ha mandato un nuovo "ping": se sì, rispondiamo subito.
-  rispondiAlPingSeNecessario();
+  rispondiSeNuovoNumeroPing();
   return true;
 }
 function caricaStato(){
@@ -6482,80 +6479,81 @@ function collegaAscoltoFirebase(){
     const indicatore = document.getElementById('fb-stato-connessione');
     if(indicatore) indicatore.textContent = '🟢 Connesso al database condiviso';
   });
-  // Solo l'amministratore (chi non ha un link personale con token) invia il "ping" periodico:
-  // è lui che tiene viva l'assemblea da Adunanza, quindi il suo dispositivo — normalmente un
-  // browser vero, non integrato dentro un'altra app — è quello più affidabile per mantenere
-  // un timer attivo. Il ping viaggia dentro l'assemblea stessa, con lo stesso meccanismo
-  // sicuro già usato per registrare un voto: niente canali Firebase separati.
+  // Solo l'amministratore (chi non ha un link personale con token) manda i numeri di
+  // controllo: è lui che tiene viva l'assemblea da Adunanza, quindi il suo dispositivo —
+  // normalmente un browser vero, non integrato dentro un'altra app — è quello più affidabile
+  // per mantenere un timer attivo. I numeri viaggiano dentro l'assemblea stessa, con lo stesso
+  // meccanismo sicuro già usato per registrare un voto: niente canali Firebase separati.
   if(!__haTokenNelLink){
-    function inviaPingAmministratore(){
-      // Invia il ping per OGNI assemblea in corso, in qualunque condominio — non solo quella
-      // che l'amministratore sta guardando in questo esatto momento: così il ping continua ad
-      // arrivare anche se nel frattempo naviga altrove in Adunanza, controlla un'altra pagina,
-      // o se per qualche motivo "quale condominio sto guardando ora" non fosse allineato.
-      eseguiConUnioneSuServer(()=>{
-        buildings.forEach(bb=>{
-          const a = getAssembleaInCorso(bb);
-          if(a) a.pingAmministratore = Date.now();
-        });
-      });
-      const indicatorePing = document.getElementById('fb-ultimo-ping');
-      if(indicatorePing) indicatorePing.textContent = '📡 Ultimo ping: ' + new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-    }
-    inviaPingAmministratore(); // il primo, subito
-    setInterval(inviaPingAmministratore, INTERVALLO_BATTITO_MS);
-    setInterval(verificaBattitiScaduti, INTERVALLO_BATTITO_MS);
+    setInterval(eseguiCicloPing, INTERVALLO_PING_MS);
   }
 }
-// Ascolta il nodo dedicato alla presenza: quando un condòmino risulta "uscito" (per
-// disconnessione improvvisa o per aver premuto "Esci assemblea"), registriamo la sua uscita
-// nei dati veri dell'appello — chiunque tra i dispositivi collegati se ne accorge per primo lo
-// fa, in modo sicuro grazie alla transazione di unione (che è innocua da ripetere più volte).
-// SOGLIA "OFFLINE": consideriamo davvero disconnesso solo chi non manda un battito da più di
-// UN giro intero (non basta un solo battito mancato) — con un margine in più per la normale
-// variabilità della rete. Con un battito ogni 10 secondi, la soglia risulta di circa 25
-// secondi: un'interruzione di rete più breve di così (es. un attimo di segnale debole in
-// auto) non fa quindi scattare un'uscita per errore.
-const SOGLIA_OFFLINE_MS = INTERVALLO_BATTITO_MS * 2 + 5000;
-let __condominiGiaSegnatiUsciti = {}; // evita di riapplicare l'uscita più volte per la stessa persona
-function applicaUscitaPerCondomino(condominoId){
-  eseguiConUnioneSuServer(()=>{
-    buildings.forEach(bb=>{
-      const a = getAssembleaInCorso(bb);
-      if(!a) return;
-      const oraStr = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
-      const recOn = (a.appello.online||[]).find(r=>r.condominoId===condominoId && !r.uscita);
-      if(recOn) recOn.uscita = oraStr;
-      const recPres = (a.appello.presenzeFisiche||[]).find(r=>r.condominoId===condominoId && !r.uscita);
-      if(recPres) recPres.uscita = oraStr;
-    });
-  });
-}
-// Controllo periodico: per ogni condòmino attualmente segnato online, verifichiamo quanto
-// tempo è passato dal suo ultimo battito conosciuto — letto DIRETTAMENTE dai dati già
-// sincronizzati (a.battiti), senza bisogno di un ascolto separato. Se supera la soglia, lo
-// consideriamo davvero uscito. Chi non ha ancora mandato nessun battito (es. connessione
-// appena aperta) viene lasciato stare per prudenza, non segnato come uscito.
-function verificaBattitiScaduti(){
+// Un giro di controllo: per ogni condòmino online in ogni assemblea in corso, verifica se ha
+// risposto al numero precedente e decide cosa fare — tre esiti possibili: ha risposto (tutto
+// bene, si continua), non ha risposto ma non ha ancora accumulato 3 mancate di fila (si
+// riprova), oppure ha accumulato 3 mancate di fila (si segna come uscito e si smette di
+// mandargli numeri, finché non risulterà di nuovo online tramite il proprio link).
+//
+// Il "piano" (chi segnare uscito, quale nuovo numero dare a chi resta) viene deciso UNA SOLA
+// VOLTA guardando i dati come sono adesso, poi applicato identico sia in locale sia, un
+// istante dopo, sui dati veri del server: così il numero che genera per caso non risulta mai
+// diverso tra le due applicazioni.
+function eseguiCicloPing(){
+  const daSegnareUsciti = []; // [{buildingId, condominoId}]
+  const nuoviNumeri = []; // [{buildingId, condominoId, numero, mancate}]
   buildings.forEach(bb=>{
     const a = getAssembleaInCorso(bb);
     if(!a) return;
+    const pingNumeri = a.pingNumeri || {};
+    const pingRisposte = a.pingRisposte || {};
+    const pingMancate = a.pingMancate || {};
     (a.appello.online||[]).forEach(rec=>{
       if(rec.uscita) return;
-      const chiaveGia = rec.condominoId + ':' + a.id;
-      const ultimoBattito = (a.battiti||{})[rec.condominoId] || (a.battiti||{})[String(rec.condominoId)];
-      if(!ultimoBattito) return;
-      const eta = Date.now() - ultimoBattito;
-      if(eta > SOGLIA_OFFLINE_MS){
-        if(__condominiGiaSegnatiUsciti[chiaveGia]) return;
-        __condominiGiaSegnatiUsciti[chiaveGia] = true;
-        applicaUscitaPerCondomino(rec.condominoId);
-        renderAppello(); // aggiorniamo subito la tabella visibile, senza aspettare l'eco di Firebase
-      }else{
-        delete __condominiGiaSegnatiUsciti[chiaveGia]; // battito tornato fresco: ripuliamo un eventuale segnale vecchio
+      const id = rec.condominoId;
+      const numeroInviatoPrima = pingNumeri[id];
+      let mancateAggiornate = pingMancate[id] || 0;
+      if(numeroInviatoPrima != null){
+        if(pingRisposte[id] === numeroInviatoPrima){
+          mancateAggiornate = 0; // ha risposto correttamente: azzeriamo il conteggio
+        }else{
+          mancateAggiornate++;
+          if(mancateAggiornate >= TENTATIVI_PING_PRIMA_DI_USCITA){
+            daSegnareUsciti.push({buildingId: bb.id, condominoId: id});
+            return; // niente nuovo numero per chi è appena stato segnato uscito
+          }
+        }
       }
+      let nuovoNumero;
+      do{ nuovoNumero = Math.floor(10000000 + Math.random()*90000000); }while(nuovoNumero===numeroInviatoPrima);
+      nuoviNumeri.push({buildingId: bb.id, condominoId: id, numero: nuovoNumero, mancate: mancateAggiornate});
     });
   });
+  function applicaPiano(){
+    daSegnareUsciti.forEach(({buildingId, condominoId})=>{
+      const bb = buildings.find(x=>x.id===buildingId);
+      const a = bb ? getAssembleaInCorso(bb) : null;
+      if(!a) return;
+      const oraStr = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+      const rec = (a.appello.online||[]).find(r=>r.condominoId===condominoId && !r.uscita);
+      if(rec) rec.uscita = oraStr;
+      if(a.pingNumeri) delete a.pingNumeri[condominoId];
+      if(a.pingRisposte) delete a.pingRisposte[condominoId];
+      if(a.pingMancate) delete a.pingMancate[condominoId];
+    });
+    nuoviNumeri.forEach(({buildingId, condominoId, numero, mancate})=>{
+      const bb = buildings.find(x=>x.id===buildingId);
+      const a = bb ? getAssembleaInCorso(bb) : null;
+      if(!a) return;
+      a.pingNumeri = a.pingNumeri || {};
+      a.pingMancate = a.pingMancate || {};
+      a.pingNumeri[condominoId] = numero;
+      a.pingMancate[condominoId] = mancate;
+    });
+  }
+  eseguiConUnioneSuServer(applicaPiano);
+  if(daSegnareUsciti.length) renderAppello(); // aggiorniamo subito la tabella visibile, senza aspettare l'eco di Firebase
+  const indicatorePing = document.getElementById('fb-ultimo-ping');
+  if(indicatorePing) indicatorePing.textContent = '📡 Ultimo giro di controllo: ' + new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 }
 
 if(!__haTokenNelLink){
