@@ -469,7 +469,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 00:13">LIVE-TEST-47</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 00:20">LIVE-TEST-49</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1576,7 +1576,7 @@ let usciteVolontariamenteInAttesaDiRientro = false; // true se questo dispositiv
 // 3 volte di fila non arriva risposta, quella persona viene segnata come uscita e l'invio dei
 // numeri si ferma SOLO per lei, finché non risulterà di nuovo online tramite il proprio link.
 // Fase di test: un numero ogni 5 secondi. Da allungare quando si uscirà dalla fase di prova.
-const INTERVALLO_PING_MS = 5000;
+const INTERVALLO_PING_MS = 15000;
 const TENTATIVI_PING_PRIMA_DI_USCITA = 3;
 
 // --- lato condòmino: rispondere subito quando arriva un numero nuovo ---
@@ -6485,6 +6485,8 @@ function collegaAscoltoFirebase(){
   // per mantenere un timer attivo. I numeri viaggiano dentro l'assemblea stessa, con lo stesso
   // meccanismo sicuro già usato per registrare un voto: niente canali Firebase separati.
   if(!__haTokenNelLink){
+    const indicatorePingIniziale = document.getElementById('fb-ultimo-ping');
+    if(indicatorePingIniziale) indicatorePingIniziale.textContent = '📡 Ping: avviato, primo giro tra ' + (INTERVALLO_PING_MS/1000) + 's...';
     setInterval(eseguiCicloPing, INTERVALLO_PING_MS);
   }
 }
@@ -6499,8 +6501,10 @@ function collegaAscoltoFirebase(){
 // istante dopo, sui dati veri del server: così il numero che genera per caso non risulta mai
 // diverso tra le due applicazioni.
 function eseguiCicloPing(){
+  try{
   const daSegnareUsciti = []; // [{buildingId, condominoId}]
   const nuoviNumeri = []; // [{buildingId, condominoId, numero, mancate}]
+  let quantiOnlineControllati = 0;
   buildings.forEach(bb=>{
     const a = getAssembleaInCorso(bb);
     if(!a) return;
@@ -6509,6 +6513,7 @@ function eseguiCicloPing(){
     const pingMancate = a.pingMancate || {};
     (a.appello.online||[]).forEach(rec=>{
       if(rec.uscita) return;
+      quantiOnlineControllati++;
       const id = rec.condominoId;
       const numeroInviatoPrima = pingNumeri[id];
       let mancateAggiornate = pingMancate[id] || 0;
@@ -6553,7 +6558,12 @@ function eseguiCicloPing(){
   eseguiConUnioneSuServer(applicaPiano);
   if(daSegnareUsciti.length) renderAppello(); // aggiorniamo subito la tabella visibile, senza aspettare l'eco di Firebase
   const indicatorePing = document.getElementById('fb-ultimo-ping');
-  if(indicatorePing) indicatorePing.textContent = '📡 Ultimo giro di controllo: ' + new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  if(indicatorePing) indicatorePing.textContent = '📡 Giro ' + new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) + ' — ' + quantiOnlineControllati + ' online controllati';
+  }catch(e){
+    console.error('[Adunanza][ping] Errore nel giro di controllo:', e);
+    const indicatorePing = document.getElementById('fb-ultimo-ping');
+    if(indicatorePing) indicatorePing.textContent = '⚠️ Errore nel ciclo ping: ' + (e && e.message ? e.message : e);
+  }
 }
 
 if(!__haTokenNelLink){
