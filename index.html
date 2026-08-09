@@ -70,6 +70,21 @@
   window.__fbAscoltaBattiti = function(callback){
     onValue(battitoRefBase, (snapshot)=>{ callback(snapshot.val()||{}); });
   };
+  // "PING": invece di far mantenere al cellulare del condòmino un proprio timer sempre attivo
+  // (che nei browser integrati di altre app, come quello di Gmail, viene spesso rallentato o
+  // sospeso quando non è in primo piano — la causa reale del mancato invio dei battiti),
+  // capovolgiamo il verso: Adunanza invia periodicamente un segnale, e la pagina del cellulare
+  // lo ASCOLTA in modo passivo — esattamente come già fa per ricevere un sondaggio appena
+  // avviato, cosa che si è dimostrata affidabile anche in quei browser più limitati — e
+  // risponde subito con il proprio battito solo quando lo riceve, senza bisogno di un proprio
+  // timer indipendente.
+  const pingRefBase = ref(db, 'adunanza_ping');
+  window.__fbInviaPing = function(){
+    set(pingRefBase, serverTimestamp()).catch(e=>console.error('[Adunanza][battito] Invio ping fallito:', e));
+  };
+  window.__fbAscoltaPing = function(callback){
+    onValue(pingRefBase, (snapshot)=>{ if(snapshot.val()!=null) callback(snapshot.val()); });
+  };
 
   window.__fbScriviStato = function(dati){
     // Scrittura "sicura" (transazione atomica): prima di scrivere, Firebase stesso controlla
@@ -491,7 +506,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 09/08/2026 alle 11:42">LIVE-TEST-39</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 09/08/2026 alle 18:34">LIVE-TEST-40</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1584,22 +1599,33 @@ let usciteVolontariamenteInAttesaDiRientro = false; // true se questo dispositiv
 // "offline" di conseguenza) per non consumare troppa batteria/dati sul telefono.
 const INTERVALLO_BATTITO_MS = 10000;
 let __intervalloBattitoAttivo = null;
+let __pingListenerAttivo = false;
 function avviaInvioBattitoPeriodico(condominoId){
   fermaInvioBattitoPeriodico();
-  if(!window.__fbInviaBattito){
-    // La funzione di invio potrebbe non essere ancora pronta (lo script di Firebase parte un
-    // attimo dopo il resto del programma, per una regola del browser): invece di abbandonare
-    // per sempre, riproviamo tra poco — altrimenti il battito non partirebbe mai per tutta la
-    // sessione, senza che nessuno se ne accorga.
-    console.warn('[Adunanza][battito] Invio non ancora pronto per condòmino', condominoId, '— riprovo tra un istante.');
-    setTimeout(()=>avviaInvioBattitoPeriodico(condominoId), 500);
-    return;
+  __pingListenerAttivo = true;
+  function collegaAscolto(){
+    if(!__pingListenerAttivo) return; // nel frattempo si è già usciti: non serve più collegarsi
+    if(!window.__fbAscoltaPing || !window.__fbInviaBattito){
+      // Lo script di Firebase potrebbe non essere ancora pronto: riproviamo tra poco invece
+      // di abbandonare per sempre — altrimenti il battito non partirebbe mai per tutta la
+      // sessione, senza che nessuno se ne accorga.
+      setTimeout(collegaAscolto, 500);
+      return;
+    }
+    console.log('[Adunanza][battito] In ascolto del ping da Adunanza per condòmino', condominoId, '— risponderò con il mio battito ogni volta che arriva, invece di usare un timer mio (più fragile nei browser integrati come quello di Gmail).');
+    // Ascolto PASSIVO, non un nostro timer: rispondiamo solo quando arriva un ping da
+    // Adunanza — esattamente come già facciamo per ricevere un sondaggio appena avviato,
+    // meccanismo che si è dimostrato affidabile anche nei browser più limitati.
+    window.__fbAscoltaPing(()=>{
+      if(!__pingListenerAttivo) return;
+      window.__fbInviaBattito(condominoId);
+    });
+    window.__fbInviaBattito(condominoId); // il primo, subito, senza aspettare il primo ping
   }
-  console.log('[Adunanza][battito] Avvio invio periodico per condòmino', condominoId, '— un battito ogni', INTERVALLO_BATTITO_MS/1000, 'secondi.');
-  window.__fbInviaBattito(condominoId); // il primo, subito
-  __intervalloBattitoAttivo = setInterval(()=>window.__fbInviaBattito(condominoId), INTERVALLO_BATTITO_MS);
+  collegaAscolto();
 }
 function fermaInvioBattitoPeriodico(){
+  __pingListenerAttivo = false;
   if(__intervalloBattitoAttivo){ clearInterval(__intervalloBattitoAttivo); __intervalloBattitoAttivo=null; }
 }
 let contestoAssembleaIdCondomino = null; // l'id dell'assemblea specifica indicata nel link personale (parametro "assemblea"): il condòmino resta legato a QUESTA, non a "qualunque cosa l'amministratore abbia aperto ora"
@@ -6446,6 +6472,14 @@ function collegaAscoltoFirebase(){
     if(indicatore) indicatore.textContent = '🟢 Connesso al database condiviso';
   });
   collegaAscoltoPresenza();
+  // Solo l'amministratore (chi non ha un link personale con token) invia il "ping" periodico:
+  // è lui che tiene viva l'assemblea da Adunanza, quindi il suo dispositivo — normalmente un
+  // browser vero, non integrato dentro un'altra app — è quello più affidabile per mantenere
+  // un timer attivo. I cellulari dei condòmini si limitano ad ascoltarlo e rispondere.
+  if(!__haTokenNelLink && window.__fbInviaPing){
+    window.__fbInviaPing(); // il primo, subito
+    setInterval(()=>window.__fbInviaPing(), INTERVALLO_BATTITO_MS);
+  }
 }
 // Ascolta il nodo dedicato alla presenza: quando un condòmino risulta "uscito" (per
 // disconnessione improvvisa o per aver premuto "Esci assemblea"), registriamo la sua uscita
