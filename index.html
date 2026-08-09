@@ -58,9 +58,9 @@
   const battitoRefBase = ref(db, 'adunanza_battito');
   window.__fbInviaBattito = function(condominoId){
     console.log('[Adunanza][battito] Invio battito per condòmino', condominoId, 'in corso...');
-    set(ref(db, 'adunanza_battito/' + condominoId), serverTimestamp())
-      .then(()=>console.log('[Adunanza][battito] Battito per condòmino', condominoId, 'confermato dal server.'))
-      .catch(e=>console.error('[Adunanza][battito] Invio battito FALLITO per condòmino', condominoId, ':', e));
+    return set(ref(db, 'adunanza_battito/' + condominoId), serverTimestamp())
+      .then(()=>{ console.log('[Adunanza][battito] Battito per condòmino', condominoId, 'confermato dal server.'); return true; })
+      .catch(e=>{ console.error('[Adunanza][battito] Invio battito FALLITO per condòmino', condominoId, ':', e); throw e; });
   };
   window.__fbRegistraUscitaVolontaria = function(condominoId){
     // Uscita esplicita (ha premuto "Lascia assemblea"): rimuoviamo subito il suo battito, così
@@ -506,7 +506,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 09/08/2026 alle 18:34">LIVE-TEST-40</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 09/08/2026 alle 18:56">LIVE-TEST-41</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1229,6 +1229,8 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
           <div id="cv-torna-su-bar" style="margin-top:14px;">
             <button id="cv-btn-torna-su" onclick="tornaAllaVistaNormaleCondomino()">⬆ Torna a inizio pagina</button>
           </div>
+
+          <p id="cv-diagnostica-battito" class="muted" style="text-align:center;margin-top:10px;font-size:11px;color:#8C7D57;">—</p>
         </div>
       </div>
     </div>
@@ -1600,15 +1602,31 @@ let usciteVolontariamenteInAttesaDiRientro = false; // true se questo dispositiv
 const INTERVALLO_BATTITO_MS = 10000;
 let __intervalloBattitoAttivo = null;
 let __pingListenerAttivo = false;
+function mostraDiagnosticaBattito(testo){
+  const el = document.getElementById('cv-diagnostica-battito');
+  if(el) el.textContent = testo;
+}
+function inviaBattitoConDiagnostica(condominoId, motivo){
+  if(!window.__fbInviaBattito) return;
+  mostraDiagnosticaBattito('Battito: invio in corso (' + motivo + ')...');
+  window.__fbInviaBattito(condominoId).then(()=>{
+    const ora = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    mostraDiagnosticaBattito('Battito: ultimo inviato con successo alle ' + ora + ' (' + motivo + ')');
+  }).catch(()=>{
+    mostraDiagnosticaBattito('Battito: ⚠️ ultimo invio FALLITO — nessuna connessione al database condiviso');
+  });
+}
 function avviaInvioBattitoPeriodico(condominoId){
   fermaInvioBattitoPeriodico();
   __pingListenerAttivo = true;
+  mostraDiagnosticaBattito('Battito: in attesa di collegamento...');
   function collegaAscolto(){
     if(!__pingListenerAttivo) return; // nel frattempo si è già usciti: non serve più collegarsi
     if(!window.__fbAscoltaPing || !window.__fbInviaBattito){
       // Lo script di Firebase potrebbe non essere ancora pronto: riproviamo tra poco invece
       // di abbandonare per sempre — altrimenti il battito non partirebbe mai per tutta la
       // sessione, senza che nessuno se ne accorga.
+      mostraDiagnosticaBattito('Battito: Firebase non ancora pronto, riprovo...');
       setTimeout(collegaAscolto, 500);
       return;
     }
@@ -1618,15 +1636,16 @@ function avviaInvioBattitoPeriodico(condominoId){
     // meccanismo che si è dimostrato affidabile anche nei browser più limitati.
     window.__fbAscoltaPing(()=>{
       if(!__pingListenerAttivo) return;
-      window.__fbInviaBattito(condominoId);
+      inviaBattitoConDiagnostica(condominoId, 'risposta a un ping');
     });
-    window.__fbInviaBattito(condominoId); // il primo, subito, senza aspettare il primo ping
+    inviaBattitoConDiagnostica(condominoId, 'primo invio'); // il primo, subito, senza aspettare il primo ping
   }
   collegaAscolto();
 }
 function fermaInvioBattitoPeriodico(){
   __pingListenerAttivo = false;
   if(__intervalloBattitoAttivo){ clearInterval(__intervalloBattitoAttivo); __intervalloBattitoAttivo=null; }
+  mostraDiagnosticaBattito('Battito: fermato (uscito dall\'assemblea)');
 }
 let contestoAssembleaIdCondomino = null; // l'id dell'assemblea specifica indicata nel link personale (parametro "assemblea"): il condòmino resta legato a QUESTA, non a "qualunque cosa l'amministratore abbia aperto ora"
 // Trova l'assemblea giusta per il condòmino: se il link conteneva un id specifico, usa SEMPRE
