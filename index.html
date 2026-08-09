@@ -506,7 +506,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 09/08/2026 alle 19:16">LIVE-TEST-42</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 09/08/2026 alle 19:34">LIVE-TEST-43</span></div>
   </div>
 
   <!-- MAIN -->
@@ -6139,6 +6139,11 @@ function terminaAssemblea(){
       // Nessuna assemblea in coda: archiviazione normale, come sempre
       bReale.assembleaInCorsoId = null;
       liveParticipants = [];
+      // Spegniamo davvero il video (non solo nascondiamo la pagina): senza questo, l'iframe
+      // della videochiamata resta nel browser con microfono e videocamera ancora attivi, anche
+      // se non più visibile — esattamente il comportamento segnalato.
+      const videoBoxAdmin = document.getElementById('video-box');
+      if(videoBoxAdmin) videoBoxAdmin.innerHTML = '<div class="video-off">Videoconferenza non attiva</div>';
       salvaStato();
       toast(`Assemblea terminata e archiviata. ${aReale.registrazioneAttiva ? 'Video disponibile fino al '+scadenzaStr+'.' : ''}`);
       renderNavSubmenu();
