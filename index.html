@@ -492,7 +492,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 08/08/2026 alle 18:27">LIVE-TEST-30</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 08/08/2026 alle 18:41">LIVE-TEST-31</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1604,6 +1604,16 @@ function anteprimaVistaCondomino(){
   goPage('vista-condomino');
 }
 let contestoDelegaAssembleaId = null;
+// Distingue un vero "tasto indietro/avanti" del browser da un caricamento normale (click su un
+// link, digitazione dell'indirizzo, ricarica della pagina) — usa l'informazione che il browser
+// stesso fornisce su come si è arrivati a questa pagina.
+function eNavigazioneAvantiIndietroBrowser(){
+  try{
+    const voci = performance.getEntriesByType('navigation');
+    if(voci && voci[0]) return voci[0].type === 'back_forward';
+  }catch(e){}
+  return false;
+}
 function initFromUrlToken(){
   // Simula ciò che accade in produzione: il link dell'invito contiene un token che riconosce
   // automaticamente il condòmino, senza che debba scrivere il proprio nome. Se il link contiene
@@ -1625,10 +1635,16 @@ function initFromUrlToken(){
       // QUESTA assemblea (premendo "Lascia assemblea"), non lo rimarchiamo online in automatico
       // solo perché ha riaperto il link (es. tornando indietro nel browser dopo essere usciti):
       // aspettiamo un tocco esplicito di "Rientra in assemblea" prima di segnarlo di nuovo.
-      if(chiaveUscita && localStorage.getItem(chiaveUscita)==='true'){
+      // IMPORTANTE: rispettiamo questo segnale SOLO se questo caricamento è davvero un "tasto
+      // indietro" del browser — altrimenti, dato che il segnale resta scritto nella memoria del
+      // telefono per sempre (anche giorni dopo), aprire di nuovo lo stesso link in un momento
+      // completamente diverso (es. una nuova assemblea, o dopo aver testato "Lascia assemblea"
+      // in una sessione precedente) risulterebbe erroneamente già "uscito" fin da subito.
+      if(chiaveUscita && localStorage.getItem(chiaveUscita)==='true' && eNavigazioneAvantiIndietroBrowser()){
         usciteVolontariamenteInAttesaDiRientro = true;
         return true;
       }
+      if(chiaveUscita) try{ localStorage.removeItem(chiaveUscita); }catch(e){}
       // Fondamentale ora che gira su dispositivi diversi: nella vecchia demo (un solo browser)
       // non serviva salvare, perché amministratore e condòmino condividevano la stessa memoria.
       // Qui, senza applicarlo anche sui dati veri del server (non solo in locale), il condòmino
@@ -4474,17 +4490,27 @@ function votoUnanime(optId){
       const bCorrente = getActiveBuilding();
       const assembleaCorrente = getAssembleaInCorso(bCorrente);
       const presenti = presentiDiretti(bCorrente);
-      diagnostica = `Convocati: ${assembleaCorrente?assembleaCorrente.convocati.selezionati.length:'?'} — Online: ${assembleaCorrente?assembleaCorrente.appello.online.filter(r=>!r.uscita).length:'?'} — Presenti in aula: ${assembleaCorrente?assembleaCorrente.appello.presenzeFisiche.filter(r=>!r.uscita).length:'?'} — Trovati per il voto: ${presenti.length}`;
-      // "Tutti i presenti" deve valere davvero per tutti: azzeriamo prima eventuali blocchi di
+      // "Tutti i presenti" si applica SOLO a chi è fisicamente in aula (o esterni delegati senza
+      // un proprio dispositivo): chi è collegato online può votare autonomamente dal proprio
+      // telefono, e non deve essere né sovrascritto né "bloccato" da questo pulsante — altrimenti,
+      // provando poi a votare da solo, si sentirebbe dire "hai già votato" per una scelta che non
+      // ha fatto lui. Se il suo voto individuale risulterà diverso, si applicherà normalmente
+      // (anche alle sue eventuali deleghe) tramite il normale meccanismo di voto.
+      const presentiDaVotareInBlocco = presenti.filter(c=>{
+        const attivo = recordAttivo(assembleaCorrente, c.id);
+        return attivo && attivo.tipo !== 'online';
+      });
+      diagnostica = `Convocati: ${assembleaCorrente?assembleaCorrente.convocati.selezionati.length:'?'} — Online (votano da soli, esclusi da qui): ${assembleaCorrente?assembleaCorrente.appello.online.filter(r=>!r.uscita).length:'?'} — Presenti in aula: ${assembleaCorrente?assembleaCorrente.appello.presenzeFisiche.filter(r=>!r.uscita).length:'?'} — Votati in blocco: ${presentiDaVotareInBlocco.length}`;
+      // "Tutti i presenti" deve valere per chi è in aula: azzeriamo prima eventuali blocchi di
       // "voto impostato manualmente" sui deleganti, altrimenti la propagazione automatica dal
       // loro delegato (che sta per votare qui sotto) li salterebbe lasciando il vecchio voto.
       activePoll.overridden.clear();
       count=0;
-      presenti.forEach(c=>{
-        // Il pulsante "tutti i presenti" è un'azione amministrativa esplicita rivolta a tutti i
-        // presenti in questo momento: si applica quindi a tutti, sovrascrivendo anche eventuali
-        // voti individuali già dati (di proposito: l'amministratore l'ha scelto apposta cliccando
-        // questo pulsante, non è un effetto collaterale automatico).
+      presentiDaVotareInBlocco.forEach(c=>{
+        // Il pulsante "tutti i presenti" è un'azione amministrativa esplicita rivolta a chi è
+        // fisicamente in aula in questo momento: si applica quindi a loro, sovrascrivendo anche
+        // eventuali voti individuali già dati (di proposito: l'amministratore l'ha scelto apposta
+        // cliccando questo pulsante, non è un effetto collaterale automatico).
         impostaVoto(c.id, optId, false, true);
         count++;
       });
@@ -4492,12 +4518,12 @@ function votoUnanime(optId){
     eseguiConUnioneSuServer(applicaVotoUnanime);
     renderPollResults(); renderTabellaVotiSondaggio(); renderCvPollArea();
     if(count>0){
-      toast(`Voto unanime assegnato a ${count} presenti (e ai relativi deleganti).`);
+      toast(`Voto unanime assegnato a ${count} presenti in aula (e ai relativi deleganti) — chi è online vota autonomamente dal proprio dispositivo.`);
     }else{
       // Nessuno trovato da votare: questo è probabilmente il "non succede niente" segnalato —
       // lo mostriamo in modo impossibile da non vedere, con i numeri esatti, invece di un
       // piccolo messaggio che passa inosservato.
-      alert('ATTENZIONE — Nessun presente trovato da votare.\n\n' + diagnostica + '\n\nQuesto è probabilmente il motivo per cui il pulsante "Tutti i presenti" sembra non fare nulla. Se questi numeri non corrispondono a quello che vedi nell\'Appello, segnalamelo con questo messaggio esatto.');
+      alert('ATTENZIONE — Nessun presente IN AULA trovato da votare (chi è online è escluso di proposito, vota da solo).\n\n' + diagnostica + '\n\nSe questi numeri non corrispondono a quello che vedi nell\'Appello, segnalamelo con questo messaggio esatto.');
     }
   }catch(e){
     console.error('[Adunanza] votoUnanime fallito:', e);
@@ -4613,10 +4639,14 @@ function renderTabellaVotiSondaggio(){
     sel.style.width='auto'; sel.style.display='inline-block';
     sel.innerHTML = '<option value="">— nessun voto —</option>' + activePoll.options.map(o=>`<option value="${o.id}" ${activePoll.scelte[est.id]===o.id?'selected':''}>${o.label}</option>`).join('');
     sel.onchange=()=>{
+      const posizioneScorrimento = window.scrollY;
       const val=sel.value;
       if(!val){ delete activePoll.scelte[est.id]; activePoll.voted.delete(est.id); activePoll.votatoInBlocco.delete(est.id); }
       else impostaVoto(est.id, parseInt(val), false);
       renderPollResults(); renderTabellaVotiSondaggio(); renderCvPollArea(); salvaStato();
+      // La ricostruzione della tabella appena fatta può far "saltare" la pagina in cima per un
+      // istante: ripristiniamo subito la posizione di prima, così il salto non è mai visibile.
+      window.scrollTo(0, posizioneScorrimento);
     };
     tdVoto.appendChild(sel);
     tr.appendChild(tdVoto);
@@ -4645,10 +4675,14 @@ function renderTabellaVotiSondaggio(){
     sel.style.width='auto'; sel.style.display='inline-block';
     sel.innerHTML = '<option value="">— nessun voto —</option>' + activePoll.options.map(o=>`<option value="${o.id}" ${activePoll.scelte[c.id]===o.id?'selected':''}>${o.label}</option>`).join('');
     sel.onchange=()=>{
+      const posizioneScorrimento = window.scrollY;
       const val=sel.value;
       if(!val){ delete activePoll.scelte[c.id]; activePoll.voted.delete(c.id); activePoll.overridden.delete(c.id); activePoll.votatoInBlocco.delete(c.id); }
       else impostaVoto(c.id, parseInt(val), false);
       renderPollResults(); renderTabellaVotiSondaggio(); renderCvPollArea(); salvaStato();
+      // La ricostruzione della tabella appena fatta può far "saltare" la pagina in cima per un
+      // istante: ripristiniamo subito la posizione di prima, così il salto non è mai visibile.
+      window.scrollTo(0, posizioneScorrimento);
     };
 
     if(delegatoId){
