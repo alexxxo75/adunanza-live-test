@@ -410,7 +410,7 @@
   .chat-msg.admin b{color:var(--brass);}
 
   /* VISTA CONDOMINO — grande, semplice, accessibile, TEMA SCURO (risparmio batteria OLED) */
-  .condomino-shell{background:#EFF0F2;min-height:100vh;padding:10px 26px 26px;}
+  .condomino-shell{background:#DDD3BC;min-height:100vh;padding:10px 26px 26px;}
   .condomino-view{max-width:760px;margin:0 auto;background:#463F2F;border-radius:8px;padding:14px 20px 28px;font-size:var(--cv-scale, 17px);color:#F2F0EC;}
   #cv-testata{background:#000;border-radius:6px;padding:10px 12px;margin-bottom:10px;text-align:center;}
   .condomino-view h1{font-size:13px;font-weight:600;color:#fff;font-family:var(--font-display);margin:0;}
@@ -516,7 +516,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 09/08/2026 alle 10:33">LIVE-TEST-34</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 09/08/2026 alle 10:47">LIVE-TEST-35</span></div>
   </div>
 
   <!-- MAIN -->
@@ -973,7 +973,7 @@
         </div>
 
         <div class="card assemblea-row-card" style="margin-bottom:18px;text-align:center;">
-          <button class="btn secondary" onclick="window.scrollTo({top:0, behavior:'smooth'})">⬆ Torna a inizio pagina</button>
+          <button class="btn secondary full" onclick="window.scrollTo({top:0, behavior:'smooth'})">⬆ Torna a inizio pagina</button>
         </div>
 
         <div class="card hidden assemblea-row-card" id="ca-elimina-wrap" style="margin-bottom:18px;">
@@ -984,7 +984,7 @@
         <div id="email-previews" style="display:flex;flex-direction:column;gap:14px;"></div>
 
         <div class="card assemblea-row-card" style="margin:18px 0;text-align:center;">
-          <button class="btn secondary" onclick="window.scrollTo({top:0, behavior:'smooth'})">⬆ Torna a inizio pagina</button>
+          <button class="btn secondary full" onclick="window.scrollTo({top:0, behavior:'smooth'})">⬆ Torna a inizio pagina</button>
         </div>
       </div>
     </div>
@@ -1561,7 +1561,7 @@ let assembleaIdCounter = 1;
 function nuovaAssembleaVuota(){
   const modalitaIniziale = amministratore.modalitaDefault || 'mista';
   return {
-    id: null, oggetto:'', tipo:'ordinaria', modalita:modalitaIniziale, dataPrima:'', oraPrima:'', dataSeconda:'', oraSeconda:'', luogo:'',
+    id: null, oggetto:'', tipo:'ordinaria', modalita:modalitaIniziale, dataPrima:'', oraPrima:'12:00', dataSeconda:'', oraSeconda:'', luogo:'',
     testo:testoDefaultPerModalita(modalitaIniziale), odg:[], programmati:[],
     convocati:{ modo:'tutti', tabelle:[], selezionati:[] }, tipoConvocazione:null,
     pesiPersonalizzati:null,
@@ -6427,23 +6427,33 @@ function collegaAscoltoPresenza(){
         return;
       }
       // Disconnessione: aspettiamo la soglia di sicurezza prima di crederci davvero.
-      console.log('[Adunanza][presenza] Disconnessione rilevata per il condòmino', condominoIdStr, '— attendo', SOGLIA_DISCONNESSIONE_MS/1000, 'secondi prima di applicarla, per escludere un falso allarme.');
+      console.log('[Adunanza][presenza] Disconnessione rilevata per il condòmino', condominoIdStr, '(orario:', rec.quando, ') — attendo', SOGLIA_DISCONNESSIONE_MS/1000, 'secondi prima di applicarla, per escludere un falso allarme.');
       setTimeout(()=>{
-        if(!window.__fbLeggiPresenzaOra){ applicaUscitaPerCondomino(condominoId); return; }
+        if(!window.__fbLeggiPresenzaOra){
+          // Senza modo di riverificare, per prudenza NON applichiamo l'uscita: è meglio
+          // lasciare per qualche istante in più qualcuno che è già uscito davvero, piuttosto
+          // che segnare erroneamente come uscito chi è ancora regolarmente collegato.
+          console.warn('[Adunanza][presenza] Impossibile riverificare (funzione non disponibile): NESSUNA uscita applicata per prudenza.');
+          return;
+        }
         window.__fbLeggiPresenzaOra(condominoIdStr).then(valoreAttuale=>{
-          // Ricontrolliamo DOPO l'attesa: se nel frattempo si è ricollegato, il nodo avrà un
-          // valore diverso (stato "online" con un orario più recente) — in quel caso NON
-          // applichiamo l'uscita: era solo un campanello d'allarme falso, non un'uscita vera.
-          const ancoraDisconnesso = valoreAttuale && valoreAttuale.stato==='uscito_disconnessione' && valoreAttuale.quando===rec.quando;
+          console.log('[Adunanza][presenza] Ricontrollo dopo attesa per', condominoIdStr, '— valore attuale sul server:', valoreAttuale);
+          // Ricontrolliamo DOPO l'attesa guardando lo STATO attuale (non l'orario esatto, che
+          // in alcuni casi può risultare leggermente diverso tra due letture pur trattandosi
+          // dello stesso identico evento): se nel frattempo il dispositivo si è ricollegato,
+          // lo stato sarà tornato "online" — in quel caso NON applichiamo l'uscita, era solo
+          // un campanello d'allarme falso.
+          const ancoraDisconnesso = valoreAttuale && valoreAttuale.stato==='uscito_disconnessione';
           if(ancoraDisconnesso){
             console.log('[Adunanza][presenza] Disconnessione confermata dopo attesa per', condominoIdStr, '- applico uscita.');
             applicaUscitaPerCondomino(condominoId);
           }else{
-            console.log('[Adunanza][presenza] FALSO ALLARME per', condominoIdStr, '— si è ricollegato entro la soglia, nessuna uscita applicata.');
+            console.log('[Adunanza][presenza] FALSO ALLARME per', condominoIdStr, '— risulta di nuovo collegato, nessuna uscita applicata.');
           }
         }).catch(e=>{
-          console.error('[Adunanza][presenza] Impossibile ricontrollare dopo attesa, applico comunque uscita per prudenza:', e);
-          applicaUscitaPerCondomino(condominoId);
+          // Anche qui: se la riverifica fallisce per un problema tecnico, NON applichiamo
+          // l'uscita per prudenza — meglio un falso "ancora dentro" che un falso "uscito".
+          console.error('[Adunanza][presenza] Impossibile riverificare dopo attesa: NESSUNA uscita applicata per prudenza. Errore:', e);
         });
       }, SOGLIA_DISCONNESSIONE_MS);
     });
