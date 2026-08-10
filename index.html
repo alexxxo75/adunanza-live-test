@@ -423,7 +423,7 @@
   #cv-conferma-voto-box{ text-align:center; background:#2A2519; border:1px solid var(--sage,#3E7A54); border-radius:10px; padding:20px; font-size:17px; font-weight:700; color:var(--sage,#3E7A54); }
   #cv-conferma-voto-box .sub{ display:block; font-size:13px; font-weight:400; color:#C4BCA5; margin-top:6px; }
   .cv-odg-punto{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:12px 14px; margin-bottom:8px; background:#5E5439; border:1px solid #8C7D57; border-radius:8px; font-size:13.5px; font-weight:600; color:#F2F0EC; }
-  .cv-odg-punto-blocco{ margin-bottom:8px; }
+  .cv-odg-punto-blocco{ margin-bottom:16px; }
   .cv-odg-punto-blocco .cv-odg-punto{ margin-bottom:0; }
   .cv-risultato-sotto-punto{ background:#3A331F; border:1px solid #5E5439; border-radius:0 0 8px 8px; padding:12px 14px; margin-top:-1px; }
   .cv-presenti-conteggio{ font-size:13.5px; color:#C4BCA5; margin-bottom:12px; }
@@ -432,8 +432,11 @@
   .cv-sondaggio-esclusivo{ min-height:70vh; display:flex; flex-direction:column; justify-content:center; }
   .cv-sondaggio-esclusivo .assist-panel{ width:100%; }
   .cv-presenti-elenco{ /* nessuna altezza fissa: il riquadro prende tutto lo spazio del contenuto, si scorre con la pagina */ }
-  .cv-presente-riga{ display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:6px 10px; padding:9px 12px; margin-bottom:6px; background:#5E5439; border:1px solid #8C7D57; border-radius:6px; font-size:13px; }
-  .cv-presente-stato{ color:#C4BCA5; flex-shrink:0; text-align:right; }
+  .cv-presente-riga{ display:flex; flex-direction:column; gap:4px; padding:9px 12px; margin-bottom:6px; background:#5E5439; border:1px solid #8C7D57; border-radius:6px; font-size:13px; }
+  .cv-presente-riga-top{ display:flex; align-items:center; gap:8px; }
+  .cv-presente-pallino{ flex-shrink:0; }
+  .cv-presente-nome{ font-weight:600; }
+  .cv-presente-info{ color:#C4BCA5; padding-left:24px; }
   .cv-odg-badge{ flex-shrink:0; font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:20px; background:#8C7D57; color:#C4BCA5; }
   .cv-esito-riga{ margin-bottom:12px; }
   .cv-esito-riga .etichetta{ display:flex; justify-content:space-between; font-size:13.5px; font-weight:600; margin-bottom:4px; color:#F2F0EC; }
@@ -473,7 +476,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 09:28">LIVE-TEST-53</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 09:53">LIVE-TEST-54</span></div>
   </div>
 
   <!-- MAIN -->
@@ -929,8 +932,9 @@
           <div id="ca-coda-azione"></div>
         </div>
 
-        <div class="card assemblea-row-card" style="margin-bottom:18px;text-align:center;">
+        <div class="card assemblea-row-card" style="margin-bottom:18px;text-align:center;display:flex;gap:12px;">
           <button class="btn secondary full" onclick="window.scrollTo({top:0, behavior:'smooth'})">⬆ Torna a inizio pagina</button>
+          <button class="btn secondary full" onclick="document.getElementById('ca-tabella-riepilogo-wrap').scrollIntoView({behavior:'smooth', block:'start'})">📋 Vai a Riepilogo invitati</button>
         </div>
 
         <div class="card hidden assemblea-row-card" id="ca-elimina-wrap" style="margin-bottom:18px;">
@@ -1070,7 +1074,7 @@
           </div>
         </div>
 
-        <button class="btn small secondary" style="margin-top:18px;" onclick="closePoll()">Chiudi sondaggio</button>
+        <button class="btn small brass" style="margin-top:18px;" onclick="closePoll()">Chiudi sondaggio</button>
       </div>
 
       <div id="sezione-odg">
@@ -1150,6 +1154,7 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
     <div class="page hidden" id="page-vista-condomino" style="margin:-30px -44px;">
       <div class="condomino-shell">
         <div class="condomino-view" id="condomino-view-box">
+          <div id="cv-tipo-assemblea" style="background:#000;border-radius:6px;padding:8px 12px;margin-bottom:8px;text-align:center;color:#fff;font-size:12px;font-weight:600;">—</div>
           <div id="cv-testata">
             <h1 id="cv-building-name">Assemblea</h1>
             <p class="sub" id="cv-welcome">—</p>
@@ -5159,7 +5164,7 @@ function renderVistaCondomino(){
   }
   const schermataRientro = document.getElementById('cv-schermata-rientro');
   const schermataTerminata = document.getElementById('cv-schermata-terminata');
-  const restoContenuto = [document.getElementById('cv-video-wrap'), document.getElementById('cv-hand-btn'), document.getElementById('cv-esci-btn'), document.getElementById('cv-poll-area')];
+  const restoContenuto = [document.getElementById('cv-video-wrap'), document.getElementById('cv-hand-btn'), document.getElementById('cv-esci-btn'), document.getElementById('cv-poll-area'), document.getElementById('cv-torna-su-bar'), document.getElementById('cv-diagnostica-battito-wrap')];
   if(usciteVolontariamenteInAttesaDiRientro){
     if(schermataTerminata) schermataTerminata.classList.add('hidden');
     if(schermataRientro) schermataRientro.classList.remove('hidden');
@@ -5187,6 +5192,12 @@ function renderVistaCondomino(){
   if(schermataTerminata) schermataTerminata.classList.add('hidden');
   if(schermataRientro) schermataRientro.classList.add('hidden');
   restoContenuto.forEach(el=>{ if(el) el.classList.remove('hidden'); });
+  const tipoAssembleaEl = document.getElementById('cv-tipo-assemblea');
+  if(tipoAssembleaEl && assembleaCorrente){
+    const tipoTesto = assembleaCorrente.tipo==='straordinaria' ? 'Straordinaria' : 'Ordinaria';
+    const dataTesto = assembleaCorrente.dataSeconda || assembleaCorrente.dataPrima || 'data da definire';
+    tipoAssembleaEl.textContent = `Assemblea ${tipoTesto} del ${dataTesto} — ${assembleaCorrente.oggetto||'(oggetto non indicato)'}`;
+  }
   renderChatCondomino();
   renderCvPollArea();
   const btn=document.getElementById('cv-hand-btn');
@@ -5362,18 +5373,25 @@ function costruisciSezionePresenti(assemblea, b){
     const recOnlineUscito = (assemblea.appello.online||[]).find(r=>r.condominoId===c.id && r.uscita);
     const recPresenzaUscito = (assemblea.appello.presenzeFisiche||[]).find(r=>r.condominoId===c.id && r.uscita);
     const delegatoId = assemblea.appello.deleghe ? assemblea.appello.deleghe[c.id] : undefined;
-    let stato;
+    let pallino, infoTesto;
     if(attivo){
-      stato = attivo.tipo==='online' ? `🟢 Online dalle ${attivo.rec.entrata}` : `🔵 In presenza dalle ${attivo.rec.entrata}`;
+      pallino = attivo.tipo==='online' ? '🟢' : '🔵';
+      infoTesto = attivo.tipo==='online' ? `Online dalle ${attivo.rec.entrata}` : `In presenza dalle ${attivo.rec.entrata}`;
     }else if(delegatoId!=null){
-      stato = `📝 Delega a ${escapeHtml(nomePersonaAppello(b, assemblea, delegatoId))}`;
+      pallino = '📝';
+      infoTesto = `Delega a ${escapeHtml(nomePersonaAppello(b, assemblea, delegatoId))}`;
     }else if(recOnlineUscito || recPresenzaUscito){
       const rec = recOnlineUscito || recPresenzaUscito;
-      stato = `⚫ Uscito alle ${rec.uscita} (entrato alle ${rec.entrata})`;
+      pallino = '⚫';
+      infoTesto = `Uscito alle ${rec.uscita} (entrato alle ${rec.entrata})`;
     }else{
-      stato = '⚪ Non ancora collegato';
+      pallino = '⚪';
+      infoTesto = 'Non ancora collegato';
     }
-    return `<div class="cv-presente-riga"><span>${escapeHtml(nomeCompletoCondomino(c))}</span><span class="cv-presente-stato">${stato}</span></div>`;
+    return `<div class="cv-presente-riga">
+      <div class="cv-presente-riga-top"><span class="cv-presente-pallino">${pallino}</span><span class="cv-presente-nome">${escapeHtml(nomeCompletoCondomino(c))}</span></div>
+      <div class="cv-presente-info">${infoTesto}</div>
+    </div>`;
   }).join('');
   return `<div class="assist-panel" id="cv-sezione-presenti">
     <h3>👥 Chi c'è in assemblea</h3>
