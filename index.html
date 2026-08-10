@@ -473,7 +473,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 09:05">LIVE-TEST-52</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 09:28">LIVE-TEST-53</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1761,25 +1761,41 @@ function initFromUrlToken(){
       // Qui, senza applicarlo anche sui dati veri del server (non solo in locale), il condòmino
       // rischiava di risultare "online" solo nella memoria del proprio telefono — specie se
       // un'altra persona si collegava nello stesso istante da un altro dispositivo.
-      // Isolato in un try/catch apposito: il riconoscimento del condòmino e l'ingresso nella
-      // pagina giusta NON devono MAI dipendere dalla buona riuscita di questo passaggio — se
-      // qualcosa andasse storto qui, l'importante è che la persona arrivi comunque alla pagina
-      // corretta; lo stato "online" si aggiornerà comunque poco dopo tramite la normale
-      // sincronizzazione periodica.
-      try{
-        const idBuildingToken = b.id, idCondominoToken = c.id;
-        eseguiConUnioneSuServer(()=>{
-          const bCorrente = buildings.find(x=>x.id===idBuildingToken);
-          if(bCorrente) segnaOnlinePerLinkPersonale(bCorrente, idCondominoToken);
-        });
-        // Registriamo la presenza di questo dispositivo: se la connessione si interrompe
-        // all'improvviso (chiusura del browser, telefono spento, rete persa), il server stesso
-        // se ne accorgerà e registrerà l'uscita al posto nostro — non serve che il telefono
-        // faccia in tempo a eseguire altro codice in quel momento.
-        avviaRispostaPing(idCondominoToken);
-      }catch(e){
-        console.error('[Adunanza] Segnalazione online fallita (il riconoscimento del condòmino prosegue comunque):', e);
+      // Alcuni sistemi di sicurezza delle email (Gmail, Outlook) aprono automaticamente i
+      // link nei messaggi per controllarli PRIMA ancora che la persona li clicchi davvero —
+      // se segnassimo online subito, questi controlli automatici (che caricano la pagina ma
+      // non interagiscono mai con essa) verrebbero scambiati per un ingresso vero, salvo poi
+      // uscire da soli poco dopo quando il sistema di rilevamento si accorge che nessuno
+      // risponde più. Aspettiamo quindi un breve istante prima di segnare online per davvero:
+      // se nel frattempo la persona interagisce con la pagina (tocco, clic, scorrimento), lo
+      // facciamo subito; altrimenti, dopo pochi secondi, lo facciamo comunque (un utente vero
+      // raramente resta più di così senza toccare nulla). L'ingresso alla pagina giusta non
+      // aspetta questo ritardo: solo il segnale "online" viene posticipato.
+      const idBuildingToken = b.id, idCondominoToken = c.id;
+      let __giaSegnatoOnlineToken = false;
+      function segnaOnlineOraDavvero(){
+        if(__giaSegnatoOnlineToken) return;
+        __giaSegnatoOnlineToken = true;
+        try{
+          eseguiConUnioneSuServer(()=>{
+            const bCorrente = buildings.find(x=>x.id===idBuildingToken);
+            if(bCorrente) segnaOnlinePerLinkPersonale(bCorrente, idCondominoToken);
+          });
+          // Registriamo la presenza di questo dispositivo: se la connessione si interrompe
+          // all'improvviso (chiusura del browser, telefono spento, rete persa), il sistema a
+          // ping se ne accorgerà da solo dopo qualche tentativo mancato.
+          avviaRispostaPing(idCondominoToken);
+        }catch(e){
+          console.error('[Adunanza] Segnalazione online fallita (il riconoscimento del condòmino prosegue comunque):', e);
+        }
       }
+      const eventiInterazioneVera = ['click','touchstart','scroll','keydown'];
+      const gestoreInterazioneVera = ()=>{
+        segnaOnlineOraDavvero();
+        eventiInterazioneVera.forEach(ev=>document.removeEventListener(ev, gestoreInterazioneVera));
+      };
+      eventiInterazioneVera.forEach(ev=>document.addEventListener(ev, gestoreInterazioneVera, {once:true, passive:true}));
+      setTimeout(segnaOnlineOraDavvero, 3000);
       return true;
     }
   }
@@ -5261,6 +5277,7 @@ function rivalutaCondizioniDinamicheCondomino(){
     const assembleaCorrente2 = b2 ? getAssembleaInCorso(b2) : null;
     if(!activePoll && assembleaCorrente2 && !siamoNeiPrimi10SecondiDiAssemblea(assembleaCorrente2)){
       renderCvPollArea();
+      window.scrollTo({top:0, behavior:'smooth'});
     }
     return; // video e chat restano nascosti durante questa schermata: nulla da fare qui
   }
@@ -5273,6 +5290,10 @@ function rivalutaCondizioniDinamicheCondomino(){
     const assembleaCorrente3 = b3 ? getAssembleaInCorso(b3) : null;
     if(!activePoll && assembleaCorrente3 && !trovaRisultatoSondaggioRecentementeChiuso(assembleaCorrente3)){
       renderCvPollArea();
+      // Ritorno esplicito in cima alla pagina (dove torna visibile il video): senza questa
+      // riga, alcuni dispositivi restavano fermi dov'erano per puro caso, altri no — ora il
+      // comportamento è identico su ogni telefono.
+      window.scrollTo({top:0, behavior:'smooth'});
     }
     return;
   }
@@ -5502,6 +5523,10 @@ function renderCvPollArea(){
     __cvUltimoPuntoRenderizzato = chiaveSondaggioAttivo;
     el.setAttribute('data-vista', 'sondaggio');
     el.innerHTML = `<div class="cv-sondaggio-esclusivo">${costruisciBloccoSondaggioAttivo(assembleaCorrente, b)}</div>`;
+    // Il sondaggio ha sempre la precedenza: se qualcuno è scorso in basso nella pagina, lo
+    // riportiamo subito qui in cima, per essere sicuri che lo veda — solo la prima volta che
+    // compare questo specifico sondaggio, non ad ogni piccolo ridisegno mentre si sta votando.
+    window.scrollTo({top:0, behavior:'smooth'});
     if(currentCondomino && !activePoll.voted.has(currentCondomino.id) && recordAttivo(assembleaCorrente, currentCondomino.id)){
       sceltaVotoCorrente = null;
       collegaInterazioneSondaggioAttivo();
