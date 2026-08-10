@@ -344,7 +344,7 @@
   .poll-esito-barra-track{flex:1;background:var(--paper);border-radius:2px;height:12px;overflow:hidden;}
   .poll-esito-barra-fill{height:100%;background:var(--brass);}
   .poll-esito-barra-fill.vincitore{background:#2E7D4F;}
-  .poll-esito-dati{min-width:140px;text-align:right;font-family:var(--font-mono);font-size:12px;color:var(--ink);flex-shrink:0;}
+  .poll-esito-dati{min-width:140px;text-align:right;font-family:var(--font-mono);font-size:12px;color:#000;font-weight:700;flex-shrink:0;}
 
   /* VERBALE DOCUMENT */
   .verbale-doc{background:#fff;border:1px solid var(--line);padding:36px 40px;font-family:var(--font-body);font-size:13.5px;line-height:1.7;position:relative;white-space:pre-wrap;min-height:200px;}
@@ -449,7 +449,7 @@
   .cv-odg-badge{ flex-shrink:0; font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:20px; background:#8C7D57; color:#C4BCA5; }
   .cv-esito-riga{ margin-bottom:12px; }
   .cv-esito-riga .etichetta{ display:flex; justify-content:space-between; align-items:center; font-size:13.5px; font-weight:600; margin-bottom:4px; color:#F2F0EC; }
-  .cv-esito-riga .etichetta .cv-esito-dati{ font-family:var(--font-mono); font-size:12px; font-weight:600; color:#C4BCA5; }
+  .cv-esito-riga .etichetta .cv-esito-dati{ font-family:var(--font-mono); font-size:12px; font-weight:800; color:#C4BCA5; }
   .cv-esito-vincitore{ color:#5FBE85 !important; }
   .cv-esito-barra-sfondo{ background:#8C7D57; border-radius:6px; height:16px; overflow:hidden; }
   .cv-esito-barra-riempita{ background:var(--brass); height:100%; border-radius:6px 0 0 6px; }
@@ -488,7 +488,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 12:01">LIVE-TEST-60</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 12:35">LIVE-TEST-61</span></div>
   </div>
 
   <!-- MAIN -->
@@ -6709,8 +6709,9 @@ function collegaAscoltoFirebase(){
 function eseguiCicloPing(){
   try{
   const daSegnareUsciti = []; // [{buildingId, condominoId}]
+  const daRiconnettere = []; // [{buildingId, condominoId}] — chi torna a rispondere dopo un'uscita automatica
   const nuoviNumeri = []; // [{buildingId, condominoId, numero, mancate}]
-  let quantiOnlineControllati = 0;
+  let quantiControllati = 0;
   buildings.forEach(bb=>{
     const a = getAssembleaInCorso(bb);
     if(!a) return;
@@ -6718,21 +6719,31 @@ function eseguiCicloPing(){
     const pingRisposte = a.pingRisposte || {};
     const pingMancate = a.pingMancate || {};
     (a.appello.online||[]).forEach(rec=>{
-      if(rec.uscita) return;
-      quantiOnlineControllati++;
+      // Uscita VOLONTARIA (ha premuto "Lascia l'assemblea"): non insistiamo più, il suo
+      // dispositivo ha già smesso di ascoltare i numeri di proposito — inutile continuare.
+      // Uscita AUTOMATICA (3 mancate risposte, es. galleria/segnale debole): continuiamo a
+      // mandare numeri fino alla fine dell'assemblea — se torna a rispondere, lo rimettiamo
+      // online da soli, senza bisogno di nessuna azione da parte sua o dell'amministratore.
+      if(rec.uscita && !rec.usciteAutomatica) return;
+      quantiControllati++;
       const id = rec.condominoId;
       const numeroInviatoPrima = pingNumeri[id];
       let mancateAggiornate = pingMancate[id] || 0;
       if(numeroInviatoPrima != null){
         if(pingRisposte[id] === numeroInviatoPrima){
           mancateAggiornate = 0; // ha risposto correttamente: azzeriamo il conteggio
-        }else{
+          if(rec.uscita && rec.usciteAutomatica){
+            daRiconnettere.push({buildingId: bb.id, condominoId: id});
+          }
+        }else if(!rec.uscita){
           mancateAggiornate++;
           if(mancateAggiornate >= TENTATIVI_PING_PRIMA_DI_USCITA){
             daSegnareUsciti.push({buildingId: bb.id, condominoId: id});
-            return; // niente nuovo numero per chi è appena stato segnato uscito
           }
         }
+        // Se è già uscito automaticamente e non ha ancora risposto, non contiamo altre
+        // "mancate" (non servono più: l'unica cosa che ci interessa ora è se risponde di
+        // nuovo, non un ulteriore conteggio verso una soglia già superata).
       }
       let nuovoNumero;
       do{ nuovoNumero = Math.floor(10000000 + Math.random()*90000000); }while(nuovoNumero===numeroInviatoPrima);
@@ -6746,10 +6757,14 @@ function eseguiCicloPing(){
       if(!a) return;
       const oraStr = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
       const rec = (a.appello.online||[]).find(r=>r.condominoId===condominoId && !r.uscita);
-      if(rec) rec.uscita = oraStr;
-      if(a.pingNumeri) delete a.pingNumeri[condominoId];
-      if(a.pingRisposte) delete a.pingRisposte[condominoId];
-      if(a.pingMancate) delete a.pingMancate[condominoId];
+      if(rec){ rec.uscita = oraStr; rec.usciteAutomatica = true; }
+    });
+    daRiconnettere.forEach(({buildingId, condominoId})=>{
+      const bb = buildings.find(x=>x.id===buildingId);
+      const a = bb ? getAssembleaInCorso(bb) : null;
+      if(!a) return;
+      const rec = (a.appello.online||[]).find(r=>r.condominoId===condominoId && r.uscita && r.usciteAutomatica);
+      if(rec){ delete rec.uscita; delete rec.usciteAutomatica; }
     });
     nuoviNumeri.forEach(({buildingId, condominoId, numero, mancate})=>{
       const bb = buildings.find(x=>x.id===buildingId);
@@ -6762,9 +6777,9 @@ function eseguiCicloPing(){
     });
   }
   eseguiConUnioneSuServer(applicaPiano);
-  if(daSegnareUsciti.length) renderAppello(); // aggiorniamo subito la tabella visibile, senza aspettare l'eco di Firebase
+  if(daSegnareUsciti.length || daRiconnettere.length) renderAppello(); // aggiorniamo subito la tabella visibile, senza aspettare l'eco di Firebase
   const indicatorePing = document.getElementById('fb-ultimo-ping');
-  if(indicatorePing) indicatorePing.textContent = '📡 Giro ' + new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) + ' — ' + quantiOnlineControllati + ' online controllati';
+  if(indicatorePing) indicatorePing.textContent = '📡 Giro ' + new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) + ' — ' + quantiControllati + ' persone monitorate';
   }catch(e){
     console.error('[Adunanza][ping] Errore nel giro di controllo:', e);
     const indicatorePing = document.getElementById('fb-ultimo-ping');
