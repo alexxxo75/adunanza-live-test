@@ -476,7 +476,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 10:36">LIVE-TEST-56</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 10:48">LIVE-TEST-57</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1298,6 +1298,17 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
 
 <div class="toast" id="toast"></div>
 <div id="popup-nuovo-messaggio-chat"></div>
+
+<div class="modal-overlay hidden" id="modal-esci-assemblea">
+  <div class="modal-box">
+    <h3 id="modal-esci-assemblea-titolo">Stai uscendo dall'assemblea</h3>
+    <p class="muted">Sei sicuro di volerla abbandonare?</p>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="chiudiModalEsciAssemblea()">Resta</button>
+      <button class="btn" style="background:var(--brick);border-color:var(--brick);" onclick="confermaEsciAssemblea()">Abbandona</button>
+    </div>
+  </div>
+</div>
 
 <div class="modal-overlay hidden" id="modal-uscita-creazione">
   <div class="modal-box">
@@ -5051,21 +5062,40 @@ function toggleHandRaise(){
   renderHandsList();
 }
 function esciDaAssemblea(){
-  if(!currentCondomino){ return; }
-  if(!confirm('Vuoi uscire dall\'assemblea? La tua uscita verrà registrata con l\'orario.')) return;
+  if(!currentCondomino) return;
+  const b = getActiveBuilding();
+  const assembleaCorrente = b ? getAssembleaContestualizzataCondomino(b) : null;
+  const tipoTesto = assembleaCorrente ? (assembleaCorrente.tipo==='straordinaria' ? 'Straordinaria' : 'Ordinaria') : '';
+  const dataTesto = assembleaCorrente ? (assembleaCorrente.dataSeconda || assembleaCorrente.dataPrima || 'data da definire') : '';
+  const descrizioneAssemblea = assembleaCorrente
+    ? `Assemblea ${tipoTesto} del ${dataTesto} — Condominio ${b.nome}`
+    : 'questa assemblea';
+  const titoloEl = document.getElementById('modal-esci-assemblea-titolo');
+  if(titoloEl) titoloEl.textContent = `Stai uscendo dall'"${descrizioneAssemblea}"`;
+  document.getElementById('modal-esci-assemblea').classList.remove('hidden');
+}
+function chiudiModalEsciAssemblea(){
+  document.getElementById('modal-esci-assemblea').classList.add('hidden');
+}
+function confermaEsciAssemblea(){
+  document.getElementById('modal-esci-assemblea').classList.add('hidden');
+  if(!currentCondomino) return;
   const idCondomino = currentCondomino.id;
   const oraOra = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
   const b = getActiveBuilding();
-  const assembleaCorrente = b ? getAssembleaContestualizzataCondomino(b) : null;
+  const assembleaCorrentePerRicordo = b ? getAssembleaContestualizzataCondomino(b) : null;
   function applicaUscita(){
-    buildings.forEach(bb=>{
-      const a = getAssembleaInCorso(bb);
-      if(!a) return;
-      const recOn = (a.appello.online||[]).find(r=>r.condominoId===idCondomino && !r.uscita);
+    // Marchiamo l'uscita innanzitutto nella VERA assemblea di questo condòmino (stessa
+    // correzione già fatta altrove: non basarsi su "qualunque cosa sia aperta ora"), poi, per
+    // sicurezza, ripetiamo il controllo su tutti i condomìni nel caso fosse presente altrove.
+    const bCorrente = getActiveBuilding();
+    const assembleaVera = bCorrente ? getAssembleaContestualizzataCondomino(bCorrente) : null;
+    if(assembleaVera){
+      const recOn = (assembleaVera.appello.online||[]).find(r=>r.condominoId===idCondomino && !r.uscita);
       if(recOn) recOn.uscita = oraOra;
-      const recPres = (a.appello.presenzeFisiche||[]).find(r=>r.condominoId===idCondomino && !r.uscita);
+      const recPres = (assembleaVera.appello.presenzeFisiche||[]).find(r=>r.condominoId===idCondomino && !r.uscita);
       if(recPres) recPres.uscita = oraOra;
-    });
+    }
   }
   try{
     eseguiConUnioneSuServer(applicaUscita);
@@ -5076,8 +5106,8 @@ function esciDaAssemblea(){
     // assemblea: se si torna su questa pagina (es. premendo "indietro" nel browser dopo essere
     // usciti), non verremo rimarcati online in automatico solo per aver riaperto il link — serve
     // un tocco esplicito su "Rientra in assemblea".
-    if(assembleaCorrente){
-      try{ localStorage.setItem('adunanza_uscito_'+assembleaCorrente.id+'_'+idCondomino, 'true'); }catch(e){}
+    if(assembleaCorrentePerRicordo){
+      try{ localStorage.setItem('adunanza_uscito_'+assembleaCorrentePerRicordo.id+'_'+idCondomino, 'true'); }catch(e){}
     }
   }catch(e){
     console.error('[Adunanza] Registrazione uscita fallita:', e);
