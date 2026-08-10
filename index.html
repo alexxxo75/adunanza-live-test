@@ -488,7 +488,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 12:35">LIVE-TEST-61</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 12:55">LIVE-TEST-63</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1858,9 +1858,43 @@ function disattivaSchermoSempreAcceso(){
 // Il browser rilascia da solo il "wake lock" quando la pagina va in secondo piano (es. si
 // cambia app per un attimo): lo riattiviamo appena si torna a guardarla, altrimenti
 // resterebbe disattivato per il resto della sessione senza che nessuno se ne accorga.
+// Mentre la pagina era in secondo piano (es. si è cambiata app), il browser può aver sospeso
+// l'esecuzione: al ritorno, continuiamo a ricontrollare per un po' di tempo (non una volta
+// sola) se c'è un numero di controllo a cui rispondere — dato che la connessione può metterci
+// qualche istante a ristabilirsi del tutto, un solo controllo immediato rischierebbe di
+// avvenire proprio prima che i dati siano tornati aggiornati.
+let __timerRicontrolloVisibilita = null;
+function avviaRicontrolloProlungatoDopoVisibilita(){
+  if(__timerRicontrolloVisibilita) clearInterval(__timerRicontrolloVisibilita);
+  let tentativiFatti = 0;
+  const massimoTentativi = 15; // 15 tentativi ogni 3 secondi = 45 secondi in tutto
+  rispondiSeNuovoNumeroPing(); // il primo, subito
+  renderVistaCondomino();
+  __timerRicontrolloVisibilita = setInterval(()=>{
+    if(document.visibilityState!=='visible' || currentPage!=='vista-condomino' || !__condominoInAscoltoPing){
+      clearInterval(__timerRicontrolloVisibilita); __timerRicontrolloVisibilita=null; return;
+    }
+    rispondiSeNuovoNumeroPing();
+    renderVistaCondomino();
+    tentativiFatti++;
+    if(tentativiFatti>=massimoTentativi){ clearInterval(__timerRicontrolloVisibilita); __timerRicontrolloVisibilita=null; }
+  }, 3000);
+}
 document.addEventListener('visibilitychange', ()=>{
   if(document.visibilityState==='visible' && (currentPage==='vista-condomino' || currentPage==='assemblea')){
     attivaSchermoSempreAcceso();
+    // Un secondo tentativo poco dopo: su alcuni telefoni il primo tentativo, fatto nello
+    // stesso istante in cui la pagina torna visibile, può fallire silenziosamente (il sistema
+    // operativo non ha ancora "sbloccato" del tutto la pagina) — riprovando un attimo dopo si
+    // recupera anche questo caso, invece di lasciare lo schermo libero di spegnersi.
+    setTimeout(attivaSchermoSempreAcceso, 800);
+  }
+  if(document.visibilityState==='visible' && currentPage==='vista-condomino' && __condominoInAscoltoPing){
+    avviaRicontrolloProlungatoDopoVisibilita();
+  }else if(document.visibilityState!=='visible' && __timerRicontrolloVisibilita){
+    // Si è tornati in secondo piano prima che i 45 secondi finissero: fermiamo il ricontrollo,
+    // ripartirà da capo al prossimo vero ritorno.
+    clearInterval(__timerRicontrolloVisibilita); __timerRicontrolloVisibilita=null;
   }
 });
 function goPage(name){
@@ -3327,7 +3361,10 @@ function renderAppello(){
     const rOnUscito = assemblea.appello.online.find(r=>r.condominoId===c.id && r.uscita);
     const rPresUscito = assemblea.appello.presenzeFisiche.find(r=>r.condominoId===c.id && r.uscita);
     const uscito = (!attivo) && (rOnUscito||rPresUscito);
-    if(uscito){ tdStato.innerHTML += `<br><span class="muted" style="font-size:11px;">🚪 uscito/a alle ${uscito.uscita}</span>`; }
+    if(uscito){
+      const etichettaUscita = uscito.usciteAutomatica ? '🟡 offline dalle' : '🚪 uscito/a alle';
+      tdStato.innerHTML += `<br><span class="muted" style="font-size:11px;">${etichettaUscita} ${uscito.uscita}</span>`;
+    }
     tr.appendChild(tdStato);
 
     const tdAz=document.createElement('td');
@@ -4913,7 +4950,11 @@ function renderTabellaVotiSondaggio(){
     if(attivo && attivo.tipo==='online') tdStato.innerHTML='<span class="badge">🟢 Online</span>';
     else if(attivo && attivo.tipo==='presenza') tdStato.innerHTML='<span class="badge pending">🏠 In presenza</span>';
     else if(delegatoId){ tdStato.innerHTML=`<span class="badge">📝 Delega a ${nomeDelegato(delegatoId, b, assemblea)}</span>`; }
-    else if(eUscito){ const orarioUscita=(recOnUscito||recPresUscito).uscita; tdStato.innerHTML=`<span class="muted">🚪 Uscito alle ${orarioUscita}</span>`; }
+    else if(eUscito){
+      const recUscita = recOnUscito||recPresUscito;
+      const etichettaUscita = recUscita.usciteAutomatica ? '🟡 Offline dalle' : '🚪 Uscito alle';
+      tdStato.innerHTML=`<span class="muted">${etichettaUscita} ${recUscita.uscita}</span>`;
+    }
     else tdStato.innerHTML='<span class="muted">⚪ Assente</span>';
     tr.appendChild(tdStato);
 
@@ -5459,8 +5500,13 @@ function costruisciSezionePresenti(assemblea, b){
       infoTesto = `Delega a ${escapeHtml(nomePersonaAppello(b, assemblea, delegatoId))}`;
     }else if(recOnlineUscito || recPresenzaUscito){
       const rec = recOnlineUscito || recPresenzaUscito;
-      pallino = '⚫';
-      infoTesto = `Uscito alle ${rec.uscita} (entrato alle ${rec.entrata})`;
+      if(rec.usciteAutomatica){
+        pallino = '🟡';
+        infoTesto = `Offline dalle ${rec.uscita} (entrato alle ${rec.entrata})`;
+      }else{
+        pallino = '⚫';
+        infoTesto = `Uscito alle ${rec.uscita} (entrato alle ${rec.entrata})`;
+      }
     }else{
       pallino = '⚪';
       infoTesto = 'Non ancora collegato';
