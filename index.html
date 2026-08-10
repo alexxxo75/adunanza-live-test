@@ -488,7 +488,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 13:06">LIVE-TEST-64</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 14:09">LT-65</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1228,6 +1228,7 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
           <div id="cv-diagnostica-battito-wrap" style="margin-top:14px;padding:12px;border:2px solid #E8B84B;border-radius:8px;background:#1B1712;">
             <p id="cv-diagnostica-battito" style="text-align:center;margin:0;font-size:14px;font-weight:700;color:#fff;">—</p>
           </div>
+          <video id="cv-video-antispegnimento" muted loop playsinline style="position:fixed;width:1px;height:1px;opacity:0.01;pointer-events:none;left:-10px;top:-10px;" src="data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAMXbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAAAAAD6AAAA+gAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAkF0cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAABAAAAAAAAA+gAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAIAAAACAAAAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAPoAAAAAAABAAAAAAG5bWRpYQAAACBtZGhkAAAAAAAAAAAAAAAAAABAAAAAQABVxAAAAAAALWhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAABWaWRlb0hhbmRsZXIAAAABZG1pbmYAAAAUdm1oZAAAAAEAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAASRzdGJsAAAAwHN0c2QAAAAAAAAAAQAAALBhdmMxAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAIAAgBIAAAASAAAAAAAAAABFUxhdmM2MC4zMS4xMDIgbGlieDI2NAAAAAAAAAAAAAAAGP//AAAANmF2Y0MBZAAK/+EAGWdkAAqs2V+IiMBEAAADAAQAAAMACDxIllgBAAZo6+PLIsD9+PgAAAAAEHBhc3AAAAABAAAAAQAAABRidHJ0AAAAAAAAFigAABYoAAAAGHN0dHMAAAAAAAAAAQAAAAEAAEAAAAAAHHN0c2MAAAAAAAAAAQAAAAEAAAABAAAAAQAAABRzdHN6AAAAAAAAAsUAAAABAAAAFHN0Y28AAAAAAAAAAQAAA0cAAABidWR0YQAAAFptZXRhAAAAAAAAACFoZGxyAAAAAAAAAABtZGlyYXBwbAAAAAAAAAAAAAAAAC1pbHN0AAAAJal0b28AAAAdZGF0YQAAAAEAAAAATGF2ZjYwLjE2LjEwMAAAAAhmcmVlAAACzW1kYXQAAAKtBgX//6ncRem95tlIt5Ys2CDZI+7veDI2NCAtIGNvcmUgMTY0IHIzMTA4IDMxZTE5ZjkgLSBILjI2NC9NUEVHLTQgQVZDIGNvZGVjIC0gQ29weWxlZnQgMjAwMy0yMDIzIC0gaHR0cDovL3d3dy52aWRlb2xhbi5vcmcveDI2NC5odG1sIC0gb3B0aW9uczogY2FiYWM9MSByZWY9MyBkZWJsb2NrPTE6MDowIGFuYWx5c2U9MHgzOjB4MTEzIG1lPWhleCBzdWJtZT03IHBzeT0xIHBzeV9yZD0xLjAwOjAuMDAgbWl4ZWRfcmVmPTEgbWVfcmFuZ2U9MTYgY2hyb21hX21lPTEgdHJlbGxpcz0xIDh4OGRjdD0xIGNxbT0wIGRlYWR6b25lPTIxLDExIGZhc3RfcHNraXA9MSBjaHJvbWFfcXBfb2Zmc2V0PS0yIHRocmVhZHM9MSBsb29rYWhlYWRfdGhyZWFkcz0xIHNsaWNlZF90aHJlYWRzPTAgbnI9MCBkZWNpbWF0ZT0xIGludGVybGFjZWQ9MCBibHVyYXlfY29tcGF0PTAgY29uc3RyYWluZWRfaW50cmE9MCBiZnJhbWVzPTMgYl9weXJhbWlkPTIgYl9hZGFwdD0xIGJfYmlhcz0wIGRpcmVjdD0xIHdlaWdodGI9MSBvcGVuX2dvcD0wIHdlaWdodHA9MiBrZXlpbnQ9MjUwIGtleWludF9taW49MSBzY2VuZWN1dD00MCBpbnRyYV9yZWZyZXNoPTAgcmNfbG9va2FoZWFkPTQwIHJjPWNyZiBtYnRyZWU9MSBjcmY9MjMuMCBxY29tcD0wLjYwIHFwbWluPTAgcXBtYXg9NjkgcXBzdGVwPTQgaXBfcmF0aW89MS40MCBhcT0xOjEuMDAAgAAAABBliIQAFf/+98nvwKbr29+B"></video>
         </div>
       </div>
     </div>
@@ -1841,19 +1842,36 @@ function initFromUrlToken(){
 // ---------- SCHERMO SEMPRE ACCESO DURANTE L'ASSEMBLEA ----------
 // Usa il "Wake Lock" del browser, pensato apposta per questo: impedisce che lo schermo si
 // spenga da solo per inattività mentre si sta guardando questa pagina (anche senza toccare
-// nulla, es. leggendo l'ordine del giorno). Se il browser non lo supporta, semplicemente non
-// succede nulla — nessun errore, l'app funziona comunque normalmente.
+// nulla, es. leggendo l'ordine del giorno). Se il browser non lo supporta — cosa che succede
+// spesso nei browser integrati in altre app, come quello di Gmail — usiamo IN PIÙ un metodo di
+// riserva molto più vecchio ma ancora efficace in molti casi: un piccolo video invisibile,
+// muto, che scorre in loop. Molti browser (incluse le versioni integrate come quella di Gmail)
+// evitano di spegnere lo schermo finché un video sta effettivamente riproducendosi, anche se
+// non supportano affatto il Wake Lock vero e proprio.
 let __wakeLockAttivo = null;
 async function attivaSchermoSempreAcceso(){
-  if(!('wakeLock' in navigator)) return;
-  try{
-    __wakeLockAttivo = await navigator.wakeLock.request('screen');
-  }catch(e){
-    console.warn('[Adunanza] Impossibile mantenere lo schermo acceso:', e);
+  let riuscitoWakeLock = false;
+  if('wakeLock' in navigator){
+    try{
+      __wakeLockAttivo = await navigator.wakeLock.request('screen');
+      riuscitoWakeLock = true;
+    }catch(e){
+      console.warn('[Adunanza] Wake Lock non disponibile, uso il metodo di riserva:', e);
+    }
+  }
+  // Il video di riserva lo avviamo SEMPRE, non solo se il Wake Lock fallisce: è innocuo
+  // tenerlo attivo anche quando il Wake Lock funziona già (un video muto e invisibile non
+  // disturba nulla), e così copriamo anche i casi in cui il Wake Lock sembra funzionare ma poi
+  // smette di essere rispettato dal sistema operativo.
+  const videoRiserva = document.getElementById('cv-video-antispegnimento');
+  if(videoRiserva && videoRiserva.paused){
+    videoRiserva.play().catch(e=>console.warn('[Adunanza] Anche il video di riserva anti-spegnimento non è partito:', e));
   }
 }
 function disattivaSchermoSempreAcceso(){
   if(__wakeLockAttivo){ __wakeLockAttivo.release().catch(()=>{}); __wakeLockAttivo = null; }
+  const videoRiserva = document.getElementById('cv-video-antispegnimento');
+  if(videoRiserva) videoRiserva.pause();
 }
 // Il browser rilascia da solo il "wake lock" quando la pagina va in secondo piano (es. si
 // cambia app per un attimo): lo riattiviamo appena si torna a guardarla, altrimenti
