@@ -476,7 +476,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 09:53">LIVE-TEST-54</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 10:05">LIVE-TEST-55</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1154,11 +1154,6 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
     <div class="page hidden" id="page-vista-condomino" style="margin:-30px -44px;">
       <div class="condomino-shell">
         <div class="condomino-view" id="condomino-view-box">
-          <div id="cv-tipo-assemblea" style="background:#000;border-radius:6px;padding:8px 12px;margin-bottom:8px;text-align:center;color:#fff;font-size:12px;font-weight:600;">—</div>
-          <div id="cv-testata">
-            <h1 id="cv-building-name">Assemblea</h1>
-            <p class="sub" id="cv-welcome">—</p>
-          </div>
           <div id="cv-schermata-rientro" class="assist-panel hidden" style="text-align:center;padding:30px 20px;">
             <p style="font-size:19px;font-weight:700;">Hai lasciato l'assemblea, grazie di aver partecipato</p>
             <p class="muted" style="color:#A39C88;margin:12px 0 18px;">La tua uscita è stata registrata. Video e microfono sono stati disattivati. Se vuoi rientrare, tocca qui sotto.</p>
@@ -1205,6 +1200,12 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
 
           <button class="big-action-btn" id="cv-hand-btn" onclick="toggleHandRaise()">✋ Alza la mano</button>
           <button class="big-action-btn" id="cv-esci-btn" onclick="esciDaAssemblea()" style="background:#5C1A1A;border-color:#5C1A1A;color:#fff;margin-top:10px;">🚪 Lascia l'assemblea</button>
+
+          <div id="cv-tipo-assemblea" style="background:#000;border-radius:6px;padding:8px 12px;margin:14px 0 8px;text-align:center;color:#fff;font-size:12px;font-weight:600;">—</div>
+          <div id="cv-testata">
+            <h1 id="cv-building-name">Assemblea</h1>
+            <p class="sub" id="cv-welcome">—</p>
+          </div>
 
           <div id="cv-poll-area"></div>
 
