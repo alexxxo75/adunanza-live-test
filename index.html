@@ -336,6 +336,15 @@
   .poll-bar-track{flex:1;background:var(--paper);border-radius:2px;height:22px;position:relative;overflow:hidden;}
   .poll-bar-fill{background:var(--brass);height:100%;transition:width .4s;}
   .poll-pct{position:absolute;right:8px;top:2px;font-family:var(--font-mono);font-size:11.5px;color:var(--ink);}
+  /* Risultati di un sondaggio CONCLUSO (non quello ancora in corso): barre più piccole, con lo
+     spazio a destra per i dati esatti (millesimi e teste), e la scelta vincente evidenziata. */
+  .poll-esito-riga{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);}
+  .poll-esito-label{width:110px;font-size:13px;flex-shrink:0;}
+  .poll-esito-label.vincitore{color:#2E7D4F;font-weight:700;}
+  .poll-esito-barra-track{flex:1;background:var(--paper);border-radius:2px;height:12px;overflow:hidden;}
+  .poll-esito-barra-fill{height:100%;background:var(--brass);}
+  .poll-esito-barra-fill.vincitore{background:#2E7D4F;}
+  .poll-esito-dati{min-width:140px;text-align:right;font-family:var(--font-mono);font-size:12px;color:var(--ink);flex-shrink:0;}
 
   /* VERBALE DOCUMENT */
   .verbale-doc{background:#fff;border:1px solid var(--line);padding:36px 40px;font-family:var(--font-body);font-size:13.5px;line-height:1.7;position:relative;white-space:pre-wrap;min-height:200px;}
@@ -439,9 +448,12 @@
   .cv-presente-info{ color:#C4BCA5; padding-left:24px; }
   .cv-odg-badge{ flex-shrink:0; font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:20px; background:#8C7D57; color:#C4BCA5; }
   .cv-esito-riga{ margin-bottom:12px; }
-  .cv-esito-riga .etichetta{ display:flex; justify-content:space-between; font-size:13.5px; font-weight:600; margin-bottom:4px; color:#F2F0EC; }
+  .cv-esito-riga .etichetta{ display:flex; justify-content:space-between; align-items:center; font-size:13.5px; font-weight:600; margin-bottom:4px; color:#F2F0EC; }
+  .cv-esito-riga .etichetta .cv-esito-dati{ font-family:var(--font-mono); font-size:12px; font-weight:600; color:#C4BCA5; }
+  .cv-esito-vincitore{ color:#5FBE85 !important; }
   .cv-esito-barra-sfondo{ background:#8C7D57; border-radius:6px; height:16px; overflow:hidden; }
   .cv-esito-barra-riempita{ background:var(--brass); height:100%; border-radius:6px 0 0 6px; }
+  .cv-esito-barra-riempita.cv-esito-vincitore-barra{ background:#5FBE85; }
   .cv-esito-riga.mia .cv-esito-barra-riempita{ background:var(--sage,#3E7A54); }
   .cv-esito-riga.mia .etichetta{ color:var(--sage,#3E7A54); }
   .cv-video{background:#000;border-radius:6px;overflow:hidden;aspect-ratio:16/10;margin-bottom:16px;}
@@ -476,7 +488,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 11:44">LIVE-TEST-59</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 12:01">LIVE-TEST-60</span></div>
   </div>
 
   <!-- MAIN -->
@@ -2621,6 +2633,16 @@ function handleExcelUpload(evt){
 function arrotondaMillesimi(v){
   return Math.round((v + Number.EPSILON) * 1000) / 1000;
 }
+// Conta quante persone (teste) hanno scelto ciascuna opzione, a partire dalle scelte
+// individuali già registrate — usata per mostrare, accanto ai millesimi, anche il numero di
+// persone che hanno votato in ciascun modo.
+function contaTesteXOpzione(scelte){
+  const conteggio = {};
+  Object.values(scelte||{}).forEach(optId=>{
+    conteggio[optId] = (conteggio[optId]||0) + 1;
+  });
+  return conteggio;
+}
 function renderTotaliMillesimi(){
   const building = getWorkingBuilding();
   const foot = document.getElementById('tbl-condomini-foot');
@@ -4423,18 +4445,26 @@ function renderOdgBlocks(){
     storicoEl.className='odg-block-storico';
     (p.storicoSondaggi||[]).forEach((s,si)=>{
       const totVotato = arrotondaMillesimi(Object.values(s.risultatiFinali).reduce((a,c)=>a+c,0));
+      const teste = contaTesteXOpzione(s.scelte);
+      const maxMill = Math.max(0, ...s.options.map(o=>s.risultatiFinali[o.id]||0));
       const card=document.createElement('div');
       card.style.cssText='background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:14px 16px;margin-bottom:12px;';
       let barsHtml='';
       s.options.forEach(o=>{
         const mill=s.risultatiFinali[o.id]||0;
         const pct = totVotato ? Math.round((mill/totVotato)*100) : 0;
-        barsHtml += `<div class="poll-option"><div style="width:110px;font-size:13px;">${o.label}</div><div class="poll-bar-track"><div class="poll-bar-fill" style="width:${pct}%"></div><div class="poll-pct">${pct}% (${mill}‰)</div></div></div>`;
+        const testeOpzione = teste[o.id]||0;
+        const eVincitore = maxMill>0 && mill===maxMill;
+        barsHtml += `<div class="poll-esito-riga">
+          <div class="poll-esito-label${eVincitore?' vincitore':''}">${o.label}</div>
+          <div class="poll-esito-barra-track"><div class="poll-esito-barra-fill${eVincitore?' vincitore':''}" style="width:${pct}%"></div></div>
+          <div class="poll-esito-dati">${mill}\u2030 \u2014 ${testeOpzione} test${testeOpzione===1?'a':'e'}</div>
+        </div>`;
       });
       const btnRiapri = assemblea.stato==='in-corso' ? `<button class="btn small secondary" style="margin-top:8px;" onclick="riapriSondaggio(${p.id}, ${si})">🔓 Riapri sondaggio</button>` : '';
-      card.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      card.innerHTML = `<div style="margin-bottom:10px;">
           <div><b>${s.question}</b> <span class="muted">(${s.tabella})</span></div>
-          <span class="badge">Concluso</span>
+          <div style="text-align:center;margin-top:6px;"><span class="badge" style="font-size:14px;padding:6px 16px;">Concluso</span></div>
         </div>${barsHtml}
         <button class="btn small secondary" style="margin-top:8px;" onclick="duplicaSondaggio(${p.id}, ${si})">⧉ Duplica e ripeti sondaggio</button>
         ${btnRiapri}`;
@@ -5489,13 +5519,18 @@ let __cvUltimoStatoRenderizzato = null;
 // dell'ordine del giorno — resta lì per tutta l'assemblea, non scompare più dopo un po'.
 function costruisciRisultatoSondaggioPerPunto(s, condomino){
   const mieScelta = s.scelte && condomino ? s.scelte[condomino.id] : null;
-  const totale = Object.values(s.risultatiFinali||{}).reduce((sum,v)=>sum+v,0) || 1;
+  const teste = contaTesteXOpzione(s.scelte||{});
+  const risultati = s.risultatiFinali||{};
+  const totale = Object.values(risultati).reduce((sum,v)=>sum+v,0) || 1;
+  const maxMill = Math.max(0, ...(s.options||[]).map(o=>risultati[o.id]||0));
   const barreHtml = (s.options||[]).map(o=>{
-    const voti = (s.risultatiFinali||{})[o.id] || 0;
+    const voti = risultati[o.id] || 0;
     const percentuale = Math.round((voti/totale)*100);
     const eLaMiaScelta = mieScelta===o.id;
-    return `<div class="cv-esito-riga ${eLaMiaScelta?'mia':''}"><div class="etichetta"><span>${escapeHtml(o.label)}${eLaMiaScelta?' ✓':''}</span><span>${percentuale}%</span></div>
-      <div class="cv-esito-barra-sfondo"><div class="cv-esito-barra-riempita" style="width:${percentuale}%;"></div></div></div>`;
+    const eVincitore = maxMill>0 && voti===maxMill;
+    const testeOpzione = teste[o.id]||0;
+    return `<div class="cv-esito-riga ${eLaMiaScelta?'mia':''}"><div class="etichetta"><span class="${eVincitore?'cv-esito-vincitore':''}">${escapeHtml(o.label)}${eLaMiaScelta?' ✓':''}</span><span class="cv-esito-dati">${voti}\u2030 \u2014 ${testeOpzione} test${testeOpzione===1?'a':'e'}</span></div>
+      <div class="cv-esito-barra-sfondo"><div class="cv-esito-barra-riempita ${eVincitore?'cv-esito-vincitore-barra':''}" style="width:${percentuale}%;"></div></div></div>`;
   }).join('');
   return `<div class="cv-risultato-sotto-punto"><p class="sub" style="margin:8px 0 6px;font-weight:600;">${escapeHtml(s.question||'')}</p>${barreHtml}</div>`;
 }
