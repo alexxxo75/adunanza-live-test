@@ -488,7 +488,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 12:55">LIVE-TEST-63</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 13:06">LIVE-TEST-64</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1889,8 +1889,22 @@ document.addEventListener('visibilitychange', ()=>{
     // recupera anche questo caso, invece di lasciare lo schermo libero di spegnersi.
     setTimeout(attivaSchermoSempreAcceso, 800);
   }
-  if(document.visibilityState==='visible' && currentPage==='vista-condomino' && __condominoInAscoltoPing){
-    avviaRicontrolloProlungatoDopoVisibilita();
+  if(document.visibilityState==='visible' && currentPage==='vista-condomino'){
+    // IMPORTANTE: non ci basiamo più sulla bandiera "stavamo già ascoltando" — in alcuni
+    // browser integrati in altre app (es. quello di Gmail su Android), passando a un'app
+    // DIVERSA (non solo un'altra scheda), la pagina può essere sospesa in modo più drastico,
+    // azzerando anche le variabili che il programma teneva in memoria, non solo mettendo in
+    // pausa l'esecuzione. Ripartiamo quindi sempre da capo, ridecidendo da zero se dobbiamo
+    // ascoltare: se il condòmino è ancora riconosciuto lo riattiviamo subito; se anche quello
+    // fosse andato perso, proviamo a rileggerlo dal token nel link, esattamente come al primo
+    // caricamento della pagina.
+    if(!currentCondomino){
+      try{ initFromUrlToken(); }catch(e){ console.error('[Adunanza] Ricostruzione del contesto fallita al ritorno sulla pagina:', e); }
+    }
+    if(currentCondomino && !usciteVolontariamenteInAttesaDiRientro){
+      avviaRispostaPing(currentCondomino.id);
+      avviaRicontrolloProlungatoDopoVisibilita();
+    }
   }else if(document.visibilityState!=='visible' && __timerRicontrolloVisibilita){
     // Si è tornati in secondo piano prima che i 45 secondi finissero: fermiamo il ricontrollo,
     // ripartirà da capo al prossimo vero ritorno.
