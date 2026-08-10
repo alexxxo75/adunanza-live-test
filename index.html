@@ -488,7 +488,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 14:34">LT-68</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 14:52">LT-69</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1174,9 +1174,6 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
           <div id="cv-schermata-terminata" class="assist-panel hidden" style="text-align:center;padding:40px 20px;">
             <p style="font-size:19px;font-weight:700;">L'assemblea è terminata</p>
             <p class="muted" style="color:#A39C88;margin-top:10px;">Grazie per aver partecipato. Il verbale sarà reso disponibile dall'amministratore.</p>
-          </div>
-          <div id="cv-apri-in-chrome-wrap" style="text-align:center;margin-bottom:10px;">
-            <button id="cv-btn-apri-chrome" onclick="apriPaginaInChrome()" style="background:transparent;border:1px solid #8C7D57;color:#C4BCA5;font-size:12px;padding:7px 14px;border-radius:16px;cursor:pointer;">📱 Problemi con lo schermo che si spegne o il video? Tocca qui per aprire in Chrome</button>
           </div>
           <div id="cv-video-wrap">
             <div id="cv-pre-ingresso">
@@ -5174,20 +5171,6 @@ function toggleHandRaise(){
     else{ btn.classList.remove('active'); btn.textContent='✋ Alza la mano'; }
   }
   renderHandsList();
-}
-// Pulsante "Apri in Chrome" dentro la pagina stessa: utile per testare subito, senza aspettare
-// un'email vera (es. se il servizio email è esaurito) — basta arrivare sulla pagina in
-// qualunque modo (anche dentro Gmail) e toccare questo pulsante. Stesso identico meccanismo
-// del link nell'email, con lo stesso ritorno automatico se non fosse supportato.
-function apriPaginaInChrome(){
-  try{
-    const linkAttuale = window.location.href;
-    const linkIntentAndroid = `intent://${linkAttuale.replace(/^https?:\/\//,'')}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(linkAttuale)};end`;
-    window.location.href = linkIntentAndroid;
-  }catch(e){
-    console.error('[Adunanza] Apertura in Chrome fallita:', e);
-    toast('Non è stato possibile aprire automaticamente in Chrome su questo dispositivo. Copia il link dalla barra degli indirizzi e incollalo direttamente in Chrome.');
-  }
 }
 function esciDaAssemblea(){
   if(!currentCondomino) return;
