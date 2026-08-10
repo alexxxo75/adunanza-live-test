@@ -476,7 +476,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 10:05">LIVE-TEST-55</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 10:36">LIVE-TEST-56</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1576,13 +1576,19 @@ let idCounter = 1;
 let odgIdCounter = 1;
 let currentPage = 'home';
 function handsArr(){
-  const a=getAssembleaInCorso(getActiveBuilding());
+  const a=getAssembleaContestualizzataCondomino(getActiveBuilding());
   if(!a) return [];
   if(!a.handsRaised) a.handsRaised=[];
   return a.handsRaised;
 }
 function chatArr(){
-  const a=getAssembleaInCorso(getActiveBuilding());
+  // Stessa correzione già fatta per appello, sondaggi e voti: il condòmino deve restare
+  // ancorato alla SPECIFICA assemblea del proprio link, non a "qualunque cosa l'amministratore
+  // abbia aperto in questo momento" — altrimenti, se non coincidono, il messaggio verrebbe
+  // scritto in un'assemblea diversa (o nel vuoto), senza mai essere salvato davvero.
+  // Per l'amministratore stesso questa funzione si comporta esattamente come prima (nessun
+  // contesto specifico impostato, quindi segue semplicemente l'assemblea in corso).
+  const a=getAssembleaContestualizzataCondomino(getActiveBuilding());
   if(!a) return [];
   if(!a.chatMessages) a.chatMessages=[];
   return a.chatMessages;
@@ -4720,7 +4726,12 @@ function votoUnanime(optId){
 // segna che il voto arriva da un'assegnazione "tutti i presenti: ...", non da una scelta
 // individuale: un successivo click su un'altra scelta unanime potrà sovrascriverlo.
 function impostaVoto(condominoId, optId, isPropagazioneAutomatica, isVotoInBlocco){
-  const assemblea=getAssembleaInCorso(getActiveBuilding());
+  // Usiamo l'assemblea contestualizzata: questa funzione viene chiamata sia dall'amministratore
+  // (voto singolo, voto in blocco) sia dal condòmino che vota da solo dal proprio link — per
+  // l'amministratore il comportamento resta identico a prima (nessun contesto specifico
+  // impostato), per il condòmino ora resta correttamente ancorato alla propria assemblea anche
+  // se l'amministratore ne sta guardando un'altra in quel momento.
+  const assemblea=getAssembleaContestualizzataCondomino(getActiveBuilding());
   // Rete di sicurezza definitiva, DIRETTAMENTE nel punto dove si scrive: qualsiasi sia la
   // ragione per cui uno di questi pezzi possa mancare in questo preciso istante (il database
   // condiviso può omettere campi vuoti, e nonostante le correzioni già fatte più a monte
@@ -5020,7 +5031,7 @@ function toggleHandRaise(){
   const oraOra = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
 
   function applicaAzioneManoAlzata(){
-    const a = getAssembleaInCorso(getActiveBuilding());
+    const a = getAssembleaContestualizzataCondomino(getActiveBuilding());
     if(!a) return;
     if(!Array.isArray(a.handsRaised)) a.handsRaised = [];
     const idx = a.handsRaised.findIndex(h=>h.condominoId===idCondomino);
