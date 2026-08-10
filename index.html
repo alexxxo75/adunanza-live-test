@@ -384,6 +384,12 @@
   .condomino-shell{background:#DDD3BC;min-height:100vh;padding:10px 26px 26px;}
   .condomino-view{max-width:760px;margin:0 auto;background:#463F2F;border-radius:8px;padding:14px 20px 28px;font-size:var(--cv-scale, 17px);color:#F2F0EC;}
   #cv-testata{background:#000;border-radius:6px;padding:10px 12px;margin-bottom:10px;text-align:center;}
+  /* Pannello con "Assemblea del..." e "Condominio/Accesso come...", fisso in cima allo
+     schermo: compare all'apertura, sparisce da solo dopo qualche secondo, e si può far
+     ricomparire tirando verso il basso quando si è già in cima alla pagina (stesso gesto del
+     classico "tira per aggiornare"). */
+  #cv-pannello-superiore{position:fixed;top:0;left:0;right:0;max-width:760px;margin:0 auto;z-index:150;background:#2A2519;padding:10px 20px 12px;box-shadow:0 4px 16px rgba(0,0,0,.35);border-radius:0 0 10px 10px;transform:translateY(-105%);transition:transform .35s ease;}
+  #cv-pannello-superiore.visibile{transform:translateY(0);}
   .condomino-view h1{font-size:13px;font-weight:600;color:#fff;font-family:var(--font-display);margin:0;}
   .condomino-view .sub{font-size:0.95em;color:#C4BCA5;}
   #cv-welcome{font-size:0.85em;margin-top:4px;text-align:center;}
@@ -493,7 +499,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 15:15">LT-71</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 19:11">LT-72</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1169,6 +1175,13 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
 
     <!-- PAGE: VISTA CONDOMINO (anteprima, tema scuro) -->
     <div class="page hidden" id="page-vista-condomino" style="margin:-30px -44px;">
+      <div id="cv-pannello-superiore">
+        <div id="cv-tipo-assemblea" style="background:#000;border-radius:6px;padding:8px 12px;margin-bottom:8px;text-align:center;color:#fff;font-size:12px;font-weight:600;">—</div>
+        <div id="cv-testata">
+          <h1 id="cv-building-name">Assemblea</h1>
+          <p class="sub" id="cv-welcome">—</p>
+        </div>
+      </div>
       <div class="condomino-shell">
         <div class="condomino-view" id="condomino-view-box">
           <div id="cv-schermata-rientro" class="assist-panel hidden" style="text-align:center;padding:30px 20px;">
@@ -1217,12 +1230,6 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
 
           <button class="big-action-btn" id="cv-hand-btn" onclick="toggleHandRaise()">✋ Alza la mano</button>
           <button class="big-action-btn" id="cv-esci-btn" onclick="esciDaAssemblea()" style="background:#5C1A1A;border-color:#5C1A1A;color:#fff;margin-top:10px;">🚪 Lascia l'assemblea</button>
-
-          <div id="cv-tipo-assemblea" style="background:#000;border-radius:6px;padding:8px 12px;margin:14px 0 8px;text-align:center;color:#fff;font-size:12px;font-weight:600;">—</div>
-          <div id="cv-testata">
-            <h1 id="cv-building-name">Assemblea</h1>
-            <p class="sub" id="cv-welcome">—</p>
-          </div>
 
           <div id="cv-poll-area"></div>
 
@@ -1878,6 +1885,42 @@ function disattivaSchermoSempreAcceso(){
   const videoRiserva = document.getElementById('cv-video-antispegnimento');
   if(videoRiserva) videoRiserva.pause();
 }
+// ---------- PANNELLO SUPERIORE RIVELABILE ("Assemblea del..." + "Condominio/Accesso come...") ----------
+// Compare da solo quando si entra nella pagina, resta visibile 5 secondi e poi scompare da
+// solo, per non occupare spazio permanentemente. Si può far ricomparire in qualsiasi momento
+// tirando verso il basso quando si è già in cima alla pagina — lo stesso gesto del classico
+// "tira per aggiornare", che qui invece rivela questo pannello invece di ricaricare la pagina.
+let __pannelloSuperioreTimer = null;
+function mostraPannelloSuperiore(){
+  const pannello = document.getElementById('cv-pannello-superiore');
+  if(!pannello) return;
+  pannello.classList.add('visibile');
+  if(__pannelloSuperioreTimer) clearTimeout(__pannelloSuperioreTimer);
+  __pannelloSuperioreTimer = setTimeout(()=>{
+    pannello.classList.remove('visibile');
+    __pannelloSuperioreTimer = null;
+  }, 5000);
+}
+let __pannelloSuperioreTouchStartY = null;
+document.addEventListener('touchstart', (e)=>{
+  if(currentPage!=='vista-condomino') return;
+  // Registriamo il punto di partenza del tocco SOLO se si è già in cima alla pagina: altrimenti
+  // un tocco a metà pagina (es. per scorrere in basso, cosa normalissima) non deve avere nessun
+  // effetto sul pannello.
+  __pannelloSuperioreTouchStartY = (window.scrollY<=0) ? e.touches[0].clientY : null;
+}, {passive:true});
+document.addEventListener('touchmove', (e)=>{
+  if(currentPage!=='vista-condomino' || __pannelloSuperioreTouchStartY===null) return;
+  const spostamento = e.touches[0].clientY - __pannelloSuperioreTouchStartY;
+  // Un vero gesto "tira verso il basso": il dito si sposta verso il basso di una quantità
+  // riconoscibile (non un tremolio accidentale), e si è ancora in cima alla pagina in quel
+  // preciso istante (non si è nel frattempo scorso altrove).
+  if(spostamento>18 && window.scrollY<=0){
+    mostraPannelloSuperiore();
+    __pannelloSuperioreTouchStartY = null; // un solo richiamo per ogni gesto, non uno ad ogni pixel di movimento
+  }
+}, {passive:true});
+document.addEventListener('touchend', ()=>{ __pannelloSuperioreTouchStartY = null; }, {passive:true});
 // Il browser rilascia da solo il "wake lock" quando la pagina va in secondo piano (es. si
 // cambia app per un attimo): lo riattiviamo appena si torna a guardarla, altrimenti
 // resterebbe disattivato per il resto della sessione senza che nessuno se ne accorga.
@@ -1942,6 +1985,7 @@ function goPage(name){
   // pagine, per non consumare batteria inutilmente nel resto dell'app.
   if(name==='vista-condomino' || name==='assemblea'){ attivaSchermoSempreAcceso(); }
   else{ disattivaSchermoSempreAcceso(); }
+  if(name==='vista-condomino'){ mostraPannelloSuperiore(); }
   // Un condòmino che arriva dal proprio link personale non deve vedere la barra di
   // navigazione dell'amministratore (altri condomìni, profilo, ripristina demo...): la
   // nascondiamo del tutto in queste pagine, comprimendo lo spazio lasciato libero.
