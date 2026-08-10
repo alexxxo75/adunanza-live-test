@@ -362,8 +362,11 @@
   .section-title{font-family:var(--font-display);font-size:16px;color:var(--ink);margin:0 0 12px;font-weight:600;}
   .muted{color:var(--text-soft);font-size:12.5px;}
   #appello-tbody td:nth-child(3){white-space:nowrap;}
-  .btn-appello-azione{width:170px;text-align:center;box-sizing:border-box;}
-  select.btn-appello-azione{font-family:var(--font-body);font-size:12.5px;font-weight:500;padding:6px 10px;border-radius:2px;border:1px solid var(--ink);background:#fff;color:var(--ink);cursor:pointer;}
+  .btn-appello-azione{width:118px;text-align:center;box-sizing:border-box;padding:5px 6px;font-size:11px;white-space:normal;line-height:1.2;}
+  select.btn-appello-azione{font-family:var(--font-body);font-size:11px;font-weight:500;padding:5px 6px;border-radius:2px;border:1px solid var(--ink);background:#fff;color:var(--ink);cursor:pointer;}
+  .appello-azioni-riga{display:flex;flex-wrap:nowrap;gap:4px;align-items:center;}
+  .appello-azioni-riga .btn.small{padding:5px 8px;font-size:11px;white-space:nowrap;flex-shrink:0;}
+  .appello-nome-cella{white-space:nowrap;}
   select.btn-appello-azione optgroup{font-weight:800;text-transform:uppercase;font-style:normal;}
   .note{background:rgba(169,130,44,.08);border:1px solid rgba(169,130,44,.3);border-radius:2px;padding:10px 14px;font-size:12.5px;color:var(--ink-soft);margin-top:10px;}
 
@@ -488,7 +491,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 14:52">LT-69</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 15:04">LT-70</span></div>
   </div>
 
   <!-- MAIN -->
@@ -3305,6 +3308,7 @@ function renderAppello(){
     tr.style.background='var(--paper)';
     const semEst = (attivoEst && attivoEst.tipo==='online') ? 'verde' : (attivoEst && attivoEst.rec.online) ? 'rosa' : attivoEst ? 'blu' : 'grigio';
     const tdNome=document.createElement('td');
+    tdNome.className='appello-nome-cella';
     if(indentata) tdNome.style.paddingLeft='34px';
     tdNome.innerHTML=semaforoAppello(semEst)+`${est.nome} <span class="muted">${indentata?'(esterno delegato)':'(persona esterna)'}</span>`;
     tr.appendChild(tdNome);
@@ -3316,7 +3320,7 @@ function renderAppello(){
     else tdStato.innerHTML = '<span class="muted">⚪ Non ancora presente</span>';
     tr.appendChild(tdStato);
     const tdAz=document.createElement('td');
-    const azioniRow=document.createElement('div'); azioniRow.style.cssText='display:flex;flex-wrap:wrap;gap:6px;align-items:center;';
+    const azioniRow=document.createElement('div'); azioniRow.className='appello-azioni-riga';
     if(attivoEst){
       const btnEsci=document.createElement('button'); btnEsci.className='btn small secondary'; btnEsci.textContent='Uscita anticipata';
       btnEsci.onclick=()=>usciteAnticipata(est.id);
@@ -3356,7 +3360,7 @@ function renderAppello(){
       : collegatoIdAttivo ? 'arancio'
       : 'grigio';
 
-    const tdNome=document.createElement('td'); tdNome.innerHTML=semaforoAppello(semStato)+nomeCompletoCondomino(c); tr.appendChild(tdNome);
+    const tdNome=document.createElement('td'); tdNome.className='appello-nome-cella'; tdNome.innerHTML=semaforoAppello(semStato)+nomeCompletoCondomino(c); tr.appendChild(tdNome);
 
     const rappresentatoRiga = convocatoRappresentato(c, assemblea, b);
     const tdMill=document.createElement('td');
@@ -3400,7 +3404,7 @@ function renderAppello(){
     tr.appendChild(tdStato);
 
     const tdAz=document.createElement('td');
-    const azioniRow=document.createElement('div'); azioniRow.style.cssText='display:flex;flex-wrap:wrap;gap:6px;align-items:center;';
+    const azioniRow=document.createElement('div'); azioniRow.className='appello-azioni-riga';
     if(delegatoId!=null){
       const rm=document.createElement('button'); rm.className='btn small secondary'; rm.textContent='Annulla delega';
       rm.onclick=()=>annullaDelega(c.id);
@@ -4224,18 +4228,10 @@ function costruisciEmail(c, a, b){
   // confuse (persino vedersi mostrare un'assemblea già conclusa per sbaglio).
   const link = `${baseUrl}?token=${c.token}&assemblea=${a.id}`;
   const linkDelega = `${baseUrl}?token=${c.token}&delega=${a.id}`;
-  // Per il pulsante di ACCESSO usiamo un "Android Intent": chiede esplicitamente al telefono
-  // di aprire Chrome vero, invece di lasciare che Gmail intercetti il link nella propria
-  // finestra integrata (dove, tra le altre cose, lo schermo può spegnersi da solo perché
-  // quell'ambiente non concede il permesso di tenerlo acceso). Include un "ritorno automatico"
-  // (S.browser_fallback_url) al link normale se il tentativo non fosse supportato (es. iPhone,
-  // o se Gmail filtrasse comunque questo formato): in quel caso si apre semplicemente come
-  // prima, senza restare bloccato su nulla.
-  const linkIntentAndroid = `intent://${link.replace(/^https?:\/\//,'')}#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(link)};end`;
   // In presenza pura non si può partecipare online: niente link di accesso né di delega
   // digitale — restano fuori dall'email, coerentemente con quanto stabilito.
   const linkAccessoHtml = a.modalita==='in-presenza' ? '' :
-    `<a class="email-link-btn" href="${linkIntentAndroid}" target="_blank">Accedi all'assemblea →</a><div class="muted" style="margin-top:8px;font-family:var(--font-mono);"><a href="${linkIntentAndroid}" style="color:inherit;">${link}</a></div>`;
+    `<a class="email-link-btn" href="${link}" target="_blank">Accedi all'assemblea →</a><div class="muted" style="margin-top:8px;font-family:var(--font-mono);">${link}</div>`;
   const linkDelegaHtml = a.modalita==='in-presenza' ? '' :
     `<a class="email-link-btn" href="${linkDelega}" target="_blank">Dai una delega →</a><div class="muted" style="margin-top:8px;font-family:var(--font-mono);">${linkDelega}</div>`;
 
