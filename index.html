@@ -344,6 +344,10 @@
 
   .empty{border:1px dashed var(--line);border-radius:3px;padding:32px;text-align:center;color:var(--text-soft);font-size:13.5px;}
   .toast{position:fixed;bottom:24px;right:24px;background:var(--ink);color:#fff;padding:13px 20px;border-radius:3px;font-size:13.5px;box-shadow:0 6px 20px rgba(0,0,0,.25);opacity:0;transform:translateY(8px);transition:.25s;pointer-events:none;z-index:50;}
+  .popup-msg-chat{position:fixed;top:70px;right:24px;background:var(--paper-card);border:1px solid var(--line);border-left:4px solid var(--brass);border-radius:6px;padding:14px 18px;max-width:300px;box-shadow:0 10px 28px rgba(0,0,0,.22);z-index:120;cursor:pointer;animation:popupMsgChatEntra .25s ease;}
+  .popup-msg-chat .autore{font-weight:700;font-size:13px;margin-bottom:3px;}
+  .popup-msg-chat .testo{font-size:13px;color:var(--ink);}
+  @keyframes popupMsgChatEntra{from{opacity:0;transform:translateX(20px);}to{opacity:1;transform:translateX(0);}}
   .toast.show{opacity:1;transform:translateY(0);}
   .hidden{display:none !important;}
   .section-title{font-family:var(--font-display);font-size:16px;color:var(--ink);margin:0 0 12px;font-weight:600;}
@@ -469,7 +473,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 00:26">LIVE-TEST-50</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 09:05">LIVE-TEST-52</span></div>
   </div>
 
   <!-- MAIN -->
@@ -936,6 +940,16 @@
 
         <div id="email-previews" style="display:flex;flex-direction:column;gap:14px;"></div>
 
+        <div class="card assemblea-row-card" id="ca-tabella-riepilogo-wrap" style="margin:18px 0;">
+          <h3 style="margin-bottom:12px;">📋 Riepilogo invitati</h3>
+          <div style="overflow-x:auto;">
+            <table id="ca-tabella-riepilogo">
+              <thead><tr><th>Cognome</th><th>Nome</th><th>Email</th><th>Indirizzo di accesso all'assemblea</th></tr></thead>
+              <tbody id="ca-tabella-riepilogo-body"></tbody>
+            </table>
+          </div>
+        </div>
+
         <div class="card assemblea-row-card" style="margin:18px 0;text-align:center;">
           <button class="btn secondary full" onclick="window.scrollTo({top:0, behavior:'smooth'})">⬆ Torna a inizio pagina</button>
         </div>
@@ -1277,6 +1291,7 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
 </div>
 
 <div class="toast" id="toast"></div>
+<div id="popup-nuovo-messaggio-chat"></div>
 
 <div class="modal-overlay hidden" id="modal-uscita-creazione">
   <div class="modal-box">
@@ -1565,6 +1580,41 @@ function chatArr(){
   if(!a) return [];
   if(!a.chatMessages) a.chatMessages=[];
   return a.chatMessages;
+}
+// Segnala con un pop-up i messaggi in chat davvero NUOVI (non quelli già visti, e non quelli
+// scritti dall'amministratore stesso): teniamo traccia, per ogni assemblea, di quanti
+// messaggi c'erano l'ultima volta che abbiamo controllato — se il numero è cresciuto, il messaggio
+// in più è nuovo.
+let __numeroMessaggiChatVistiPerAssemblea = {};
+function segnalaNuoviMessaggiChat(){
+  const a = getAssembleaInCorso(getActiveBuilding());
+  if(!a) return;
+  const arr = a.chatMessages||[];
+  const giaVisti = __numeroMessaggiChatVistiPerAssemblea[a.id];
+  __numeroMessaggiChatVistiPerAssemblea[a.id] = arr.length;
+  if(giaVisti===undefined){ return; } // primo controllo per questa assemblea: non segnaliamo la cronologia già esistente, solo i messaggi che arrivano da qui in avanti
+  if(arr.length<=giaVisti) return; // nessun messaggio in più
+  const nuovi = arr.slice(giaVisti);
+  nuovi.forEach(m=>{
+    if(m.autore==='Amministratore') return; // non serve avvisarci dei nostri stessi messaggi
+    mostraPopupNuovoMessaggioChat(m);
+  });
+}
+function mostraPopupNuovoMessaggioChat(messaggio){
+  const contenitore = document.getElementById('popup-nuovo-messaggio-chat');
+  if(!contenitore) return;
+  const el = document.createElement('div');
+  el.className = 'popup-msg-chat';
+  const testoTroncato = (messaggio.testo||'').length>90 ? messaggio.testo.slice(0,90)+'…' : (messaggio.testo||'');
+  el.innerHTML = `<div class="autore">💬 ${escapeHtml(messaggio.autore||'Condòmino')}</div><div class="testo">${escapeHtml(testoTroncato)}</div>`;
+  el.onclick = ()=>{
+    el.remove();
+    goPage('assemblea');
+    const chatBox = document.getElementById('admin-chat-log');
+    if(chatBox) chatBox.scrollIntoView({behavior:'smooth', block:'center'});
+  };
+  contenitore.appendChild(el);
+  setTimeout(()=>{ el.remove(); }, 6000);
 }
 let currentCondomino = null; // il condòmino "autenticato" in questa vista — riconosciuto via token o selezionato in anteprima
 let usciteVolontariamenteInAttesaDiRientro = false; // true se questo dispositivo ha premuto "Lascia assemblea" ed è tornato sulla pagina senza aver ancora toccato "Rientra"
@@ -4120,6 +4170,26 @@ function renderAnteprimeEmailConvocazione(a, b){
       <div class="email-body">${corpo}</div>`;
     box.appendChild(div);
   });
+  renderTabellaRiepilogoInvitati(a, b);
+}
+function renderTabellaRiepilogoInvitati(a, b){
+  const tbody=document.getElementById('ca-tabella-riepilogo-body');
+  if(!tbody) return;
+  const convocati = a.convocati.selezionati.map(id=>b.condomini.find(c=>c.id===id)).filter(Boolean);
+  if(convocati.length===0){
+    tbody.innerHTML = '<tr><td colspan="4" class="muted">Nessun invitato selezionato.</td></tr>';
+    return;
+  }
+  const baseUrl = window.location.origin + window.location.pathname;
+  // Stessa identica costruzione del link già usata dentro costruisciEmail: se una assemblea è
+  // puramente in presenza, non esiste un link di accesso online (non applicabile).
+  tbody.innerHTML = convocati.map(c=>{
+    const link = a.modalita==='in-presenza' ? null : `${baseUrl}?token=${c.token}&assemblea=${a.id}`;
+    const cellaLink = link
+      ? `<span style="font-family:var(--font-mono);font-size:12px;word-break:break-all;">${link}</span>`
+      : '<span class="muted">— (assemblea solo in presenza)</span>';
+    return `<tr><td>${escapeHtml(c.cognome||'')}</td><td>${escapeHtml(c.nome||'')}</td><td>${escapeHtml(c.email||'')}</td><td>${cellaLink}</td></tr>`;
+  }).join('');
 }
 // Invio VERO di una singola email, tramite EmailJS collegato al Gmail dedicato di Alessandro.
 // I link restano cliccabili anche nell'email reale (sono HTML), anche se non avranno lo stesso
@@ -6404,15 +6474,21 @@ function caricaStato(){
 // richiamata sia dopo un cambiamento fatto in un'altra scheda dello stesso browser, sia (novità)
 // dopo un cambiamento arrivato da un altro dispositivo tramite il database condiviso.
 function rirenderizzaDopoSincronizzazione(){
+  // Ora che il ping funziona, questa funzione viene richiamata molto più spesso (ogni risposta
+  // di ogni condòmino online ridisegna tutto) — senza questa protezione, lo schermo "salterebbe"
+  // in continuazione mentre si sta lavorando (es. impostando un voto a mano).
+  const posizioneScorrimento = window.scrollY;
   if(currentPage==='home'){ renderHome(); }
   if(currentPage==='condomini'){ renderCondominiElenco(); }
   if(currentPage==='assemblea'){
     renderAppello(); renderHandsList(); renderChat('admin-chat-log');
+    segnalaNuoviMessaggiChat();
     renderOdgBlocks();
     if(activePoll){ showActivePoll(); }
   }
   if(currentPage==='vista-condomino'){ renderVistaCondomino(); }
   if(currentPage==='delega-condomino'){ renderPaginaDelegaCondomino(); }
+  window.scrollTo(0, posizioneScorrimento);
 }
 caricaStato();
 aggiornaNomeStudioTopbar();
