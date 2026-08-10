@@ -362,10 +362,12 @@
   .section-title{font-family:var(--font-display);font-size:16px;color:var(--ink);margin:0 0 12px;font-weight:600;}
   .muted{color:var(--text-soft);font-size:12.5px;}
   #appello-tbody td:nth-child(3){white-space:nowrap;}
-  .btn-appello-azione{width:118px;text-align:center;box-sizing:border-box;padding:5px 6px;font-size:11px;white-space:normal;line-height:1.2;}
+  .btn-appello-azione{text-align:center;box-sizing:border-box;padding:5px 6px;font-size:11px;white-space:normal;line-height:1.2;}
   select.btn-appello-azione{font-family:var(--font-body);font-size:11px;font-weight:500;padding:5px 6px;border-radius:2px;border:1px solid var(--ink);background:#fff;color:var(--ink);cursor:pointer;}
-  .appello-azioni-riga{display:flex;flex-wrap:nowrap;gap:4px;align-items:center;}
-  .appello-azioni-riga .btn.small{padding:5px 8px;font-size:11px;white-space:nowrap;flex-shrink:0;}
+  .appello-azioni-riga{display:grid;grid-template-columns:148px 118px 138px;gap:4px;align-items:center;}
+  .appello-azioni-riga .btn.small{width:100%;box-sizing:border-box;padding:5px 6px;font-size:11px;white-space:normal;line-height:1.2;text-align:center;}
+  .appello-azioni-riga select.btn-appello-azione{width:100%;box-sizing:border-box;}
+  .appello-slot-vuoto{visibility:hidden;}
   .appello-nome-cella{white-space:nowrap;}
   select.btn-appello-azione optgroup{font-weight:800;text-transform:uppercase;font-style:normal;}
   .note{background:rgba(169,130,44,.08);border:1px solid rgba(169,130,44,.3);border-radius:2px;padding:10px 14px;font-size:12.5px;color:var(--ink-soft);margin-top:10px;}
@@ -491,7 +493,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 15:04">LT-70</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 15:15">LT-71</span></div>
   </div>
 
   <!-- MAIN -->
@@ -3321,21 +3323,22 @@ function renderAppello(){
     tr.appendChild(tdStato);
     const tdAz=document.createElement('td');
     const azioniRow=document.createElement('div'); azioniRow.className='appello-azioni-riga';
+    function slotVuotoEst(){ const s=document.createElement('span'); s.className='appello-slot-vuoto'; return s; }
+    let slot1=null, slot2=null;
     if(attivoEst){
-      const btnEsci=document.createElement('button'); btnEsci.className='btn small secondary'; btnEsci.textContent='Uscita anticipata';
-      btnEsci.onclick=()=>usciteAnticipata(est.id);
-      azioniRow.appendChild(btnEsci);
+      slot1=document.createElement('button'); slot1.className='btn small secondary'; slot1.textContent='Uscita anticipata';
+      slot1.onclick=()=>usciteAnticipata(est.id);
     }else{
-      const btnPres=document.createElement('button'); btnPres.className='btn small secondary btn-appello-azione'; btnPres.textContent='Segna presente in aula';
-      btnPres.onclick=()=>segnaPresenteInAula(est.id);
-      azioniRow.appendChild(btnPres);
-      const btnOnlineManualeEst=document.createElement('button'); btnOnlineManualeEst.className='btn small secondary btn-appello-azione'; btnOnlineManualeEst.innerHTML='<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#C2508A;margin-right:5px;vertical-align:middle;"></span>Segna online';
-      btnOnlineManualeEst.onclick=()=>segnaOnlineAMano(est.id);
-      azioniRow.appendChild(btnOnlineManualeEst);
+      slot1=document.createElement('button'); slot1.className='btn small secondary btn-appello-azione'; slot1.textContent='Segna presente in aula';
+      slot1.onclick=()=>segnaPresenteInAula(est.id);
+      slot2=document.createElement('button'); slot2.className='btn small secondary btn-appello-azione'; slot2.innerHTML='<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#C2508A;margin-right:5px;vertical-align:middle;"></span>Segna online';
+      slot2.onclick=()=>segnaOnlineAMano(est.id);
     }
-    const btnRm=document.createElement('button'); btnRm.className='btn small secondary'; btnRm.textContent='Rimuovi persona esterna';
-    btnRm.onclick=()=>rimuoviPersonaEsterna(est.id);
-    azioniRow.appendChild(btnRm);
+    const slot3=document.createElement('button'); slot3.className='btn small secondary'; slot3.textContent='Rimuovi persona esterna';
+    slot3.onclick=()=>rimuoviPersonaEsterna(est.id);
+    azioniRow.appendChild(slot1||slotVuotoEst());
+    azioniRow.appendChild(slot2||slotVuotoEst());
+    azioniRow.appendChild(slot3);
     tdAz.appendChild(azioniRow);
     tr.appendChild(tdAz);
     return tr;
@@ -3405,34 +3408,35 @@ function renderAppello(){
 
     const tdAz=document.createElement('td');
     const azioniRow=document.createElement('div'); azioniRow.className='appello-azioni-riga';
+    function slotVuotoAppello(){ const s=document.createElement('span'); s.className='appello-slot-vuoto'; return s; }
+    // Sempre le stesse 3 posizioni, nello stesso ordine, per ogni riga: 1) azione principale
+    // (Segna presente in aula / Uscita anticipata), 2) Segna online (o Rimuovi, nei casi in cui
+    // si applica), 3) Delega (Registra delega / Annulla delega) — se un pulsante non serve per
+    // quella riga, la posizione resta vuota ma occupata, così tutte le righe restano allineate
+    // in colonna invece di scivolare a sinistra in base a quanti pulsanti ci sono davvero.
+    let slot1=null, slot2=null, slot3=null;
     if(delegatoId!=null){
-      const rm=document.createElement('button'); rm.className='btn small secondary'; rm.textContent='Annulla delega';
-      rm.onclick=()=>annullaDelega(c.id);
-      azioniRow.appendChild(rm);
+      slot3=document.createElement('button'); slot3.className='btn small secondary'; slot3.textContent='Annulla delega';
+      slot3.onclick=()=>annullaDelega(c.id);
       // Se ha già delegato ma risulta ancora online/in presenza, resta comunque possibile
       // registrare l'orario preciso della sua uscita quando effettivamente lascia la riunione.
       if(attivo){
-        const btnEsci=document.createElement('button'); btnEsci.className='btn small secondary'; btnEsci.textContent='Uscita anticipata';
-        btnEsci.onclick=()=>usciteAnticipata(c.id);
-        azioniRow.appendChild(btnEsci);
+        slot1=document.createElement('button'); slot1.className='btn small secondary'; slot1.textContent='Uscita anticipata';
+        slot1.onclick=()=>usciteAnticipata(c.id);
       }
     }else{
       if(attivo){
-        const btnEsci=document.createElement('button'); btnEsci.className='btn small secondary'; btnEsci.textContent='Uscita anticipata';
-        btnEsci.onclick=()=>usciteAnticipata(c.id);
-        azioniRow.appendChild(btnEsci);
+        slot1=document.createElement('button'); slot1.className='btn small secondary'; slot1.textContent='Uscita anticipata';
+        slot1.onclick=()=>usciteAnticipata(c.id);
         if(attivo.tipo==='presenza' && !assemblea.iniziata){
-          const rm=document.createElement('button'); rm.className='btn small secondary'; rm.textContent='Rimuovi';
-          rm.onclick=()=>rimuoviPresenzaInAula(c.id);
-          azioniRow.appendChild(rm);
+          slot2=document.createElement('button'); slot2.className='btn small secondary'; slot2.textContent='Rimuovi';
+          slot2.onclick=()=>rimuoviPresenzaInAula(c.id);
         }
       }else{
-        const btnPres=document.createElement('button'); btnPres.className='btn small secondary btn-appello-azione'; btnPres.textContent='Segna presente in aula';
-        btnPres.onclick=()=>segnaPresenteInAula(c.id);
-        azioniRow.appendChild(btnPres);
-        const btnOnlineManuale=document.createElement('button'); btnOnlineManuale.className='btn small secondary btn-appello-azione'; btnOnlineManuale.innerHTML='<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#C2508A;margin-right:5px;vertical-align:middle;"></span>Segna online';
-        btnOnlineManuale.onclick=()=>segnaOnlineAMano(c.id);
-        azioniRow.appendChild(btnOnlineManuale);
+        slot1=document.createElement('button'); slot1.className='btn small secondary btn-appello-azione'; slot1.textContent='Segna presente in aula';
+        slot1.onclick=()=>segnaPresenteInAula(c.id);
+        slot2=document.createElement('button'); slot2.className='btn small secondary btn-appello-azione'; slot2.innerHTML='<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#C2508A;margin-right:5px;vertical-align:middle;"></span>Segna online';
+        slot2.onclick=()=>segnaOnlineAMano(c.id);
       }
 
       // Il menù per assegnare una delega è sempre disponibile — sia che il condòmino risulti
@@ -3440,19 +3444,19 @@ function renderAppello(){
       // candidati (l'opzione "+ Aggiungi persona esterna..." resta comunque sempre valida).
       const candidatiDelega = convocatiList.filter(x=>x.id!==c.id);
       const esterni = assemblea.deleghiEsterni||[];
-      {
-        const sel=document.createElement('select'); sel.id='delega-select-'+c.id; sel.className='btn-appello-azione';
-        sel.innerHTML = '<option value="">Registra delega</option>' +
-          '<option value="__nuovo_esterno__">+ Aggiungi persona esterna...</option>' +
-          (esterni.length ? `<optgroup label="Persone esterne">${esterni.map(e=>`<option value="${e.id}">${e.nome}</option>`).join('')}</optgroup>` : '') +
-          (candidatiDelega.length ? `<optgroup label="Condòmini">${candidatiDelega.map(p=>`<option value="${p.id}">${nomeCompletoCondomino(p)}</option>`).join('')}</optgroup>` : '');
-        sel.onchange=()=>{
-          if(sel.value==='__nuovo_esterno__'){ aggiungiPersonaEsternaEDelega(c.id); }
-          else if(sel.value){ registraDelega(c.id); }
-        };
-        azioniRow.appendChild(sel);
-      }
+      slot3=document.createElement('select'); slot3.id='delega-select-'+c.id; slot3.className='btn-appello-azione';
+      slot3.innerHTML = '<option value="">Registra delega</option>' +
+        '<option value="__nuovo_esterno__">+ Aggiungi persona esterna...</option>' +
+        (esterni.length ? `<optgroup label="Persone esterne">${esterni.map(e=>`<option value="${e.id}">${e.nome}</option>`).join('')}</optgroup>` : '') +
+        (candidatiDelega.length ? `<optgroup label="Condòmini">${candidatiDelega.map(p=>`<option value="${p.id}">${nomeCompletoCondomino(p)}</option>`).join('')}</optgroup>` : '');
+      slot3.onchange=()=>{
+        if(slot3.value==='__nuovo_esterno__'){ aggiungiPersonaEsternaEDelega(c.id); }
+        else if(slot3.value){ registraDelega(c.id); }
+      };
     }
+    azioniRow.appendChild(slot1||slotVuotoAppello());
+    azioniRow.appendChild(slot2||slotVuotoAppello());
+    azioniRow.appendChild(slot3||slotVuotoAppello());
     tdAz.appendChild(azioniRow);
     tr.appendChild(tdAz);
     tbody.appendChild(tr);
