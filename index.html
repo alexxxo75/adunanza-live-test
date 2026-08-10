@@ -476,7 +476,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 11:28">LIVE-TEST-58</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 11:44">LIVE-TEST-59</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1189,9 +1189,9 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
               <h3>Chat</h3>
               <p class="muted" style="color:#A39C88;margin-bottom:10px;">Per segnalazioni pratiche (es. "non sento l'audio") — non è la chat per gli interventi formali.</p>
               <div class="cv-chat-log" id="cv-chat-log"></div>
-              <div class="row-inline">
-                <input id="cv-chat-input" placeholder="Scrivi qui..." style="background:#2A2519;border-color:#8C7D57;color:#F2F0EC;" oninput="segnaAttivitaChatCondomino()">
-                <button class="btn small brass" style="width:32px;height:32px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;" onclick="sendChatMessage(currentCondomino?nomeCompletoCondomino(currentCondomino):'Condòmino','cv-chat-input');segnaAttivitaChatCondomino();" aria-label="Invia">
+              <div class="row-inline" style="align-items:center;">
+                <input id="cv-chat-input" placeholder="Scrivi qui..." style="background:#2A2519;border-color:#8C7D57;color:#F2F0EC;flex:1;min-width:0;" oninput="segnaAttivitaChatCondomino()">
+                <button class="btn small brass" style="width:32px;height:32px;min-width:32px;min-height:32px;max-width:32px;max-height:32px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;" onclick="sendChatMessage(currentCondomino?nomeCompletoCondomino(currentCondomino):'Condòmino','cv-chat-input');segnaAttivitaChatCondomino();" aria-label="Invia">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 5v6a3 3 0 0 1-3 3H6" stroke="#1B222B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.5 10.5 5 14l4.5 3.5" stroke="#1B222B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 </button>
               </div>
@@ -5188,7 +5188,12 @@ function renderChat(elId){
   const el=document.getElementById(elId);
   if(!el) return;
   const arr = chatArr();
-  if(arr.length===0){ el.innerHTML='<span class="muted">Nessun messaggio.</span>'; return; }
+  if(arr.length===0){
+    // Nella pagina del cellulare, senza messaggi il riquadro resta piccolo (circa due righe
+    // vuote) invece di mostrare la scritta "Nessun messaggio", che occupava spazio inutile.
+    el.innerHTML = elId==='cv-chat-log' ? '<br><br>' : '<span class="muted">Nessun messaggio.</span>';
+    return;
+  }
   el.innerHTML = arr.map(m=>`<div class="chat-msg ${m.autore==='Amministratore'?'admin':''}"><b>${m.autore}</b> <span class="muted">${m.ora}</span><br>${m.testo}</div>`).join('');
   el.scrollTop = el.scrollHeight;
 }
