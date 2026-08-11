@@ -425,9 +425,6 @@
   #cv-video-box iframe{ width:100% !important; height:100% !important; border:0 !important; display:block; }
   #cv-btn-torna-su{ display:block; width:100%; font-size:13.5px; font-weight:700; color:#F2F0EC; background:#5E5439; border:1px solid #8C7D57; border-radius:8px; padding:10px 12px; cursor:pointer; }
 
-  #cv-chat-toggle-bar{ display:none; margin-bottom:10px; }
-  #cv-chat-toggle-bar.visibile{ display:block; }
-  #cv-btn-chat-toggle{ display:block; width:100%; font-size:13.5px; font-weight:700; color:#F2F0EC; background:#5E5439; border:1px solid #8C7D57; border-radius:8px; padding:10px 12px; cursor:pointer; }
 
   #cv-poll-video-scroll-hint{ position:absolute; left:0; right:0; bottom:0; display:flex; align-items:flex-end; justify-content:center; padding-bottom:8px; pointer-events:none; background:linear-gradient(to top, rgba(0,0,0,.55), rgba(0,0,0,0)); height:54px; }
   #cv-poll-video-scroll-hint span{ color:#fff; font-size:22px; line-height:1; animation:cv-scroll-hint-bounce 1.6s ease-in-out infinite; }
@@ -499,7 +496,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 11/08/2026 alle 21:30">LT-76</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 11/08/2026 alle 21:36">LT-77</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1211,9 +1208,6 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
             <div id="cv-video-box" style="display:none;"></div>
           </div>
 
-          <div id="cv-chat-toggle-bar" class="visibile">
-            <button id="cv-btn-chat-toggle" onclick="apriChatConTastoCondomino()">💬 Chat</button>
-          </div>
           <div class="assist-panel" id="cv-chat-sezione" style="display:none;">
             <h3>Chat</h3>
             <p class="muted" style="color:#A39C88;margin-bottom:10px;">Per segnalazioni pratiche (es. "non sento l'audio") — non è la chat per gli interventi formali.</p>
@@ -1225,6 +1219,7 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
               </button>
             </div>
           </div>
+          <button class="big-action-btn" id="cv-btn-chat-toggle" onclick="apriChatConTastoCondomino()">💬 Chat</button>
 
           <button class="big-action-btn" id="cv-hand-btn" onclick="toggleHandRaise()">✋ Alza la mano</button>
           <button class="big-action-btn" id="cv-esci-btn" onclick="esciDaAssemblea()" style="background:#5C1A1A;border-color:#5C1A1A;color:#fff;margin-top:10px;">🚪 Lascia l'assemblea</button>
@@ -5294,8 +5289,6 @@ function distruggiVideoCondomino(){
   if(videoBox){ videoBox.innerHTML=''; videoBox.style.display='none'; }
   const preIngresso = document.getElementById('cv-pre-ingresso');
   if(preIngresso) preIngresso.style.display='block';
-  const chatToggleBar = document.getElementById('cv-chat-toggle-bar');
-  if(chatToggleBar) chatToggleBar.classList.remove('visibile');
 }
 function rientraInAssemblea(){
   if(!currentCondomino) return;
@@ -5379,7 +5372,7 @@ function renderVistaCondomino(){
   }
   const schermataRientro = document.getElementById('cv-schermata-rientro');
   const schermataTerminata = document.getElementById('cv-schermata-terminata');
-  const restoContenuto = [document.getElementById('cv-video-wrap'), document.getElementById('cv-hand-btn'), document.getElementById('cv-esci-btn'), document.getElementById('cv-poll-area'), document.getElementById('cv-torna-su-bar'), document.getElementById('cv-diagnostica-battito-wrap')];
+  const restoContenuto = [document.getElementById('cv-video-wrap'), document.getElementById('cv-chat-sezione'), document.getElementById('cv-btn-chat-toggle'), document.getElementById('cv-hand-btn'), document.getElementById('cv-esci-btn'), document.getElementById('cv-poll-area'), document.getElementById('cv-torna-su-bar'), document.getElementById('cv-diagnostica-battito-wrap')];
   if(usciteVolontariamenteInAttesaDiRientro){
     if(schermataTerminata) schermataTerminata.classList.add('hidden');
     if(schermataRientro) schermataRientro.classList.remove('hidden');
@@ -5441,7 +5434,6 @@ function entraInVideochiamataCondomino(){
     allow="camera; microphone; fullscreen; display-capture; autoplay; clipboard-write"
     allowfullscreen></iframe>
     <div id="cv-poll-video-scroll-hint"><span>⌄</span></div>`;
-  document.getElementById('cv-chat-toggle-bar').classList.add('visibile');
 }
 
 // ---------- CHAT A COMPARSA IN PRIMO PIANO (sostituisce il video, non lo affianca) ----------
@@ -5507,24 +5499,18 @@ function rivalutaCondizioniDinamicheCondomino(){
   }
 
   // Vista normale (nessun sondaggio, nessuna schermata iniziale in corso): la chat, quando
-  // attiva, sostituisce il video (va in primo piano al suo posto); quando torna inattiva, il
-  // video ricompare e si torna in cima alla pagina, dove ora si rivede il video.
+  // attiva, va in primo piano scorrendo fino a lei — il video resta sempre visibile, basta
+  // scorrere in alto per tornarci subito, se il messaggio non interessa.
   const chatAttiva = chatAttivaAdessoCondomino();
   if(chatAttiva !== __cvUltimoValoreChatAttiva){
-    const eraGiaAttiva = __cvUltimoValoreChatAttiva === true;
     __cvUltimoValoreChatAttiva = chatAttiva;
-    const videoWrap = document.getElementById('cv-video-wrap');
-    if(videoWrap) videoWrap.style.display = chatAttiva ? 'none' : '';
     if(chatAttiva){
-      // La chat si è appena aperta: la portiamo subito in primo piano, senza dover scorrere a mano.
+      // La chat si è appena attivata (tocco sul pulsante, o nuovo messaggio ricevuto): la
+      // portiamo subito in primo piano, senza dover scorrere a mano.
       setTimeout(()=>{
         const chatEl = document.getElementById('cv-chat-sezione');
         if(chatEl) chatEl.scrollIntoView({behavior:'smooth', block:'start'});
       }, 80);
-    }else if(eraGiaAttiva){
-      // La chat è appena scomparsa da sola dopo 15 secondi di inattività: torniamo in cima,
-      // dove ora si rivede il video in primo piano.
-      window.scrollTo({top:0, behavior:'smooth'});
     }
   }
   const chatSezione = document.getElementById('cv-chat-sezione');
