@@ -129,6 +129,10 @@
   }
   *{box-sizing:border-box;}
   body{margin:0;font-family:var(--font-body);background:var(--page-bg);color:var(--text);}
+  /* Solo in questa pagina: il gesto "tira verso il basso in cima" è gestito a mano da noi (fa
+     ricomparire il pannello con "Assemblea del..."), quindi impediamo al browser di
+     interpretarlo anche come il suo comando nativo di "aggiorna pagina". */
+  #page-vista-condomino{overscroll-behavior-y:contain;}
   .app{display:block;min-height:100vh;}
 
   /* TOPBAR */
@@ -384,6 +388,7 @@
   .condomino-shell{background:#DDD3BC;min-height:100vh;padding:10px 26px 26px;}
   .condomino-view{max-width:760px;margin:0 auto;background:#463F2F;border-radius:8px;padding:14px 20px 28px;font-size:var(--cv-scale, 17px);color:#F2F0EC;}
   #cv-testata{background:#000;border-radius:6px;padding:10px 12px;margin-bottom:10px;text-align:center;}
+  #cv-building-name{font-size:12px;font-weight:600;margin:0;color:#fff;}
   /* Pannello con "Assemblea del..." e "Condominio/Accesso come...", fisso in cima allo
      schermo: compare all'apertura, sparisce da solo dopo qualche secondo, e si può far
      ricomparire tirando verso il basso quando si è già in cima alla pagina (stesso gesto del
@@ -392,7 +397,7 @@
   #cv-pannello-superiore.visibile{transform:translateY(0);}
   .condomino-view h1{font-size:13px;font-weight:600;color:#fff;font-family:var(--font-display);margin:0;}
   .condomino-view .sub{font-size:0.95em;color:#C4BCA5;}
-  #cv-welcome{font-size:0.85em;margin-top:4px;text-align:center;}
+  #cv-welcome{font-size:12px;margin-top:4px;text-align:center;color:#C4BCA5;}
   @media (max-width: 640px){
     .condomino-topbar{ display:none; }
   }
@@ -499,7 +504,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 10/08/2026 alle 19:11">LT-72</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 11/08/2026 alle 11:36">LT-73</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1902,25 +1907,42 @@ function mostraPannelloSuperiore(){
   }, 5000);
 }
 let __pannelloSuperioreTouchStartY = null;
+let __pannelloSuperioreGestoInCorso = false; // true per tutta la durata del tocco, se iniziato in cima alla pagina
+let __pannelloSuperioreGiaRivelato = false; // per richiamare mostraPannelloSuperiore() una sola volta per ogni gesto
 document.addEventListener('touchstart', (e)=>{
-  if(currentPage!=='vista-condomino') return;
+  if(currentPage!=='vista-condomino'){ __pannelloSuperioreGestoInCorso = false; return; }
   // Registriamo il punto di partenza del tocco SOLO se si è già in cima alla pagina: altrimenti
   // un tocco a metà pagina (es. per scorrere in basso, cosa normalissima) non deve avere nessun
-  // effetto sul pannello.
-  __pannelloSuperioreTouchStartY = (window.scrollY<=0) ? e.touches[0].clientY : null;
-}, {passive:true});
-document.addEventListener('touchmove', (e)=>{
-  if(currentPage!=='vista-condomino' || __pannelloSuperioreTouchStartY===null) return;
-  const spostamento = e.touches[0].clientY - __pannelloSuperioreTouchStartY;
-  // Un vero gesto "tira verso il basso": il dito si sposta verso il basso di una quantità
-  // riconoscibile (non un tremolio accidentale), e si è ancora in cima alla pagina in quel
-  // preciso istante (non si è nel frattempo scorso altrove).
-  if(spostamento>18 && window.scrollY<=0){
-    mostraPannelloSuperiore();
-    __pannelloSuperioreTouchStartY = null; // un solo richiamo per ogni gesto, non uno ad ogni pixel di movimento
+  // effetto sul pannello, né bloccare nulla del comportamento normale del browser.
+  if(window.scrollY<=0){
+    __pannelloSuperioreTouchStartY = e.touches[0].clientY;
+    __pannelloSuperioreGestoInCorso = true;
+    __pannelloSuperioreGiaRivelato = false;
+  }else{
+    __pannelloSuperioreGestoInCorso = false;
   }
 }, {passive:true});
-document.addEventListener('touchend', ()=>{ __pannelloSuperioreTouchStartY = null; }, {passive:true});
+document.addEventListener('touchmove', (e)=>{
+  if(currentPage!=='vista-condomino' || !__pannelloSuperioreGestoInCorso) return;
+  const spostamento = e.touches[0].clientY - __pannelloSuperioreTouchStartY;
+  if(spostamento>0 && window.scrollY<=0){
+    // Blocchiamo il "tira per aggiornare" nativo del browser per TUTTA la durata di questo
+    // gesto (non solo nell'istante in cui supera la soglia): qui vogliamo che tirare verso il
+    // basso in cima alla pagina faccia ricomparire il nostro pannello, non che ricarichi tutta
+    // la pagina da capo.
+    e.preventDefault();
+    // Un vero gesto "tira verso il basso": il dito si sposta verso il basso di una quantità
+    // riconoscibile (non un tremolio accidentale). Lo richiamiamo una sola volta per gesto,
+    // anche se il dito continua a scendere oltre la soglia.
+    if(spostamento>18 && !__pannelloSuperioreGiaRivelato){
+      mostraPannelloSuperiore();
+      __pannelloSuperioreGiaRivelato = true;
+    }
+  }else{
+    __pannelloSuperioreGestoInCorso = false; // si è scorso altrove nel frattempo: da qui in poi non blocchiamo più nulla
+  }
+}, {passive:false});
+document.addEventListener('touchend', ()=>{ __pannelloSuperioreGestoInCorso = false; __pannelloSuperioreTouchStartY = null; }, {passive:true});
 // Il browser rilascia da solo il "wake lock" quando la pagina va in secondo piano (es. si
 // cambia app per un attimo): lo riattiviamo appena si torna a guardarla, altrimenti
 // resterebbe disattivato per il resto della sessione senza che nessuno se ne accorga.
