@@ -132,7 +132,7 @@
   /* Solo in questa pagina: il gesto "tira verso il basso in cima" è gestito a mano da noi (fa
      ricomparire il pannello con "Assemblea del..."), quindi impediamo al browser di
      interpretarlo anche come il suo comando nativo di "aggiorna pagina". */
-  #page-vista-condomino{overscroll-behavior-y:contain;}
+  #page-vista-condomino{overscroll-behavior-y:contain;background:#313132;}
   .app{display:block;min-height:100vh;}
 
   /* TOPBAR */
@@ -392,8 +392,8 @@
      Attivato via JS solo quando orientamento orizzontale E larghezza/altezza sono sufficienti.
      Video + pulsanti principali fissi a sinistra (non scorrono); ordine del giorno e "chi c'è"
      scorrono a destra. In verticale questa sezione non si applica affatto: nulla cambia lì. */
-  body.cv-layout-orizzontale #condomino-view-box{ max-width:1700px; width:100%; }
-  body.cv-layout-orizzontale .condomino-shell{ display:flex; justify-content:center; padding:14px 20px; }
+  body.cv-layout-orizzontale #condomino-view-box{ max-width:none; width:100%; }
+  body.cv-layout-orizzontale .condomino-shell{ display:flex; justify-content:center; padding:14px 10px; }
   body.cv-layout-orizzontale #cv-schermata-rientro,
   body.cv-layout-orizzontale #cv-schermata-terminata{ width:100%; }
   /* I due riquadri, ben visibili e separati l'uno dall'altro, in proporzione 5/8 - 3/8: video
@@ -401,14 +401,17 @@
      fisso; ordine del giorno e "chi c'è" a destra, in un secondo riquadro che scorre
      indipendentemente. */
   #cv-col-sinistra{ flex:5 1 0; min-width:0; height:calc(100vh - 28px); display:flex; flex-direction:column; align-self:flex-start; position:sticky; top:14px; background:#1C1C1D; border:1px solid #3A3A3B; border-radius:10px; padding:8px; box-sizing:border-box; }
-  #cv-col-destra{ flex:3 1 0; min-width:0; height:calc(100vh - 28px); overflow-y:auto; background:#1C1C1D; border:1px solid #3A3A3B; border-radius:10px; padding:16px 20px; box-sizing:border-box; margin-left:20px; position:relative; }
+  #cv-col-destra{ flex:3 1 0; min-width:0; height:calc(100vh - 28px); overflow-y:auto; background:#1C1C1D; border:1px solid #3A3A3B; border-radius:10px; padding:16px 20px; box-sizing:border-box; margin-left:20px; position:relative; scrollbar-color:#5E5439 #1C1C1D; }
+  #cv-col-destra::-webkit-scrollbar{ width:10px; }
+  #cv-col-destra::-webkit-scrollbar-track{ background:#1C1C1D; }
+  #cv-col-destra::-webkit-scrollbar-thumb{ background:#5E5439; border-radius:5px; }
   body.cv-layout-orizzontale #condomino-view-box{ display:flex; flex-direction:row; align-items:flex-start; gap:0; }
   /* Il pannello "Assemblea del..." + "Condominio/Accesso come..." resta fisso in cima, ma qui
      diventa una singola riga sottile, a tutta larghezza dello schermo (sopra a entrambi i
      riquadri), invece delle due righe più alte usate in verticale. */
-  body.cv-layout-orizzontale #cv-pannello-superiore{ display:flex; align-items:center; justify-content:center; gap:18px; padding:2px 20px; flex-wrap:wrap; max-width:none; margin:0; }
-  body.cv-layout-orizzontale #cv-tipo-assemblea{ margin:0; padding:0; background:none; font-size:12px; white-space:nowrap; }
-  body.cv-layout-orizzontale #cv-testata{ margin:0; padding:0; background:none; display:flex; align-items:baseline; gap:10px; }
+  body.cv-layout-orizzontale #cv-pannello-superiore{ display:flex; align-items:center; justify-content:center; gap:14px; padding:2px 14px; flex-wrap:wrap; max-width:none; margin:0; background:transparent; box-shadow:none; }
+  body.cv-layout-orizzontale #cv-tipo-assemblea{ margin:4px 0; padding:4px 12px; font-size:12px; white-space:nowrap; }
+  body.cv-layout-orizzontale #cv-testata{ margin:4px 0; padding:4px 12px; background:#000; border-radius:6px; display:flex; align-items:baseline; gap:10px; }
   body.cv-layout-orizzontale #cv-building-name{ font-size:12px; }
   body.cv-layout-orizzontale #cv-welcome{ margin:0; }
   /* Il video occupa TUTTO lo spazio verticale rimasto nel riquadro sinistro (i pulsanti,
@@ -486,7 +489,7 @@
   .cv-odg-punto{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:12px 14px; margin-bottom:8px; background:#000000; border:1px solid #8C7D57; border-radius:8px; font-size:13.5px; font-weight:600; color:#F2F0EC; }
   .cv-odg-punto-blocco{ margin-bottom:16px; }
   .cv-odg-punto-blocco .cv-odg-punto{ margin-bottom:0; }
-  .cv-risultato-sotto-punto{ background:#313132; border:1px solid #5E5439; border-radius:0 0 8px 8px; padding:12px 14px; margin-top:-1px; }
+  .cv-risultato-sotto-punto{ background:#000000; border:1px solid #5E5439; border-radius:0 0 8px 8px; padding:12px 14px; margin-top:-1px; }
   /* Solo ordine del giorno e "chi c'è in assemblea" (entrambi dentro cv-poll-area in vista
      normale): sfondo specifico, diverso da quello condiviso da altri riquadri come la chat. */
   #cv-poll-area .assist-panel{ background:#313132; }
@@ -543,7 +546,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 12/08/2026 alle 00:38">LT-85</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 12/08/2026 alle 00:50">LT-86</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1269,7 +1272,7 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
           <button class="big-action-btn" id="cv-btn-chat-toggle" onclick="apriChatConTastoCondomino()">💬 Chat</button>
 
           <button class="big-action-btn" id="cv-hand-btn" onclick="toggleHandRaise()">✋ Alza la mano</button>
-          <button class="big-action-btn" id="cv-esci-btn" onclick="esciDaAssemblea()" style="background:#5C1A1A;border-color:#5C1A1A;color:#fff;margin-top:16px;">🚪 Lascia l'assemblea</button>
+          <button class="big-action-btn" id="cv-esci-btn" onclick="esciDaAssemblea()" style="background:#5C1A1A;border-color:#5C1A1A;color:#fff;">🚪 Lascia l'assemblea</button>
 
           <div id="cv-poll-area"></div>
 
