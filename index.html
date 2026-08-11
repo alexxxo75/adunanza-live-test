@@ -420,13 +420,9 @@
   .cv-aiuto-permessi-corpo b{ color:#F2F0EC; }
   .cv-aiuto-permessi-corpo ol{ margin:6px 0 12px; padding-left:18px; }
 
-  #cv-video-box{ width:100%; aspect-ratio:9/18; max-height:99vh; background:#000; overflow:hidden; position:relative; border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,.35); transition:width .35s ease, max-height .35s ease, border-radius .35s ease; margin:0 auto 12px; }
+  #cv-video-box{ width:100%; aspect-ratio:9/18; max-height:99vh; background:#000; overflow:hidden; position:relative; border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,.35); margin:0 auto 12px; }
   @media (orientation: landscape){ #cv-video-box{ aspect-ratio:18/9; max-height:99vh; } }
   #cv-video-box iframe{ width:100% !important; height:100% !important; border:0 !important; display:block; }
-  #cv-video-box.video-piccolo{ width:150px; max-height:none; border-radius:8px; border:2px solid #8C7D57; }
-  #cv-video-toggle-bar{ display:none; margin-bottom:14px; }
-  #cv-video-toggle-bar.visibile{ display:block; }
-  #cv-btn-video-toggle{ display:block; width:100%; font-size:13.5px; font-weight:700; color:#F2F0EC; background:#5E5439; border:1px solid #8C7D57; border-radius:8px; padding:10px 12px; cursor:pointer; }
   #cv-btn-torna-su{ display:block; width:100%; font-size:13.5px; font-weight:700; color:#F2F0EC; background:#5E5439; border:1px solid #8C7D57; border-radius:8px; padding:10px 12px; cursor:pointer; }
 
   #cv-chat-toggle-bar{ display:none; margin-bottom:10px; }
@@ -436,7 +432,6 @@
   #cv-poll-video-scroll-hint{ position:absolute; left:0; right:0; bottom:0; display:flex; align-items:flex-end; justify-content:center; padding-bottom:8px; pointer-events:none; background:linear-gradient(to top, rgba(0,0,0,.55), rgba(0,0,0,0)); height:54px; }
   #cv-poll-video-scroll-hint span{ color:#fff; font-size:22px; line-height:1; animation:cv-scroll-hint-bounce 1.6s ease-in-out infinite; }
   @keyframes cv-scroll-hint-bounce{ 0%,100%{transform:translateY(0);opacity:.65;} 50%{transform:translateY(6px);opacity:1;} }
-  #cv-video-box.video-piccolo #cv-poll-video-scroll-hint{ display:none; }
 
   .cv-voto-btn{ display:block; width:100%; padding:15px 14px; margin-bottom:9px; font-size:15.5px; font-weight:700; border-radius:8px; border:2px solid #8C7D57; background:#5E5439; color:#F2F0EC; cursor:pointer; text-align:center; transition:padding .22s ease, font-size .22s ease, opacity .22s ease, border-width .22s ease; }
   .cv-voto-btn:active{ transform:scale(0.98); }
@@ -504,7 +499,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 11/08/2026 alle 17:15">LT-74</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 11/08/2026 alle 21:13">LT-75</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1214,9 +1209,6 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
               </details>
             </div>
             <div id="cv-video-box" style="display:none;"></div>
-            <div id="cv-video-toggle-bar">
-              <button id="cv-btn-video-toggle" onclick="toggleVideoSizeCondomino()">⌃ Rimpicciolisci il video</button>
-            </div>
             <div id="cv-chat-toggle-bar">
               <button id="cv-btn-chat-toggle" onclick="apriChatConTastoCondomino()">💬 Chat</button>
             </div>
@@ -5301,8 +5293,6 @@ function distruggiVideoCondomino(){
   if(videoBox){ videoBox.innerHTML=''; videoBox.style.display='none'; }
   const preIngresso = document.getElementById('cv-pre-ingresso');
   if(preIngresso) preIngresso.style.display='block';
-  const videoToggleBar = document.getElementById('cv-video-toggle-bar');
-  if(videoToggleBar) videoToggleBar.classList.remove('visibile');
   const chatToggleBar = document.getElementById('cv-chat-toggle-bar');
   if(chatToggleBar) chatToggleBar.classList.remove('visibile');
 }
@@ -5450,19 +5440,17 @@ function entraInVideochiamataCondomino(){
     allow="camera; microphone; fullscreen; display-capture; autoplay; clipboard-write"
     allowfullscreen></iframe>
     <div id="cv-poll-video-scroll-hint"><span>⌄</span></div>`;
-  document.getElementById('cv-video-toggle-bar').classList.add('visibile');
   document.getElementById('cv-chat-toggle-bar').classList.add('visibile');
 }
 
-// ---------- VIDEO RIDOTTO A RIQUADRO + CHAT A COMPARSA (logica identica a quella validata) ----------
-// Il video è piccolo quando è vera ALMENO UNA di queste condizioni: un sondaggio è aperto, un
-// sondaggio si è appena concluso da meno di 45 secondi, oppure la chat è stata usata da meno di
-// 15 secondi. Il pulsante manuale ha sempre l'ultima parola sull'istante del tocco, ma la
-// rivalutazione automatica riprende al cambio successivo di una di queste condizioni.
+// ---------- CHAT A COMPARSA IN PRIMO PIANO (sostituisce il video, non lo affianca) ----------
+// Quando la chat viene usata (tocco sul pulsante, scrittura, nuovo messaggio ricevuto), va in
+// primo piano al posto del video, che si nasconde temporaneamente. Se la chat resta inutilizzata
+// per 15 secondi, scompare da sola: il video ricompare e la pagina torna in cima.
 let __cvUltimaChiavePunto = null;
 let __cvTempoConclusionePunto = null;
 let __cvUltimaAttivitaChatMs = 0;
-let __cvUltimoValoreCondizioneVideo = null;
+let __cvUltimoValoreChatAttiva = null;
 let __cvUltimoActivePollOdgId = null;
 let __cvPollAppenaConcluso = null; // {question, tabella, options, risultatiFinali, scelte, momento}
 
@@ -5476,25 +5464,6 @@ function registraTransizionePuntoCondomino(chiave, nuovoStato){
       if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
     }, 150);
   }
-}
-function rimpicciolisciVideoCondomino(){
-  const box = document.getElementById('cv-video-box');
-  if(!box || box.style.display !== 'block') return;
-  box.classList.add('video-piccolo');
-  const btn = document.getElementById('cv-btn-video-toggle');
-  if(btn) btn.textContent = '⌄ Ingrandisci il video';
-}
-function espandiVideoCondomino(){
-  const box = document.getElementById('cv-video-box');
-  if(!box || box.style.display !== 'block') return;
-  box.classList.remove('video-piccolo');
-  const btn = document.getElementById('cv-btn-video-toggle');
-  if(btn) btn.textContent = '⌃ Rimpicciolisci il video';
-}
-function toggleVideoSizeCondomino(){
-  const box = document.getElementById('cv-video-box');
-  if(box && box.classList.contains('video-piccolo')) espandiVideoCondomino();
-  else rimpicciolisciVideoCondomino();
 }
 function chatAttivaAdessoCondomino(){
   return (Date.now() - __cvUltimaAttivitaChatMs) < 15000;
@@ -5536,13 +5505,26 @@ function rivalutaCondizioniDinamicheCondomino(){
     return; // il sondaggio ha sempre la precedenza: video e chat restano nascosti finché non si chiude
   }
 
-  // Vista normale (nessun sondaggio, nessuna schermata iniziale in corso): qui valgono le
-  // regole originali di rimpicciolimento video/comparsa chat in base all'attività.
+  // Vista normale (nessun sondaggio, nessuna schermata iniziale in corso): la chat, quando
+  // attiva, sostituisce il video (va in primo piano al suo posto); quando torna inattiva, il
+  // video ricompare e si torna in cima alla pagina, dove ora si rivede il video.
   const chatAttiva = chatAttivaAdessoCondomino();
-  const videoDeveEssereGrande = !chatAttiva;
-  if(videoDeveEssereGrande !== __cvUltimoValoreCondizioneVideo){
-    __cvUltimoValoreCondizioneVideo = videoDeveEssereGrande;
-    if(videoDeveEssereGrande) espandiVideoCondomino(); else rimpicciolisciVideoCondomino();
+  if(chatAttiva !== __cvUltimoValoreChatAttiva){
+    const eraGiaAttiva = __cvUltimoValoreChatAttiva === true;
+    __cvUltimoValoreChatAttiva = chatAttiva;
+    const videoWrap = document.getElementById('cv-video-wrap');
+    if(videoWrap) videoWrap.style.display = chatAttiva ? 'none' : '';
+    if(chatAttiva){
+      // La chat si è appena aperta: la portiamo subito in primo piano, senza dover scorrere a mano.
+      setTimeout(()=>{
+        const chatEl = document.getElementById('cv-chat-sezione');
+        if(chatEl) chatEl.scrollIntoView({behavior:'smooth', block:'start'});
+      }, 80);
+    }else if(eraGiaAttiva){
+      // La chat è appena scomparsa da sola dopo 15 secondi di inattività: torniamo in cima,
+      // dove ora si rivede il video in primo piano.
+      window.scrollTo({top:0, behavior:'smooth'});
+    }
   }
   const chatSezione = document.getElementById('cv-chat-sezione');
   if(chatSezione) chatSezione.style.display = chatAttiva ? 'block' : 'none';
