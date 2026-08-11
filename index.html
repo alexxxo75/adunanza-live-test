@@ -387,6 +387,31 @@
   /* VISTA CONDOMINO — grande, semplice, accessibile, TEMA SCURO (risparmio batteria OLED) */
   .condomino-shell{background:#DDD3BC;min-height:100vh;padding:10px 26px 26px;}
   .condomino-view{max-width:760px;margin:0 auto;background:#463F2F;border-radius:8px;padding:14px 20px 28px;font-size:var(--cv-scale, 17px);color:#F2F0EC;}
+
+  /* ---------- LAYOUT ORIZZONTALE (solo tablet/PC ruotato, schermo largo — mai su telefono) ----------
+     Attivato via JS solo quando orientamento orizzontale E larghezza/altezza sono sufficienti.
+     Video + pulsanti principali fissi a sinistra (non scorrono); ordine del giorno e "chi c'è"
+     scorrono a destra. In verticale questa sezione non si applica affatto: nulla cambia lì. */
+  body.cv-layout-orizzontale #condomino-view-box{ max-width:1180px; }
+  body.cv-layout-orizzontale .condomino-shell{ display:flex; justify-content:center; }
+  body.cv-layout-orizzontale #cv-schermata-rientro,
+  body.cv-layout-orizzontale #cv-schermata-terminata{ width:100%; }
+  #cv-col-sinistra{ width:330px; flex-shrink:0; align-self:flex-start; position:sticky; top:14px; }
+  #cv-col-destra{ flex:1; min-width:0; height:calc(100vh - 28px); overflow-y:auto; padding-left:22px; position:relative; }
+  body.cv-layout-orizzontale #condomino-view-box{ display:flex; flex-direction:row; align-items:flex-start; gap:0; }
+  /* Il pannello "Assemblea del..." + "Condominio/Accesso come..." si sposta in alto a
+     sinistra, sopra al video, restando dentro alla colonna sinistra invece di coprire tutta la
+     larghezza dello schermo come in verticale. */
+  body.cv-layout-orizzontale #cv-pannello-superiore{ position:absolute; left:0; right:0; max-width:none; margin:0; border-radius:0 0 8px 8px; }
+  body.cv-layout-orizzontale #cv-video-wrap{ margin-top:0; }
+  /* La chat, in orizzontale, compare fissa in alto a destra invece che dentro al flusso della
+     colonna sinistra. */
+  body.cv-layout-orizzontale #cv-chat-sezione{ position:fixed; top:14px; right:14px; width:320px; max-width:calc(100vw - 28px); z-index:140; box-shadow:0 8px 24px rgba(0,0,0,.4); max-height:70vh; overflow-y:auto; }
+  /* Mentre un sondaggio (o la schermata iniziale "chi c'è") è attivo, prende il posto del
+     video nella colonna sinistra — stessa idea di sempre, solo confinata a sinistra invece che
+     su tutto lo schermo. */
+  body.cv-layout-orizzontale #cv-col-sinistra #cv-poll-area[data-vista="sondaggio"],
+  body.cv-layout-orizzontale #cv-col-sinistra #cv-poll-area[data-vista="presenti-iniziale"]{ margin-top:0; }
   #cv-testata{background:#000;border-radius:6px;padding:10px 12px;margin-bottom:10px;text-align:center;}
   #cv-building-name{font-size:12px;font-weight:600;margin:0;color:#fff;}
   /* Pannello con "Assemblea del..." e "Condominio/Accesso come...", fisso in cima allo
@@ -496,7 +521,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 11/08/2026 alle 23:26">LT-79</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 11/08/2026 alle 23:46">LT-80</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1234,6 +1259,14 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
             <p id="cv-diagnostica-battito" style="text-align:center;margin:0;font-size:14px;font-weight:700;color:#fff;">—</p>
           </div>
           <video id="cv-video-antispegnimento" muted loop playsinline style="position:fixed;width:1px;height:1px;opacity:0.01;pointer-events:none;left:-10px;top:-10px;" src="data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAMXbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAAAAAD6AAAA+gAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAkF0cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAABAAAAAAAAA+gAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAIAAAACAAAAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAPoAAAAAAABAAAAAAG5bWRpYQAAACBtZGhkAAAAAAAAAAAAAAAAAABAAAAAQABVxAAAAAAALWhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAABWaWRlb0hhbmRsZXIAAAABZG1pbmYAAAAUdm1oZAAAAAEAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAASRzdGJsAAAAwHN0c2QAAAAAAAAAAQAAALBhdmMxAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAIAAgBIAAAASAAAAAAAAAABFUxhdmM2MC4zMS4xMDIgbGlieDI2NAAAAAAAAAAAAAAAGP//AAAANmF2Y0MBZAAK/+EAGWdkAAqs2V+IiMBEAAADAAQAAAMACDxIllgBAAZo6+PLIsD9+PgAAAAAEHBhc3AAAAABAAAAAQAAABRidHJ0AAAAAAAAFigAABYoAAAAGHN0dHMAAAAAAAAAAQAAAAEAAEAAAAAAHHN0c2MAAAAAAAAAAQAAAAEAAAABAAAAAQAAABRzdHN6AAAAAAAAAsUAAAABAAAAFHN0Y28AAAAAAAAAAQAAA0cAAABidWR0YQAAAFptZXRhAAAAAAAAACFoZGxyAAAAAAAAAABtZGlyYXBwbAAAAAAAAAAAAAAAAC1pbHN0AAAAJal0b28AAAAdZGF0YQAAAAEAAAAATGF2ZjYwLjE2LjEwMAAAAAhmcmVlAAACzW1kYXQAAAKtBgX//6ncRem95tlIt5Ys2CDZI+7veDI2NCAtIGNvcmUgMTY0IHIzMTA4IDMxZTE5ZjkgLSBILjI2NC9NUEVHLTQgQVZDIGNvZGVjIC0gQ29weWxlZnQgMjAwMy0yMDIzIC0gaHR0cDovL3d3dy52aWRlb2xhbi5vcmcveDI2NC5odG1sIC0gb3B0aW9uczogY2FiYWM9MSByZWY9MyBkZWJsb2NrPTE6MDowIGFuYWx5c2U9MHgzOjB4MTEzIG1lPWhleCBzdWJtZT03IHBzeT0xIHBzeV9yZD0xLjAwOjAuMDAgbWl4ZWRfcmVmPTEgbWVfcmFuZ2U9MTYgY2hyb21hX21lPTEgdHJlbGxpcz0xIDh4OGRjdD0xIGNxbT0wIGRlYWR6b25lPTIxLDExIGZhc3RfcHNraXA9MSBjaHJvbWFfcXBfb2Zmc2V0PS0yIHRocmVhZHM9MSBsb29rYWhlYWRfdGhyZWFkcz0xIHNsaWNlZF90aHJlYWRzPTAgbnI9MCBkZWNpbWF0ZT0xIGludGVybGFjZWQ9MCBibHVyYXlfY29tcGF0PTAgY29uc3RyYWluZWRfaW50cmE9MCBiZnJhbWVzPTMgYl9weXJhbWlkPTIgYl9hZGFwdD0xIGJfYmlhcz0wIGRpcmVjdD0xIHdlaWdodGI9MSBvcGVuX2dvcD0wIHdlaWdodHA9MiBrZXlpbnQ9MjUwIGtleWludF9taW49MSBzY2VuZWN1dD00MCBpbnRyYV9yZWZyZXNoPTAgcmNfbG9va2FoZWFkPTQwIHJjPWNyZiBtYnRyZWU9MSBjcmY9MjMuMCBxY29tcD0wLjYwIHFwbWluPTAgcXBtYXg9NjkgcXBzdGVwPTQgaXBfcmF0aW89MS40MCBhcT0xOjEuMDAAgAAAABBliIQAFf/+98nvwKbr29+B"></video>
+
+          <!-- Contenitori usati SOLO nel layout orizzontale (tablet/PC ruotato): il pannello
+               superiore, il video e i tre pulsanti principali vengono spostati qui a sinistra
+               (fissa, non scorre); l'ordine del giorno e "chi c'è" restano a destra (questa
+               invece scorre). Vuoti e nascosti in verticale, dove non servono: la pagina resta
+               esattamente come prima. -->
+          <div id="cv-col-sinistra" style="display:none;"></div>
+          <div id="cv-col-destra" style="display:none;"></div>
         </div>
       </div>
     </div>
@@ -1894,15 +1927,41 @@ function mostraPannelloSuperiore(){
     __pannelloSuperioreTimer = null;
   }, 5000);
 }
+// ---------- RILEVAMENTO MOUSE (per decidere come si richiama il pannello superiore in
+// layout orizzontale: al passaggio del mouse in alto se c'è un mouse vero, altrimenti tirando
+// verso il basso come su un touchscreen). Una prima ipotesi dalle caratteristiche dichiarate
+// del dispositivo, confermata definitivamente al primo vero movimento del mouse rilevato. ----------
+let __cvHaMouseVero = window.matchMedia('(hover:hover) and (pointer:fine)').matches;
+document.addEventListener('mousemove', ()=>{ __cvHaMouseVero = true; }, {passive:true});
+function siamoInLayoutOrizzontaleConMouse(){
+  return document.body.classList.contains('cv-layout-orizzontale') && __cvHaMouseVero;
+}
+// In cima a QUALE vista scorrevole dipende dal layout: in verticale scorre tutta la pagina, in
+// orizzontale scorre solo la colonna destra (quella sinistra, con video e pulsanti, è fissa).
+function siamoInCimaAllaVistaScorrevoleCondomino(){
+  if(document.body.classList.contains('cv-layout-orizzontale')){
+    const colDestra = document.getElementById('cv-col-destra');
+    return colDestra ? colDestra.scrollTop<=0 : true;
+  }
+  return window.scrollY<=0;
+}
+document.addEventListener('mousemove', (e)=>{
+  if(currentPage!=='vista-condomino' || !siamoInLayoutOrizzontaleConMouse()) return;
+  if(e.clientY < 60) mostraPannelloSuperiore();
+}, {passive:true});
 let __pannelloSuperioreTouchStartY = null;
-let __pannelloSuperioreGestoInCorso = false; // true per tutta la durata del tocco, se iniziato in cima alla pagina
+let __pannelloSuperioreGestoInCorso = false; // true per tutta la durata del tocco, se iniziato in cima alla vista scorrevole
 let __pannelloSuperioreGiaRivelato = false; // per richiamare mostraPannelloSuperiore() una sola volta per ogni gesto
 document.addEventListener('touchstart', (e)=>{
   if(currentPage!=='vista-condomino'){ __pannelloSuperioreGestoInCorso = false; return; }
-  // Registriamo il punto di partenza del tocco SOLO se si è già in cima alla pagina: altrimenti
-  // un tocco a metà pagina (es. per scorrere in basso, cosa normalissima) non deve avere nessun
-  // effetto sul pannello, né bloccare nulla del comportamento normale del browser.
-  if(window.scrollY<=0){
+  // In layout orizzontale con un mouse vero rilevato, il richiamo avviene passando il mouse in
+  // alto (vedi sopra): il gesto di trascinamento non serve in quel caso, e lo lasciamo
+  // completamente inattivo per non interferire con lo scorrimento normale della colonna destra.
+  if(siamoInLayoutOrizzontaleConMouse()){ __pannelloSuperioreGestoInCorso = false; return; }
+  // Registriamo il punto di partenza del tocco SOLO se si è già in cima alla vista scorrevole
+  // giusta: altrimenti un tocco a metà (es. per scorrere in basso, cosa normalissima) non deve
+  // avere nessun effetto sul pannello, né bloccare nulla del comportamento normale del browser.
+  if(siamoInCimaAllaVistaScorrevoleCondomino()){
     __pannelloSuperioreTouchStartY = e.touches[0].clientY;
     __pannelloSuperioreGestoInCorso = true;
     __pannelloSuperioreGiaRivelato = false;
@@ -1913,7 +1972,7 @@ document.addEventListener('touchstart', (e)=>{
 document.addEventListener('touchmove', (e)=>{
   if(currentPage!=='vista-condomino' || !__pannelloSuperioreGestoInCorso) return;
   const spostamento = e.touches[0].clientY - __pannelloSuperioreTouchStartY;
-  if(spostamento>0 && window.scrollY<=0){
+  if(spostamento>0 && siamoInCimaAllaVistaScorrevoleCondomino()){
     // Blocchiamo il "tira per aggiornare" nativo del browser per TUTTA la durata di questo
     // gesto (non solo nell'istante in cui supera la soglia): qui vogliamo che tirare verso il
     // basso in cima alla pagina faccia ricomparire il nostro pannello, non che ricarichi tutta
@@ -2020,6 +2079,7 @@ function goPage(name){
     name='crea-assemblea';
   }
   currentPage = name;
+  if(name==='vista-condomino'){ applicaLayoutOrizzontaleCondomino(); }
   window.scrollTo(0,0);
   document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'));
   document.getElementById('page-'+name).classList.remove('hidden');
@@ -5361,6 +5421,93 @@ function renderChat(elId){
 
 // ---------- VISTA CONDOMINO ----------
 let __ultimaAssembleaIdCondomino = null; // ricordiamo l'ultima assemblea vista, per poter controllare se è stata terminata anche dopo che "in corso" smette di puntarci
+// ---------- LAYOUT ORIZZONTALE (tablet/PC ruotato — mai su telefono) ----------
+// Attivo solo quando lo schermo è ORIZZONTALE e anche abbastanza LARGO E ALTO: un telefono
+// ruotato di lato è tecnicamente "orizzontale" ma troppo basso per ospitare comodamente video
+// e pulsanti fissi a sinistra — in quel caso resta il layout verticale normale, invariato.
+function calcolaModalitaOrizzontaleCondomino(){
+  return window.matchMedia('(orientation: landscape)').matches
+      && window.innerWidth >= 900
+      && window.innerHeight >= 500;
+}
+let __cvLayoutOrizzontaleAttivo = false;
+function applicaLayoutOrizzontaleCondomino(){
+  if(currentPage !== 'vista-condomino') return;
+  const colSinistra = document.getElementById('cv-col-sinistra');
+  const colDestra = document.getElementById('cv-col-destra');
+  if(!colSinistra || !colDestra) return;
+  const dovrebbeEssereOrizzontale = calcolaModalitaOrizzontaleCondomino();
+  if(dovrebbeEssereOrizzontale === __cvLayoutOrizzontaleAttivo){
+    // Anche se la modalità non è appena cambiata, se siamo in orizzontale il sondaggio potrebbe
+    // essere appena partito o appena finito: ricontrolliamo comunque dove deve stare.
+    if(dovrebbeEssereOrizzontale) posizionaPollAreaInLayoutOrizzontale();
+    return;
+  }
+  __cvLayoutOrizzontaleAttivo = dovrebbeEssereOrizzontale;
+  document.body.classList.toggle('cv-layout-orizzontale', dovrebbeEssereOrizzontale);
+
+  const pannelloSuperiore = document.getElementById('cv-pannello-superiore');
+  const videoWrap = document.getElementById('cv-video-wrap');
+  const chatSezione = document.getElementById('cv-chat-sezione');
+  const btnChat = document.getElementById('cv-btn-chat-toggle');
+  const handBtn = document.getElementById('cv-hand-btn');
+  const esciBtn = document.getElementById('cv-esci-btn');
+  const pollArea = document.getElementById('cv-poll-area');
+  const tornaSuBar = document.getElementById('cv-torna-su-bar');
+  const diagnosticaBattito = document.getElementById('cv-diagnostica-battito-wrap');
+
+  if(dovrebbeEssereOrizzontale){
+    colSinistra.style.display = '';
+    colDestra.style.display = '';
+    if(pannelloSuperiore) colSinistra.appendChild(pannelloSuperiore);
+    if(videoWrap) colSinistra.appendChild(videoWrap);
+    if(btnChat) colSinistra.appendChild(btnChat);
+    if(handBtn) colSinistra.appendChild(handBtn);
+    if(esciBtn) colSinistra.appendChild(esciBtn);
+    if(chatSezione) colDestra.appendChild(chatSezione); // fissata in alto a destra via CSS, la posizione nel DOM non ne determina la posizione visiva
+    if(tornaSuBar) colDestra.appendChild(tornaSuBar);
+    if(diagnosticaBattito) colDestra.appendChild(diagnosticaBattito);
+    posizionaPollAreaInLayoutOrizzontale();
+  }else{
+    // Torniamo tutto alla posizione originale nel flusso normale verticale, nello stesso ordine
+    // con cui compaiono nella pagina in verticale.
+    const ancora = document.getElementById('cv-schermata-terminata');
+    if(ancora && ancora.after){
+      const daRimettere = [pannelloSuperiore, videoWrap, chatSezione, btnChat, handBtn, esciBtn, pollArea, tornaSuBar, diagnosticaBattito].filter(Boolean);
+      ancora.after(...daRimettere);
+    }
+    colSinistra.style.display = 'none';
+    colDestra.style.display = 'none';
+  }
+}
+// Il sondaggio (o la schermata iniziale "chi c'è") ha sempre la precedenza e prende il posto
+// del video — in layout orizzontale questo significa spostarsi nella colonna sinistra, al posto
+// del video, invece che coprire tutto lo schermo; nella vista normale (ordine del giorno) torna
+// invece nella colonna destra, quella che scorre, insieme a "chi c'è in assemblea".
+function posizionaPollAreaInLayoutOrizzontale(){
+  if(!__cvLayoutOrizzontaleAttivo) return;
+  const pollAreaEl = document.getElementById('cv-poll-area');
+  if(!pollAreaEl) return;
+  const vistaAttuale = pollAreaEl.getAttribute('data-vista');
+  const colSinistra = document.getElementById('cv-col-sinistra');
+  const colDestra = document.getElementById('cv-col-destra');
+  const esclusiva = (vistaAttuale === 'sondaggio' || vistaAttuale === 'presenti-iniziale');
+  if(esclusiva){
+    if(pollAreaEl.parentElement !== colSinistra) colSinistra.appendChild(pollAreaEl);
+  }else{
+    if(pollAreaEl.parentElement !== colDestra || colDestra.firstChild !== pollAreaEl){
+      colDestra.insertBefore(pollAreaEl, colDestra.firstChild);
+    }
+  }
+}
+let __cvTimerRicalcoloLayout = null;
+function ricalcolaLayoutOrizzontaleConDebounce(){
+  if(__cvTimerRicalcoloLayout) clearTimeout(__cvTimerRicalcoloLayout);
+  __cvTimerRicalcoloLayout = setTimeout(applicaLayoutOrizzontaleCondomino, 150);
+}
+window.addEventListener('resize', ricalcolaLayoutOrizzontaleConDebounce);
+window.addEventListener('orientationchange', ricalcolaLayoutOrizzontaleConDebounce);
+
 function renderVistaCondomino(){
   document.getElementById('cv-building-name').textContent = 'Condominio ' + getActiveBuilding().nome;
   document.getElementById('condomino-view-box').style.setProperty('--cv-scale', fontScale+'px');
@@ -5459,7 +5606,7 @@ function registraTransizionePuntoCondomino(chiave, nuovoStato){
   }
 }
 function chatAttivaAdessoCondomino(){
-  return (Date.now() - __cvUltimaAttivitaChatMs) < 15000;
+  return (Date.now() - __cvUltimaAttivitaChatMs) < 10000;
 }
 function rivalutaCondizioniDinamicheCondomino(){
   if(currentPage !== 'vista-condomino') return;
@@ -5499,10 +5646,11 @@ function rivalutaCondizioniDinamicheCondomino(){
   }
 
   // Vista normale (nessun sondaggio, nessuna schermata iniziale in corso): la chat, quando
-  // attiva, va in primo piano scorrendo fino a lei — il video resta sempre visibile, basta
-  // scorrere in alto per tornarci subito, se il messaggio non interessa.
+  // attiva, va in primo piano scorrendo fino a lei — il video resta sempre visibile. Quando la
+  // chat scompare da sola, si torna sempre in cima alla pagina, dall'inizio.
   const chatAttiva = chatAttivaAdessoCondomino();
   if(chatAttiva !== __cvUltimoValoreChatAttiva){
+    const eraGiaAttiva = __cvUltimoValoreChatAttiva === true;
     __cvUltimoValoreChatAttiva = chatAttiva;
     if(chatAttiva){
       // La chat si è appena attivata (tocco sul pulsante, o nuovo messaggio ricevuto): la
@@ -5511,10 +5659,24 @@ function rivalutaCondizioniDinamicheCondomino(){
         const chatEl = document.getElementById('cv-chat-sezione');
         if(chatEl) chatEl.scrollIntoView({behavior:'smooth', block:'start'});
       }, 80);
+    }else if(eraGiaAttiva){
+      // La chat è appena scomparsa da sola: torniamo sempre in cima alla pagina, dall'inizio.
+      scorriInCimaVistaCondomino();
     }
   }
   const chatSezione = document.getElementById('cv-chat-sezione');
   if(chatSezione) chatSezione.style.display = chatAttiva ? 'block' : 'none';
+}
+// Riporta la vista del condòmino in cima "dall'inizio": nel layout normale scorre la pagina
+// intera, in quello orizzontale (colonna destra scorrevole indipendente) riporta in cima
+// quella colonna, dato che è lei a scorrere, non la pagina intera.
+function scorriInCimaVistaCondomino(){
+  const colDestra = document.getElementById('cv-col-destra');
+  if(colDestra && document.body.classList.contains('cv-layout-orizzontale')){
+    colDestra.scrollTo({top:0, behavior:'smooth'});
+  }else{
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
 }
 setInterval(rivalutaCondizioniDinamicheCondomino, 1000);
 function segnaAttivitaChatCondomino(){
@@ -5718,6 +5880,10 @@ function trovaRisultatoSondaggioRecentementeChiuso(assemblea){
   return piuRecente;
 }
 function renderCvPollArea(){
+  renderCvPollArea_interno();
+  posizionaPollAreaInLayoutOrizzontale();
+}
+function renderCvPollArea_interno(){
   const el=document.getElementById('cv-poll-area');
   if(!el) return;
   const b=getActiveBuilding();
