@@ -504,7 +504,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 11/08/2026 alle 11:36">LT-73</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 11/08/2026 alle 17:15">LT-74</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1129,7 +1129,7 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
     <!-- PAGE: DELEGA CONDOMINO (self-service, link personale) -->
     <div class="page hidden" id="page-delega-condomino">
       <div class="page-head">
-        <div><h1>Modulo delega per assemblea</h1><p class="sub" id="delega-sub">Solo tu, con questo link personale, puoi dare o cambiare questa delega.</p></div>
+        <div><h1>Modulo delega per assemblea</h1><p class="sub" id="delega-sub" style="color:var(--ink);">Solo tu, con questo link personale, puoi dare o cambiare questa delega.</p></div>
       </div>
 
       <div class="card assemblea-row-card" style="margin-bottom:18px;">
@@ -1159,8 +1159,8 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
       <div id="delega-form-esterno" class="card hidden" style="margin-bottom:18px;">
         <h3 style="margin-bottom:10px;">Dati della persona delegata</h3>
         <div class="field"><label>Nome e cognome</label><input type="text" id="delega-esterno-nome" placeholder="Es. Avv. Giulia Bianchi"></div>
-        <button class="btn brass" onclick="confermaDelegaEsterno()">Continua</button>
-        <button class="btn small secondary" onclick="tornaSceltaInizialeDelega()">← Torna indietro</button>
+        <button class="btn brass" style="display:block;width:100%;box-sizing:border-box;margin-bottom:10px;" onclick="confermaDelegaEsterno()">Continua</button>
+        <button class="btn secondary" style="display:block;width:100%;box-sizing:border-box;" onclick="tornaSceltaInizialeDelega()">← Torna indietro</button>
       </div>
 
       <div id="delega-avviso-limite" class="card hidden" style="margin-bottom:18px;border-color:var(--brick);color:var(--brick);"></div>
@@ -1169,8 +1169,8 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
         <h3 style="margin-bottom:10px;">Conferma la delega</h3>
         <p class="muted" style="margin-bottom:10px;">Verrà registrata subito ed inviata via email all'amministratore, con copia di conferma anche a te.</p>
         <div class="email-preview" id="delega-testo-email" style="white-space:pre-wrap;font-size:13px;background:var(--paper);padding:14px 16px;border-radius:4px;margin-bottom:14px;"></div>
-        <button class="btn brass" onclick="invaDelegaAdAmministratore()">✉ Invia all'amministratore</button>
-        <button class="btn small secondary" onclick="tornaSceltaInizialeDelega()">← Annulla</button>
+        <button class="btn brass" style="display:block;width:100%;box-sizing:border-box;margin-bottom:10px;" onclick="invaDelegaAdAmministratore()">✉ Invia all'amministratore</button>
+        <button class="btn secondary" style="display:block;width:100%;box-sizing:border-box;" onclick="tornaSceltaInizialeDelega()">← Annulla</button>
       </div>
 
       <div id="delega-catena-wrap" class="card hidden" style="margin-bottom:18px;"></div>
@@ -3054,7 +3054,7 @@ function renderPaginaDelegaCondomino(){
     return;
   }
   const {b,a} = ctx;
-  document.getElementById('delega-sub').textContent = `Ciao ${currentCondomino.nome}, solo tu, con questo link personale, puoi dare o cambiare questa delega.`;
+  document.getElementById('delega-sub').innerHTML = `Gentile Condomino <b>${escapeHtml(nomeCompletoCondomino(currentCondomino))}</b>, questa è una pagina personalizzata nella quale solo tu hai la possibilità di concedere la delega per l'assemblea che segue:`;
   const etichettaTipo = a.tipo==='straordinaria' ? 'Straordinaria' : 'Ordinaria';
   document.getElementById('delega-data-assemblea').textContent = `Assemblea ${etichettaTipo} del ${a.dataPrima||'—'} prima convocazione - ${a.dataSeconda||'—'} seconda convocazione`;
   document.getElementById('delega-oggetto-assemblea').textContent = `OGGETTO: ${a.oggetto || '(oggetto non indicato)'}`;
