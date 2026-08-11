@@ -392,24 +392,35 @@
      Attivato via JS solo quando orientamento orizzontale E larghezza/altezza sono sufficienti.
      Video + pulsanti principali fissi a sinistra (non scorrono); ordine del giorno e "chi c'è"
      scorrono a destra. In verticale questa sezione non si applica affatto: nulla cambia lì. */
-  body.cv-layout-orizzontale #condomino-view-box{ max-width:1500px; width:100%; }
+  body.cv-layout-orizzontale #condomino-view-box{ max-width:1700px; width:100%; }
   body.cv-layout-orizzontale .condomino-shell{ display:flex; justify-content:center; padding:14px 20px; }
   body.cv-layout-orizzontale #cv-schermata-rientro,
   body.cv-layout-orizzontale #cv-schermata-terminata{ width:100%; }
-  /* I due riquadri, ben visibili e separati l'uno dall'altro: video (più grande di prima) e
-     pulsanti a sinistra, in un proprio riquadro fisso; ordine del giorno e "chi c'è" a destra,
-     più larghi di prima, in un secondo riquadro che scorre indipendentemente. */
-  #cv-col-sinistra{ width:460px; flex-shrink:0; align-self:flex-start; position:sticky; top:14px; background:#1C1C1D; border:1px solid #3A3A3B; border-radius:10px; padding:16px; box-sizing:border-box; }
-  #cv-col-destra{ flex:1; min-width:0; height:calc(100vh - 28px); overflow-y:auto; background:#1C1C1D; border:1px solid #3A3A3B; border-radius:10px; padding:16px 20px; box-sizing:border-box; margin-left:20px; position:relative; }
+  /* I due riquadri, ben visibili e separati l'uno dall'altro, in proporzione 5/8 - 3/8: video
+     (a schermo pieno, con un formato corretto) e pulsanti a sinistra, in un proprio riquadro
+     fisso; ordine del giorno e "chi c'è" a destra, in un secondo riquadro che scorre
+     indipendentemente. */
+  #cv-col-sinistra{ flex:5 1 0; min-width:0; height:calc(100vh - 28px); display:flex; flex-direction:column; align-self:flex-start; position:sticky; top:14px; background:#1C1C1D; border:1px solid #3A3A3B; border-radius:10px; padding:14px; box-sizing:border-box; }
+  #cv-col-destra{ flex:3 1 0; min-width:0; height:calc(100vh - 28px); overflow-y:auto; background:#1C1C1D; border:1px solid #3A3A3B; border-radius:10px; padding:16px 20px; box-sizing:border-box; margin-left:20px; position:relative; }
   body.cv-layout-orizzontale #condomino-view-box{ display:flex; flex-direction:row; align-items:flex-start; gap:0; }
-  /* Il pannello "Assemblea del..." + "Condominio/Accesso come..." si sposta in alto a
-     sinistra, sopra al video, restando dentro al riquadro sinistro invece di coprire tutta la
-     larghezza dello schermo come in verticale. */
-  body.cv-layout-orizzontale #cv-pannello-superiore{ position:absolute; left:0; right:0; max-width:none; margin:0; border-radius:10px 10px 0 0; }
-  body.cv-layout-orizzontale #cv-video-wrap{ margin-top:0; }
-  /* I tre pulsanti (Chat, Alza la mano, Lascia l'assemblea) restano larghi come il video, ma
-     molto più bassi: su uno schermo grande risultavano enormi in altezza. */
-  body.cv-layout-orizzontale #cv-col-sinistra .big-action-btn{ padding:8px; font-size:0.92em; margin-top:8px; }
+  /* Il pannello "Assemblea del..." + "Condominio/Accesso come..." resta fisso in cima, ma qui
+     diventa una singola riga sottile, a tutta larghezza dello schermo (sopra a entrambi i
+     riquadri), invece delle due righe più alte usate in verticale. */
+  body.cv-layout-orizzontale #cv-pannello-superiore{ display:flex; align-items:center; justify-content:center; gap:18px; padding:6px 20px; flex-wrap:wrap; max-width:none; margin:0; }
+  body.cv-layout-orizzontale #cv-tipo-assemblea{ margin:0; padding:0; background:none; font-size:12px; white-space:nowrap; }
+  body.cv-layout-orizzontale #cv-testata{ margin:0; padding:0; background:none; display:flex; align-items:baseline; gap:10px; }
+  body.cv-layout-orizzontale #cv-building-name{ font-size:12px; }
+  body.cv-layout-orizzontale #cv-welcome{ margin:0; }
+  /* Il video occupa TUTTO lo spazio verticale rimasto nel riquadro sinistro (i pulsanti,
+     spinti in fondo, restano fuori da questo calcolo), con un formato corretto (16:9) invece
+     di risultare schiacciato in uno spazio con proporzioni sbagliate. */
+  body.cv-layout-orizzontale #cv-video-wrap{ margin-top:0; flex:1; min-height:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  body.cv-layout-orizzontale #cv-video-box{ width:100%; height:auto; max-height:100%; aspect-ratio:16/9; margin:0 auto; }
+  body.cv-layout-orizzontale #cv-pre-ingresso{ flex:1; display:flex; flex-direction:column; justify-content:center; }
+  /* I tre pulsanti (Chat, Alza la mano, Lascia l'assemblea): ancora più bassi di prima, e
+     spinti in fondo al riquadro (il video, con flex:1 qui sopra, occupa tutto lo spazio che
+     resta prima di loro). */
+  body.cv-layout-orizzontale #cv-col-sinistra .big-action-btn{ padding:5px; font-size:0.85em; margin-top:6px; flex-shrink:0; }
   /* La chat, in orizzontale, compare dentro al riquadro destro (sempre per prima, sopra
      all'ordine del giorno): quando appare spinge in basso ordine del giorno e "chi c'è", che
      tornano a salire quando la chat scompare — non più una finestra fissa separata. */
@@ -417,6 +428,7 @@
   /* Mentre un sondaggio (o la schermata iniziale "chi c'è") è attivo, prende il posto del
      video nel riquadro sinistro — stessa idea di sempre, solo confinata a sinistra invece che
      su tutto lo schermo. */
+  body.cv-layout-orizzontale #cv-col-sinistra #cv-poll-area{ flex:1; min-height:0; overflow-y:auto; }
   body.cv-layout-orizzontale #cv-col-sinistra #cv-poll-area[data-vista="sondaggio"],
   body.cv-layout-orizzontale #cv-col-sinistra #cv-poll-area[data-vista="presenti-iniziale"]{ margin-top:0; }
   #cv-testata{background:#000;border-radius:6px;padding:10px 12px;margin-bottom:10px;text-align:center;}
@@ -452,7 +464,7 @@
   .cv-aiuto-permessi-corpo b{ color:#F2F0EC; }
   .cv-aiuto-permessi-corpo ol{ margin:6px 0 12px; padding-left:18px; }
 
-  #cv-video-box{ width:100%; aspect-ratio:9/18; max-height:99vh; background:#000; overflow:hidden; position:relative; border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,.35); margin:0 auto 12px; }
+  #cv-video-box{ width:100%; aspect-ratio:9/16; max-height:99vh; background:#000; overflow:hidden; position:relative; border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,.35); margin:0 auto 12px; }
   @media (orientation: landscape){ #cv-video-box{ aspect-ratio:18/9; max-height:99vh; } }
   #cv-video-box iframe{ width:100% !important; height:100% !important; border:0 !important; display:block; }
   #cv-btn-torna-su{ display:block; width:100%; font-size:13.5px; font-weight:700; color:#F2F0EC; background:#5E5439; border:1px solid #8C7D57; border-radius:8px; padding:10px 12px; cursor:pointer; }
@@ -501,12 +513,12 @@
   .cv-esito-riga.mia .etichetta{ color:var(--sage,#3E7A54); }
   .cv-video{background:#000;border-radius:6px;overflow:hidden;aspect-ratio:16/10;margin-bottom:16px;}
   .cv-video iframe{width:100%;height:100%;border:0;}
-  .big-action-btn{width:100%;padding:11px;font-size:1.15em;font-weight:600;border-radius:6px;border:2px solid #be8301;background:#be8301;color:#1B222B;cursor:pointer;margin-top:16px;}
+  .big-action-btn{width:100%;padding:9px;font-size:1.15em;font-weight:600;border-radius:6px;border:2px solid #be8301;background:#be8301;color:#1B222B;cursor:pointer;margin-top:16px;}
   .big-action-btn.active{background:var(--brick);border-color:var(--brick);color:#fff;}
   .big-action-btn.exit{background:transparent;color:#A39C88;border-color:#8C7D57;font-size:0.9em;padding:14px;}
   .assist-panel{background:#5E5439;border:1px solid #8C7D57;border-radius:6px;padding:18px;margin-top:18px;}
   .assist-panel h3{font-size:1.05em;margin:0 0 4px;font-family:var(--font-display);color:#fff;}
-  .cv-chat-log{max-height:150px;overflow-y:auto;background:#2A2519;border:1px solid #8C7D57;border-radius:4px;padding:10px 12px;margin-bottom:10px;font-size:0.85em;}
+  .cv-chat-log{max-height:260px;overflow-y:auto;background:#2A2519;border:1px solid #8C7D57;border-radius:4px;padding:10px 12px;margin-bottom:10px;font-size:0.85em;}
   .cv-chat-log .chat-msg{color:#E5DEC9;}
   .cv-chat-log .chat-msg b{color:var(--brass-soft);}
   .cv-poll-option-btn{display:block;width:100%;text-align:left;padding:16px;margin-bottom:10px;border-radius:6px;border:1px solid #8C7D57;background:#5E5439;color:#F2F0EC;font-size:1em;cursor:pointer;}
@@ -531,7 +543,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 12/08/2026 alle 00:11">LT-82</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 12/08/2026 alle 00:25">LT-84</span></div>
   </div>
 
   <!-- MAIN -->
@@ -5469,7 +5481,10 @@ function applicaLayoutOrizzontaleCondomino(){
   if(dovrebbeEssereOrizzontale){
     colSinistra.style.display = '';
     colDestra.style.display = '';
-    if(pannelloSuperiore) colSinistra.appendChild(pannelloSuperiore);
+    // Il pannello "Assemblea del..." / "Condominio..." NON entra più nella colonna sinistra:
+    // resta a tutta larghezza dello schermo, sopra a entrambi i riquadri, esattamente come
+    // richiesto — la sua posizione a livello di pagina non cambia, solo il suo stile in questa
+    // modalità (vedi CSS: diventa una riga sola, più bassa, larga quanto tutto lo schermo).
     if(videoWrap) colSinistra.appendChild(videoWrap);
     if(btnChat) colSinistra.appendChild(btnChat);
     if(handBtn) colSinistra.appendChild(handBtn);
