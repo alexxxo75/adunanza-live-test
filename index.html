@@ -385,8 +385,8 @@
   .chat-msg.admin b{color:var(--brass);}
 
   /* VISTA CONDOMINO — grande, semplice, accessibile, TEMA SCURO (risparmio batteria OLED) */
-  .condomino-shell{background:#DDD3BC;min-height:100vh;padding:10px 26px 26px;}
-  .condomino-view{max-width:760px;margin:0 auto;background:#463F2F;border-radius:8px;padding:14px 20px 28px;font-size:var(--cv-scale, 17px);color:#F2F0EC;}
+  .condomino-shell{background:#313132;min-height:100vh;padding:10px 12px 12px;}
+  .condomino-view{max-width:860px;margin:0 auto;background:#000000;border-radius:8px;padding:14px 20px 28px;font-size:var(--cv-scale, 17px);color:#F2F0EC;}
 
   /* ---------- LAYOUT ORIZZONTALE (solo tablet/PC ruotato, schermo largo — mai su telefono) ----------
      Attivato via JS solo quando orientamento orizzontale E larghezza/altezza sono sufficienti.
@@ -485,13 +485,13 @@
   .cv-esito-riga .etichetta .cv-esito-dati{ font-family:var(--font-mono); font-size:12px; font-weight:800; color:#C4BCA5; }
   .cv-esito-vincitore{ color:#5FBE85 !important; }
   .cv-esito-barra-sfondo{ background:#8C7D57; border-radius:6px; height:16px; overflow:hidden; }
-  .cv-esito-barra-riempita{ background:var(--brass); height:100%; border-radius:6px 0 0 6px; }
+  .cv-esito-barra-riempita{ background:#d49200; height:100%; border-radius:6px 0 0 6px; }
   .cv-esito-barra-riempita.cv-esito-vincitore-barra{ background:#5FBE85; }
   .cv-esito-riga.mia .cv-esito-barra-riempita{ background:var(--sage,#3E7A54); }
   .cv-esito-riga.mia .etichetta{ color:var(--sage,#3E7A54); }
   .cv-video{background:#000;border-radius:6px;overflow:hidden;aspect-ratio:16/10;margin-bottom:16px;}
   .cv-video iframe{width:100%;height:100%;border:0;}
-  .big-action-btn{width:100%;padding:11px;font-size:1.15em;font-weight:600;border-radius:6px;border:2px solid var(--brass);background:var(--brass);color:#1B222B;cursor:pointer;margin-top:16px;}
+  .big-action-btn{width:100%;padding:11px;font-size:1.15em;font-weight:600;border-radius:6px;border:2px solid #d49200;background:#d49200;color:#1B222B;cursor:pointer;margin-top:16px;}
   .big-action-btn.active{background:var(--brick);border-color:var(--brick);color:#fff;}
   .big-action-btn.exit{background:transparent;color:#A39C88;border-color:#8C7D57;font-size:0.9em;padding:14px;}
   .assist-panel{background:#5E5439;border:1px solid #8C7D57;border-radius:6px;padding:18px;margin-top:18px;}
@@ -521,7 +521,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 11/08/2026 alle 23:46">LT-80</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 11/08/2026 alle 23:59">LT-81</span></div>
   </div>
 
   <!-- MAIN -->
