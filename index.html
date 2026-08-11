@@ -392,23 +392,30 @@
      Attivato via JS solo quando orientamento orizzontale E larghezza/altezza sono sufficienti.
      Video + pulsanti principali fissi a sinistra (non scorrono); ordine del giorno e "chi c'è"
      scorrono a destra. In verticale questa sezione non si applica affatto: nulla cambia lì. */
-  body.cv-layout-orizzontale #condomino-view-box{ max-width:1180px; }
-  body.cv-layout-orizzontale .condomino-shell{ display:flex; justify-content:center; }
+  body.cv-layout-orizzontale #condomino-view-box{ max-width:1500px; width:100%; }
+  body.cv-layout-orizzontale .condomino-shell{ display:flex; justify-content:center; padding:14px 20px; }
   body.cv-layout-orizzontale #cv-schermata-rientro,
   body.cv-layout-orizzontale #cv-schermata-terminata{ width:100%; }
-  #cv-col-sinistra{ width:330px; flex-shrink:0; align-self:flex-start; position:sticky; top:14px; }
-  #cv-col-destra{ flex:1; min-width:0; height:calc(100vh - 28px); overflow-y:auto; padding-left:22px; position:relative; }
+  /* I due riquadri, ben visibili e separati l'uno dall'altro: video (più grande di prima) e
+     pulsanti a sinistra, in un proprio riquadro fisso; ordine del giorno e "chi c'è" a destra,
+     più larghi di prima, in un secondo riquadro che scorre indipendentemente. */
+  #cv-col-sinistra{ width:460px; flex-shrink:0; align-self:flex-start; position:sticky; top:14px; background:#1C1C1D; border:1px solid #3A3A3B; border-radius:10px; padding:16px; box-sizing:border-box; }
+  #cv-col-destra{ flex:1; min-width:0; height:calc(100vh - 28px); overflow-y:auto; background:#1C1C1D; border:1px solid #3A3A3B; border-radius:10px; padding:16px 20px; box-sizing:border-box; margin-left:20px; position:relative; }
   body.cv-layout-orizzontale #condomino-view-box{ display:flex; flex-direction:row; align-items:flex-start; gap:0; }
   /* Il pannello "Assemblea del..." + "Condominio/Accesso come..." si sposta in alto a
-     sinistra, sopra al video, restando dentro alla colonna sinistra invece di coprire tutta la
+     sinistra, sopra al video, restando dentro al riquadro sinistro invece di coprire tutta la
      larghezza dello schermo come in verticale. */
-  body.cv-layout-orizzontale #cv-pannello-superiore{ position:absolute; left:0; right:0; max-width:none; margin:0; border-radius:0 0 8px 8px; }
+  body.cv-layout-orizzontale #cv-pannello-superiore{ position:absolute; left:0; right:0; max-width:none; margin:0; border-radius:10px 10px 0 0; }
   body.cv-layout-orizzontale #cv-video-wrap{ margin-top:0; }
-  /* La chat, in orizzontale, compare fissa in alto a destra invece che dentro al flusso della
-     colonna sinistra. */
-  body.cv-layout-orizzontale #cv-chat-sezione{ position:fixed; top:14px; right:14px; width:320px; max-width:calc(100vw - 28px); z-index:140; box-shadow:0 8px 24px rgba(0,0,0,.4); max-height:70vh; overflow-y:auto; }
+  /* I tre pulsanti (Chat, Alza la mano, Lascia l'assemblea) restano larghi come il video, ma
+     molto più bassi: su uno schermo grande risultavano enormi in altezza. */
+  body.cv-layout-orizzontale #cv-col-sinistra .big-action-btn{ padding:8px; font-size:0.92em; margin-top:8px; }
+  /* La chat, in orizzontale, compare dentro al riquadro destro (sempre per prima, sopra
+     all'ordine del giorno): quando appare spinge in basso ordine del giorno e "chi c'è", che
+     tornano a salire quando la chat scompare — non più una finestra fissa separata. */
+  body.cv-layout-orizzontale #cv-chat-sezione{ margin-bottom:14px; }
   /* Mentre un sondaggio (o la schermata iniziale "chi c'è") è attivo, prende il posto del
-     video nella colonna sinistra — stessa idea di sempre, solo confinata a sinistra invece che
+     video nel riquadro sinistro — stessa idea di sempre, solo confinata a sinistra invece che
      su tutto lo schermo. */
   body.cv-layout-orizzontale #cv-col-sinistra #cv-poll-area[data-vista="sondaggio"],
   body.cv-layout-orizzontale #cv-col-sinistra #cv-poll-area[data-vista="presenti-iniziale"]{ margin-top:0; }
@@ -467,7 +474,10 @@
   .cv-odg-punto{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:12px 14px; margin-bottom:8px; background:#5E5439; border:1px solid #8C7D57; border-radius:8px; font-size:13.5px; font-weight:600; color:#F2F0EC; }
   .cv-odg-punto-blocco{ margin-bottom:16px; }
   .cv-odg-punto-blocco .cv-odg-punto{ margin-bottom:0; }
-  .cv-risultato-sotto-punto{ background:#3A331F; border:1px solid #5E5439; border-radius:0 0 8px 8px; padding:12px 14px; margin-top:-1px; }
+  .cv-risultato-sotto-punto{ background:#313132; border:1px solid #5E5439; border-radius:0 0 8px 8px; padding:12px 14px; margin-top:-1px; }
+  /* Solo ordine del giorno e "chi c'è in assemblea" (entrambi dentro cv-poll-area in vista
+     normale): sfondo specifico, diverso da quello condiviso da altri riquadri come la chat. */
+  #cv-poll-area .assist-panel{ background:#313132; }
   .cv-presenti-conteggio{ font-size:13.5px; color:#C4BCA5; margin-bottom:12px; }
   /* Quando il sondaggio ha la precedenza assoluta: occupa tutto lo spazio disponibile e il suo
      contenuto viene centrato verticalmente, per essere impossibile da non vedere. */
@@ -491,7 +501,7 @@
   .cv-esito-riga.mia .etichetta{ color:var(--sage,#3E7A54); }
   .cv-video{background:#000;border-radius:6px;overflow:hidden;aspect-ratio:16/10;margin-bottom:16px;}
   .cv-video iframe{width:100%;height:100%;border:0;}
-  .big-action-btn{width:100%;padding:11px;font-size:1.15em;font-weight:600;border-radius:6px;border:2px solid #d49200;background:#d49200;color:#1B222B;cursor:pointer;margin-top:16px;}
+  .big-action-btn{width:100%;padding:11px;font-size:1.15em;font-weight:600;border-radius:6px;border:2px solid #be8301;background:#be8301;color:#1B222B;cursor:pointer;margin-top:16px;}
   .big-action-btn.active{background:var(--brick);border-color:var(--brick);color:#fff;}
   .big-action-btn.exit{background:transparent;color:#A39C88;border-color:#8C7D57;font-size:0.9em;padding:14px;}
   .assist-panel{background:#5E5439;border:1px solid #8C7D57;border-radius:6px;padding:18px;margin-top:18px;}
@@ -521,7 +531,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 11/08/2026 alle 23:59">LT-81</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 12/08/2026 alle 00:11">LT-82</span></div>
   </div>
 
   <!-- MAIN -->
@@ -5464,7 +5474,9 @@ function applicaLayoutOrizzontaleCondomino(){
     if(btnChat) colSinistra.appendChild(btnChat);
     if(handBtn) colSinistra.appendChild(handBtn);
     if(esciBtn) colSinistra.appendChild(esciBtn);
-    if(chatSezione) colDestra.appendChild(chatSezione); // fissata in alto a destra via CSS, la posizione nel DOM non ne determina la posizione visiva
+    // La chat va SEMPRE per prima nella colonna destra: quando compare, spinge in basso
+    // l'ordine del giorno e "chi c'è", che vengono sempre dopo di lei nel flusso normale.
+    if(chatSezione) colDestra.appendChild(chatSezione);
     if(tornaSuBar) colDestra.appendChild(tornaSuBar);
     if(diagnosticaBattito) colDestra.appendChild(diagnosticaBattito);
     posizionaPollAreaInLayoutOrizzontale();
@@ -5491,11 +5503,16 @@ function posizionaPollAreaInLayoutOrizzontale(){
   const vistaAttuale = pollAreaEl.getAttribute('data-vista');
   const colSinistra = document.getElementById('cv-col-sinistra');
   const colDestra = document.getElementById('cv-col-destra');
+  const chatSezione = document.getElementById('cv-chat-sezione');
   const esclusiva = (vistaAttuale === 'sondaggio' || vistaAttuale === 'presenti-iniziale');
   if(esclusiva){
     if(pollAreaEl.parentElement !== colSinistra) colSinistra.appendChild(pollAreaEl);
   }else{
-    if(pollAreaEl.parentElement !== colDestra || colDestra.firstChild !== pollAreaEl){
+    // Subito dopo la chat (che quando compare lo spinge in basso restando sopra), non più
+    // semplicemente in cima alla colonna a prescindere da dove sia la chat.
+    if(chatSezione && chatSezione.parentElement === colDestra){
+      if(pollAreaEl.previousElementSibling !== chatSezione) chatSezione.after(pollAreaEl);
+    }else if(pollAreaEl.parentElement !== colDestra || colDestra.firstChild !== pollAreaEl){
       colDestra.insertBefore(pollAreaEl, colDestra.firstChild);
     }
   }
