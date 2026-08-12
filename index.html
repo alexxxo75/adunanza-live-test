@@ -546,7 +546,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 12/08/2026 alle 09:57">LT-90</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 12/08/2026 alle 12:40">LT-91</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1092,6 +1092,15 @@
               <tbody id="appello-tbody"></tbody>
               <tfoot><tr id="appello-tfoot"></tr></tfoot>
             </table>
+          </div>
+          <div id="appello-schema-deleghe-wrap" class="hidden" style="margin-top:14px;">
+            <div class="section-title" style="font-size:14px;margin:0 0 8px;">📝 Situazione deleghe</div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Delegato</th><th>Numero deleganti</th><th>Millesimi rappresentati</th></tr></thead>
+                <tbody id="appello-schema-deleghe-tbody"></tbody>
+              </table>
+            </div>
           </div>
           <div class="card" id="appello-validazione" style="margin-top:14px;background:var(--paper);border:1px solid var(--line);">
             <div class="section-title" style="font-size:14px;margin:0 0 8px;">✅ Dati per la validazione dell'assemblea</div>
@@ -3679,6 +3688,38 @@ function renderAppello(){
   if(tfoot){
     tfoot.innerHTML = `<td colspan="2" style="font-weight:700;">Totale presenti: ${rappresentati.length}/${convocatiList.length}</td><td colspan="2" style="font-weight:700;">${millPresenti} / 1000‰</td>`;
   }
+  renderSchemaDelegheAppello(assemblea, b);
+}
+// Piccolo riepilogo, sotto ai totali dell'appello: per ciascuna persona che ha ricevuto
+// almeno una delega, quante persone l'hanno delegata e il totale dei millesimi che rappresenta
+// (i propri esclusi — solo quelli ricevuti in delega).
+function renderSchemaDelegheAppello(assemblea, b){
+  const wrap = document.getElementById('appello-schema-deleghe-wrap');
+  const tbody = document.getElementById('appello-schema-deleghe-tbody');
+  if(!wrap || !tbody) return;
+  const deleghe = assemblea.appello.deleghe || {};
+  const gruppiPerDelegato = {}; // delegatoId -> {nome, numeroDeleganti, millesimiTotali}
+  Object.keys(deleghe).forEach(deleganteIdStr=>{
+    const delegatoId = deleghe[deleganteIdStr];
+    if(delegatoId==null) return;
+    const deleganteId = Number(deleganteIdStr);
+    const deleganteCondomino = b.condomini.find(c=>c.id===deleganteId);
+    if(!deleganteCondomino) return; // per sicurezza: non dovrebbe mai mancare, ma evitiamo comunque un errore
+    if(!gruppiPerDelegato[delegatoId]){
+      gruppiPerDelegato[delegatoId] = { nome: nomeDelegato(delegatoId, b, assemblea), numeroDeleganti: 0, millesimiTotali: 0 };
+    }
+    gruppiPerDelegato[delegatoId].numeroDeleganti++;
+    gruppiPerDelegato[delegatoId].millesimiTotali += pesoConvocato(deleganteCondomino, assemblea, b);
+  });
+  const righe = Object.values(gruppiPerDelegato);
+  if(righe.length===0){
+    wrap.classList.add('hidden');
+    return;
+  }
+  wrap.classList.remove('hidden');
+  // In ordine dal delegato che rappresenta più millesimi a chi ne rappresenta meno.
+  righe.sort((x,y)=>y.millesimiTotali-x.millesimiTotali);
+  tbody.innerHTML = righe.map(r=>`<tr><td>${escapeHtml(r.nome)}</td><td>${r.numeroDeleganti}</td><td>${arrotondaMillesimi(r.millesimiTotali)} / 1000‰</td></tr>`).join('');
 }
 
 // ---------- CREA ASSEMBLEA ----------
