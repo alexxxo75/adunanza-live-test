@@ -128,7 +128,8 @@
     --font-mono:'Courier New', Courier, monospace;
   }
   *{box-sizing:border-box;}
-  body{margin:0;font-family:var(--font-body);background:var(--page-bg);color:var(--text);}
+  html{overscroll-behavior-y:contain;}
+  body{margin:0;font-family:var(--font-body);background:var(--page-bg);color:var(--text);overscroll-behavior-y:contain;}
   /* Solo in questa pagina: il gesto "tira verso il basso in cima" è gestito a mano da noi (fa
      ricomparire il pannello con "Assemblea del..."), quindi impediamo al browser di
      interpretarlo anche come il suo comando nativo di "aggiorna pagina". */
@@ -545,7 +546,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 12/08/2026 alle 01:05">LT-88</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 12/08/2026 alle 09:57">LT-90</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1992,7 +1993,7 @@ document.addEventListener('touchstart', (e)=>{
   }else{
     __pannelloSuperioreGestoInCorso = false;
   }
-}, {passive:true});
+}, {passive:false});
 document.addEventListener('touchmove', (e)=>{
   if(currentPage!=='vista-condomino' || !__pannelloSuperioreGestoInCorso) return;
   const spostamento = e.touches[0].clientY - __pannelloSuperioreTouchStartY;
@@ -5669,7 +5670,16 @@ function rivalutaCondizioniDinamicheCondomino(){
     return;
   }
   if(vistaAttuale==='sondaggio'){
-    return; // il sondaggio ha sempre la precedenza: video e chat restano nascosti finché non si chiude
+    // In verticale, se sono passati 4 secondi dalla conferma del voto, la schermata scade da
+    // sola: ridisegniamo tutto (tornerà alla vista normale, o al risultato se nel frattempo il
+    // sondaggio si è anche chiuso).
+    if(!document.body.classList.contains('cv-layout-orizzontale') && currentCondomino && activePoll
+       && activePoll.voted.has(currentCondomino.id) && __cvMomentoVotoConfermato
+       && (Date.now()-__cvMomentoVotoConfermato)>=4000){
+      renderCvPollArea();
+      window.scrollTo({top:0, behavior:'smooth'});
+    }
+    return; // il sondaggio ha sempre la precedenza: video e chat restano nascosti finché non si chiude (o scade la conferma, sopra)
   }
 
   // Vista normale (nessun sondaggio, nessuna schermata iniziale in corso): la chat, quando
@@ -5921,13 +5931,19 @@ function collegaInterazioneSondaggioAttivo(){
 }
 // Trova, se esiste, l'ultimo sondaggio chiuso negli ultimi 10 secondi — usato per mostrarlo
 // in evidenza a tutta pagina prima che si riduca da solo al suo posto.
+let __cvMomentoVotoConfermato = null; // quando si è confermato il voto, per il conto alla rovescia di 4s in verticale
 function trovaRisultatoSondaggioRecentementeChiuso(assemblea){
   if(!assemblea || !assemblea.odg) return null;
+  // In verticale il risultato resta in primo piano solo 5 secondi (non più 10): in
+  // orizzontale il comportamento è diverso (gestito a parte, con l'attesa se si sta scrivendo
+  // in chat) e qui resta come prima.
+  const inOrizzontale = document.body.classList.contains('cv-layout-orizzontale');
+  const finestraMs = inOrizzontale ? 10000 : 5000;
   let piuRecente = null;
   assemblea.odg.forEach((p,i)=>{
     const storico = p.storicoSondaggi||[];
     const ultimo = storico[storico.length-1];
-    if(ultimo && ultimo.chiusoEpoch && (Date.now()-ultimo.chiusoEpoch)<10000){
+    if(ultimo && ultimo.chiusoEpoch && (Date.now()-ultimo.chiusoEpoch)<finestraMs){
       if(!piuRecente || ultimo.chiusoEpoch > piuRecente.info.chiusoEpoch){
         piuRecente = {punto:p, info:ultimo, indice:i};
       }
@@ -5952,7 +5968,15 @@ function renderCvPollArea_interno(){
   // il sondaggio SOLO se appartiene davvero al punto dell'ordine del giorno di QUESTA specifica
   // assemblea: altrimenti potrebbe trattarsi di un sondaggio aperto altrove dall'amministratore,
   // su un'assemblea diversa da quella collegata al link di questo condòmino.
-  const sondaggioAppartieneAQuestaAssemblea = activePoll && (assembleaCorrente.odg||[]).some(p=>p.id===activePollOdgId);
+  const inOrizzontaleControllo = document.body.classList.contains('cv-layout-orizzontale');
+  const giaVotatoControllo = !!(currentCondomino && activePoll && activePoll.voted.has(currentCondomino.id));
+  // In verticale, dopo aver votato, la schermata di conferma resta in primo piano solo 4
+  // secondi: passato questo tempo, ci comportiamo come se il sondaggio non ci fosse più (anche
+  // se in realtà è ancora aperto, in attesa degli altri) e torniamo alla vista normale, in
+  // cima alla pagina. In orizzontale questo non si applica: lì il comportamento è già diverso
+  // (il sondaggio si restringe subito dopo il voto, gestito più sotto).
+  const confermaScadutaInVerticale = !inOrizzontaleControllo && giaVotatoControllo && __cvMomentoVotoConfermato && (Date.now()-__cvMomentoVotoConfermato)>=4000;
+  const sondaggioAppartieneAQuestaAssemblea = activePoll && !confermaScadutaInVerticale && (assembleaCorrente.odg||[]).some(p=>p.id===activePollOdgId);
   if(sondaggioAppartieneAQuestaAssemblea){
     const inOrizzontale = document.body.classList.contains('cv-layout-orizzontale');
     const giaVotatoAdesso = !!(currentCondomino && activePoll.voted.has(currentCondomino.id));
@@ -6071,6 +6095,10 @@ function confermaVotoCondomino(){
     // restava quindi bloccata sulla vecchia schermata con il pulsante "Invio in corso...",
     // anche se il voto era già stato registrato correttamente nei dati.
     sceltaVotoCorrente = null;
+    // Registriamo il momento esatto della conferma: in verticale, la schermata di conferma
+    // resterà in primo piano solo per 4 secondi da qui, non fino alla chiusura vera e propria
+    // del sondaggio (che potrebbe metterci molto di più, aspettando gli altri condòmini).
+    __cvMomentoVotoConfermato = Date.now();
     renderPollResults();
     renderTabellaVotiSondaggio();
     renderCvPollArea();
