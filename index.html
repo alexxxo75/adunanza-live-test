@@ -546,7 +546,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 12/08/2026 alle 12:40">LT-91</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 12/08/2026 alle 12:55">LT-92</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1067,10 +1067,10 @@
           <div>
             <div class="card">
               <div class="section-title">Chat</div>
-              <div class="chat-log" id="admin-chat-log"></div>
-              <div class="row-inline">
-                <input id="admin-chat-input" placeholder="Scrivi un messaggio...">
-                <button class="btn small" onclick="sendChatMessage('Amministratore','admin-chat-input')">Invia</button>
+              <div class="chat-log" id="admin-chat-log" style="max-height:320px;"></div>
+              <div class="row-inline" style="align-items:center;flex-wrap:nowrap;">
+                <input id="admin-chat-input" placeholder="Scrivi un messaggio..." style="flex:1;min-width:0;width:auto;">
+                <button class="btn small" style="flex:0 0 auto;min-width:0;padding:4px 10px;font-size:11px;white-space:nowrap;" onclick="sendChatMessage('Amministratore','admin-chat-input')">Invia</button>
               </div>
             </div>
           </div>
