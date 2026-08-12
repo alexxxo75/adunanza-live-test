@@ -546,7 +546,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 12/08/2026 alle 20:46">LT-93</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 12/08/2026 alle 21:15">LT-94</span></div>
   </div>
 
   <!-- MAIN -->
@@ -5833,7 +5833,7 @@ function costruisciSezionePresenti(assemblea, b){
     </div>`;
   }).join('');
   return `<div class="assist-panel" id="cv-sezione-presenti">
-    <h3>👥 Chi c'è in assemblea</h3>
+    <h3>👥 Partecipanti</h3>
     <div class="cv-presenti-conteggio"><b>${rappresentati.length}</b> teste / ${convocatiList.length} convocati &nbsp;·&nbsp; <b>${millPresenti}</b> / ${totMillConvocati}\u2030 millesimi (tabella "${escapeHtml(tq)}")</div>
     <div class="cv-presenti-elenco">${righeHtml}</div>
   </div>`;
