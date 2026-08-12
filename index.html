@@ -431,11 +431,9 @@
   /* Mentre un sondaggio (o la schermata iniziale "chi c'è") è attivo, prende il posto del
      video nel riquadro sinistro — stessa idea di sempre, solo confinata a sinistra invece che
      su tutto lo schermo. */
-  body.cv-layout-orizzontale #cv-col-sinistra #cv-poll-area{ flex:1; min-height:0; overflow-y:auto; }
-  body.cv-layout-orizzontale #cv-col-sinistra #cv-poll-area[data-vista="sondaggio"],
-  body.cv-layout-orizzontale #cv-col-sinistra #cv-poll-area[data-vista="presenti-iniziale"]{ margin-top:0; }
   #cv-testata{background:#000;border-radius:6px;padding:10px 12px;margin-bottom:10px;text-align:center;}
   #cv-building-name{font-size:12px;font-weight:600;margin:0;color:#fff;}
+  #cv-tipo-assemblea{background:#000;border-radius:6px;padding:8px 12px;margin-bottom:8px;text-align:center;color:#fff;font-size:12px;font-weight:600;}
   /* Pannello con "Assemblea del..." e "Condominio/Accesso come...", fisso in cima allo
      schermo: compare all'apertura, sparisce da solo dopo qualche secondo, e si può far
      ricomparire tirando verso il basso quando si è già in cima alla pagina (stesso gesto del
@@ -520,8 +518,9 @@
   .big-action-btn.active{background:var(--brick);border-color:var(--brick);color:#fff;}
   .big-action-btn.exit{background:transparent;color:#A39C88;border-color:#8C7D57;font-size:0.9em;padding:14px;}
   .assist-panel{background:#5E5439;border:1px solid #8C7D57;border-radius:6px;padding:18px;margin-top:18px;}
+  #cv-chat-sezione{background:#313132;}
   .assist-panel h3{font-size:1.05em;margin:0 0 4px;font-family:var(--font-display);color:#fff;}
-  .cv-chat-log{max-height:260px;overflow-y:auto;background:#2A2519;border:1px solid #8C7D57;border-radius:4px;padding:10px 12px;margin-bottom:10px;font-size:0.85em;}
+  .cv-chat-log{max-height:260px;overflow-y:auto;background:#000000;border:1px solid #8C7D57;border-radius:4px;padding:10px 12px;margin-bottom:10px;font-size:0.85em;}
   .cv-chat-log .chat-msg{color:#E5DEC9;}
   .cv-chat-log .chat-msg b{color:var(--brass-soft);}
   .cv-poll-option-btn{display:block;width:100%;text-align:left;padding:16px;margin-bottom:10px;border-radius:6px;border:1px solid #8C7D57;background:#5E5439;color:#F2F0EC;font-size:1em;cursor:pointer;}
@@ -546,7 +545,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 12/08/2026 alle 00:50">LT-86</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 12/08/2026 alle 01:05">LT-88</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1223,7 +1222,7 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
     <!-- PAGE: VISTA CONDOMINO (anteprima, tema scuro) -->
     <div class="page hidden" id="page-vista-condomino" style="margin:-30px -44px;">
       <div id="cv-pannello-superiore">
-        <div id="cv-tipo-assemblea" style="background:#000;border-radius:6px;padding:8px 12px;margin-bottom:8px;text-align:center;color:#fff;font-size:12px;font-weight:600;">—</div>
+        <div id="cv-tipo-assemblea">—</div>
         <div id="cv-testata">
           <h1 id="cv-building-name">Assemblea</h1>
           <p class="sub" id="cv-welcome">—</p>
@@ -1263,7 +1262,7 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
             <p class="muted" style="color:#A39C88;margin-bottom:10px;">Per segnalazioni pratiche (es. "non sento l'audio") — non è la chat per gli interventi formali.</p>
             <div class="cv-chat-log" id="cv-chat-log"></div>
             <div class="row-inline" style="align-items:center;">
-              <input id="cv-chat-input" placeholder="Scrivi qui..." style="background:#2A2519;border-color:#8C7D57;color:#F2F0EC;flex:1;min-width:0;" oninput="segnaAttivitaChatCondomino()">
+              <input id="cv-chat-input" placeholder="Scrivi qui..." style="background:#000000;border-color:#8C7D57;color:#F2F0EC;flex:1;min-width:0;" oninput="segnaAttivitaChatCondomino()">
               <button class="btn small brass" style="width:32px;height:32px;min-width:32px;min-height:32px;max-width:32px;max-height:32px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;" onclick="sendChatMessage(currentCondomino?nomeCompletoCondomino(currentCondomino):'Condòmino','cv-chat-input');segnaAttivitaChatCondomino();" aria-label="Invia">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 5v6a3 3 0 0 1-3 3H6" stroke="#1B222B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.5 10.5 5 14l4.5 3.5" stroke="#1B222B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </button>
@@ -5510,29 +5509,22 @@ function applicaLayoutOrizzontaleCondomino(){
     colDestra.style.display = 'none';
   }
 }
-// Il sondaggio (o la schermata iniziale "chi c'è") ha sempre la precedenza e prende il posto
-// del video — in layout orizzontale questo significa spostarsi nella colonna sinistra, al posto
-// del video, invece che coprire tutto lo schermo; nella vista normale (ordine del giorno) torna
-// invece nella colonna destra, quella che scorre, insieme a "chi c'è in assemblea".
+// Il sondaggio resta SEMPRE nella colonna destra in layout orizzontale, non sposta più mai
+// video e pulsanti dalla colonna sinistra (che restano fissi al loro posto anche mentre il
+// sondaggio è aperto) — solo l'aspetto della colonna destra cambia, a seconda che si sia già
+// votato o no (gestito altrove, in renderCvPollArea_interno).
 function posizionaPollAreaInLayoutOrizzontale(){
   if(!__cvLayoutOrizzontaleAttivo) return;
   const pollAreaEl = document.getElementById('cv-poll-area');
   if(!pollAreaEl) return;
-  const vistaAttuale = pollAreaEl.getAttribute('data-vista');
-  const colSinistra = document.getElementById('cv-col-sinistra');
   const colDestra = document.getElementById('cv-col-destra');
   const chatSezione = document.getElementById('cv-chat-sezione');
-  const esclusiva = (vistaAttuale === 'sondaggio' || vistaAttuale === 'presenti-iniziale');
-  if(esclusiva){
-    if(pollAreaEl.parentElement !== colSinistra) colSinistra.appendChild(pollAreaEl);
-  }else{
-    // Subito dopo la chat (che quando compare lo spinge in basso restando sopra), non più
-    // semplicemente in cima alla colonna a prescindere da dove sia la chat.
-    if(chatSezione && chatSezione.parentElement === colDestra){
-      if(pollAreaEl.previousElementSibling !== chatSezione) chatSezione.after(pollAreaEl);
-    }else if(pollAreaEl.parentElement !== colDestra || colDestra.firstChild !== pollAreaEl){
-      colDestra.insertBefore(pollAreaEl, colDestra.firstChild);
-    }
+  // Subito dopo la chat (che quando compare lo spinge in basso restando sopra), non più
+  // semplicemente in cima alla colonna a prescindere da dove sia la chat.
+  if(chatSezione && chatSezione.parentElement === colDestra){
+    if(pollAreaEl.previousElementSibling !== chatSezione) chatSezione.after(pollAreaEl);
+  }else if(pollAreaEl.parentElement !== colDestra || colDestra.firstChild !== pollAreaEl){
+    colDestra.insertBefore(pollAreaEl, colDestra.firstChild);
   }
 }
 let __cvTimerRicalcoloLayout = null;
@@ -5809,16 +5801,45 @@ function siamoNeiPrimi10SecondiDiAssemblea(assemblea){
 // sondaggio (se aperto) vince sempre su tutto, poi la schermata "chi c'è" dei primi 10 secondi,
 // altrimenti la vista normale con tutto visibile.
 function applicaVisibilitaElementiCondomino(modalita){
+  const inOrizzontale = document.body.classList.contains('cv-layout-orizzontale');
   const videoWrap = document.getElementById('cv-video-wrap');
   const handBtn = document.getElementById('cv-hand-btn');
   const esciBtn = document.getElementById('cv-esci-btn');
-  const nascondiIlResto = (modalita==='sondaggio' || modalita==='presenti-iniziale');
+  const tornaSuBar = document.getElementById('cv-torna-su-bar');
+  const schermataEsclusiva = (modalita==='sondaggio' || modalita==='presenti-iniziale');
+  // "Torna a inizio pagina" non ha senso vederlo durante il sondaggio o il suo risultato in
+  // evidenza, né in verticale né in orizzontale.
+  if(tornaSuBar) tornaSuBar.classList.toggle('hidden', schermataEsclusiva);
+  // In layout orizzontale, video e pulsanti principali restano SEMPRE al loro posto, anche
+  // durante un sondaggio: cambia aspetto solo la colonna destra, non quella sinistra.
+  const nascondiIlResto = schermataEsclusiva && !inOrizzontale;
   if(videoWrap) videoWrap.classList.toggle('hidden', nascondiIlResto);
   if(handBtn) handBtn.classList.toggle('hidden', nascondiIlResto);
   if(esciBtn) esciBtn.classList.toggle('hidden', nascondiIlResto);
-  if(nascondiIlResto){
+  // La chat va sempre nascosta durante la schermata esclusiva, in entrambe le modalità: se
+  // questa funzione viene chiamata con "sondaggio" in layout orizzontale, significa che non si
+  // è ancora votato (il caso "già votato" passa da un altro percorso, che richiama questa
+  // funzione con "normale" invece).
+  if(schermataEsclusiva){
     const chatSezione = document.getElementById('cv-chat-sezione');
     if(chatSezione) chatSezione.style.display = 'none';
+  }
+  // In orizzontale, il pulsante Chat resta sempre visibile (mai nascosto insieme al resto),
+  // ma si disattiva mentre il sondaggio è aperto e non si è ancora votato — così chi
+  // partecipa non può ignorare il sondaggio continuando a chattare, ma può riprendere a
+  // farlo subito dopo aver votato.
+  if(inOrizzontale){
+    const btnChat = document.getElementById('cv-btn-chat-toggle');
+    if(btnChat){
+      const b2 = getActiveBuilding();
+      const assemblea2 = b2 ? getAssembleaContestualizzataCondomino(b2) : null;
+      const sondaggioNonRisposto = !!(activePoll && currentCondomino && assemblea2
+        && (assemblea2.odg||[]).some(p=>p.id===activePollOdgId)
+        && !activePoll.voted.has(currentCondomino.id));
+      btnChat.disabled = sondaggioNonRisposto;
+      btnChat.style.opacity = sondaggioNonRisposto ? '0.45' : '';
+      btnChat.style.cursor = sondaggioNonRisposto ? 'not-allowed' : '';
+    }
   }
 }
 let sceltaVotoCorrente = null;
@@ -5933,6 +5954,19 @@ function renderCvPollArea_interno(){
   // su un'assemblea diversa da quella collegata al link di questo condòmino.
   const sondaggioAppartieneAQuestaAssemblea = activePoll && (assembleaCorrente.odg||[]).some(p=>p.id===activePollOdgId);
   if(sondaggioAppartieneAQuestaAssemblea){
+    const inOrizzontale = document.body.classList.contains('cv-layout-orizzontale');
+    const giaVotatoAdesso = !!(currentCondomino && activePoll.voted.has(currentCondomino.id));
+    if(inOrizzontale && giaVotatoAdesso){
+      // In layout orizzontale, dopo aver votato: il sondaggio si restringe (mostra solo la
+      // conferma del voto, in attesa degli altri) e torna a coesistere con ordine del giorno
+      // e chi c'è, come nella vista normale — con in più questo avviso in cima. Chat e video
+      // restano utilizzabili normalmente da questo momento.
+      applicaVisibilitaElementiCondomino('normale');
+      el.setAttribute('data-vista', 'normale');
+      __cvUltimoPuntoRenderizzato = null;
+      el.innerHTML = costruisciBloccoSondaggioAttivo(assembleaCorrente, b) + costruisciOdgEChiCeCondomino(assembleaCorrente, b);
+      return;
+    }
     applicaVisibilitaElementiCondomino('sondaggio');
     const chiaveSondaggioAttivo = assembleaCorrente.id+':'+activePollOdgId;
     registraTransizionePuntoCondomino(chiaveSondaggioAttivo, 'aperto');
@@ -5948,7 +5982,9 @@ function renderCvPollArea_interno(){
     // Il sondaggio ha sempre la precedenza: se qualcuno è scorso in basso nella pagina, lo
     // riportiamo subito qui in cima, per essere sicuri che lo veda — solo la prima volta che
     // compare questo specifico sondaggio, non ad ogni piccolo ridisegno mentre si sta votando.
-    window.scrollTo({top:0, behavior:'smooth'});
+    // In orizzontale questo non serve: video e pulsanti restano dove sono già, non c'è nulla
+    // da cui "tornare in cima".
+    if(!inOrizzontale) window.scrollTo({top:0, behavior:'smooth'});
     if(currentCondomino && !activePoll.voted.has(currentCondomino.id) && recordAttivo(assembleaCorrente, currentCondomino.id)){
       sceltaVotoCorrente = null;
       collegaInterazioneSondaggioAttivo();
@@ -5961,7 +5997,12 @@ function renderCvPollArea_interno(){
   // ECCEZIONE: se l'utente ha toccato "Torna a inizio pagina" mentre era su una di queste due
   // schermate fisse, saltiamo subito alla vista normale, senza aspettare che scadano da sole.
   const risultatoRecente = __forzaVistaNormaleCondomino ? null : trovaRisultatoSondaggioRecentementeChiuso(assembleaCorrente);
-  if(risultatoRecente){
+  // In orizzontale, se la chat è attualmente in uso (aperta da meno di 10 secondi), non la
+  // interrompiamo per mostrare il risultato in evidenza: aspettiamo che finisca da sola. Il
+  // risultato resta comunque visibile normalmente, sotto il punto giusto dell'ordine del
+  // giorno, anche mentre si aspetta.
+  const inOrizzontaleOra = document.body.classList.contains('cv-layout-orizzontale');
+  if(risultatoRecente && (!inOrizzontaleOra || !chatAttivaAdessoCondomino())){
     applicaVisibilitaElementiCondomino('sondaggio');
     __cvUltimoPuntoRenderizzato = null;
     el.setAttribute('data-vista', 'risultato-recente');
@@ -5986,6 +6027,12 @@ function renderCvPollArea_interno(){
   el.setAttribute('data-vista', 'normale');
   __cvUltimoPuntoRenderizzato = null;
 
+  el.innerHTML = costruisciOdgEChiCeCondomino(assembleaCorrente, b);
+}
+// Estratta a parte: la stessa identica costruzione serve sia nella vista normale sia — in
+// layout orizzontale, dopo aver votato — insieme al piccolo avviso "hai votato", quando il
+// sondaggio si restringe invece di restare a schermo pieno.
+function costruisciOdgEChiCeCondomino(assembleaCorrente, b){
   const odgHtml = (assembleaCorrente.odg||[]).map((p,i)=>{
     const storico = p.storicoSondaggi||[];
     const risultatiHtml = storico.map(s=>costruisciRisultatoSondaggioPerPunto(s, currentCondomino)).join('');
@@ -5994,9 +6041,7 @@ function renderCvPollArea_interno(){
       ${risultatiHtml}
     </div>`;
   }).join('');
-
-  el.innerHTML =
-    `<div class="assist-panel"><h3>📋 Ordine del giorno</h3><div class="cv-odg-lista">${odgHtml || '<p class="muted" style="color:#A39C88;">Nessun punto ancora inserito.</p>'}</div></div>` +
+  return `<div class="assist-panel"><h3>📋 Ordine del giorno</h3><div class="cv-odg-lista">${odgHtml || '<p class="muted" style="color:#A39C88;">Nessun punto ancora inserito.</p>'}</div></div>` +
     costruisciSezionePresenti(assembleaCorrente, b);
 }
 function selezionaOpzioneCondomino(optionId){
