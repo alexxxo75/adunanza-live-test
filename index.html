@@ -507,10 +507,10 @@
   .cv-esito-riga{ margin-bottom:12px; }
   .cv-esito-riga .etichetta{ display:flex; justify-content:space-between; align-items:center; font-size:13.5px; font-weight:600; margin-bottom:4px; color:#F2F0EC; }
   .cv-esito-riga .etichetta .cv-esito-dati{ font-family:var(--font-mono); font-size:12px; font-weight:800; color:#C4BCA5; }
-  .cv-esito-vincitore{ color:#5FBE85 !important; }
+  .cv-esito-vincitore{ color:var(--sage,#3E7A54) !important; }
   .cv-esito-barra-sfondo{ background:#8C7D57; border-radius:6px; height:16px; overflow:hidden; }
   .cv-esito-barra-riempita{ background:#d49200; height:100%; border-radius:6px 0 0 6px; }
-  .cv-esito-barra-riempita.cv-esito-vincitore-barra{ background:#5FBE85; }
+  .cv-esito-barra-riempita.cv-esito-vincitore-barra{ background:var(--sage,#3E7A54); }
   .cv-esito-riga.mia .cv-esito-barra-riempita{ background:var(--sage,#3E7A54); }
   .cv-esito-riga.mia .etichetta{ color:var(--sage,#3E7A54); }
   .cv-video{background:#000;border-radius:6px;overflow:hidden;aspect-ratio:16/10;margin-bottom:16px;}
@@ -546,7 +546,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 12/08/2026 alle 12:55">LT-92</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 12/08/2026 alle 20:46">LT-93</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1069,7 +1069,7 @@
               <div class="section-title">Chat</div>
               <div class="chat-log" id="admin-chat-log" style="max-height:320px;"></div>
               <div class="row-inline" style="align-items:center;flex-wrap:nowrap;">
-                <input id="admin-chat-input" placeholder="Scrivi un messaggio..." style="flex:1;min-width:0;width:auto;">
+                <input id="admin-chat-input" placeholder="Scrivi un messaggio..." style="flex:1;min-width:0;width:auto;" onkeydown="if(event.key==='Enter'){event.preventDefault();sendChatMessage('Amministratore','admin-chat-input');}">
                 <button class="btn small" style="flex:0 0 auto;min-width:0;padding:4px 10px;font-size:11px;white-space:nowrap;" onclick="sendChatMessage('Amministratore','admin-chat-input')">Invia</button>
               </div>
             </div>
@@ -5477,8 +5477,9 @@ function renderChat(elId){
   const arr = chatArr();
   if(arr.length===0){
     // Nella pagina del cellulare, senza messaggi il riquadro resta piccolo (circa due righe
-    // vuote) invece di mostrare la scritta "Nessun messaggio", che occupava spazio inutile.
-    el.innerHTML = elId==='cv-chat-log' ? '<br><br>' : '<span class="muted">Nessun messaggio.</span>';
+    // vuote). In Adunanza invece resta più grande (8 righe vuote), per non far sembrare la
+    // chat "sparita" quando ancora nessuno ha scritto.
+    el.innerHTML = elId==='cv-chat-log' ? '<br><br>' : '<br><br><br><br><br><br><br><br>';
     return;
   }
   el.innerHTML = arr.map(m=>`<div class="chat-msg ${m.autore==='Amministratore'?'admin':''}"><b>${m.autore}</b> <span class="muted">${m.ora}</span><br>${m.testo}</div>`).join('');
