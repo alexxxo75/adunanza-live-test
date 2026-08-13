@@ -546,7 +546,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 12/08/2026 alle 21:15">LT-94</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 13/08/2026 alle 11:11">LT-95</span></div>
   </div>
 
   <!-- MAIN -->
@@ -4859,13 +4859,26 @@ function cambiaTabellaSondaggioAttivo(nuovaTabella){
   salvaStato();
   toast('Tabella millesimale del sondaggio aggiornata a "'+nuovaTabella+'".');
 }
+let __ultimoPollOdgIdMostratoAdmin = null; // per accorgerci se è un sondaggio appena aperto/riaperto, o solo un aggiornamento di uno già visibile
 function showActivePoll(){
+  const eSondaggioAppenaAperto = (activePollOdgId !== __ultimoPollOdgIdMostratoAdmin);
+  __ultimoPollOdgIdMostratoAdmin = activePollOdgId;
   const slot=document.getElementById('odg-live-slot-'+activePollOdgId);
   const liveNode=document.getElementById('active-poll');
   if(slot && liveNode && liveNode.parentNode!==slot) slot.appendChild(liveNode);
+  document.getElementById('active-poll').classList.remove('hidden');
+  // Se l'amministratore ha il cursore in questo momento da qualche parte dentro al riquadro
+  // del sondaggio (domanda, opzioni, o qualsiasi altro campo lì dentro), NON ricostruiamo
+  // nient'altro qui: anche se non chiamassimo mai scrollTo noi stessi, il solo fatto di
+  // ricreare contenuto vicino al campo attivo fa sì che il browser scorra da solo per
+  // "seguirlo" — impossibile lavorarci sopra in pace. I dati restano comunque aggiornati (li
+  // scrivono direttamente i gestori oninput dei singoli campi): appena l'amministratore clicca
+  // altrove, la prossima sincronizzazione naturale mostrerà tutto allineato.
+  if(liveNode && liveNode.contains(document.activeElement) && document.activeElement.tagName!=='BODY'){
+    return;
+  }
   document.getElementById('active-poll-title-input').value=activePoll.question;
   renderSelettoreTabellaSondaggio();
-  document.getElementById('active-poll').classList.remove('hidden');
   renderActivePollOptionsEdit();
   renderUnanimeButtons();
   renderPollResults();
@@ -4873,18 +4886,23 @@ function showActivePoll(){
   renderCvPollArea();
   renderFloatingActivePoll();
   // Il sondaggio compare sotto il punto O.d.G. corrispondente, che può trovarsi ben più in
-  // basso nella pagina (dopo Video&Chat e Appello): scorriamo fino a renderlo visibile subito.
+  // basso nella pagina (dopo Video&Chat e Appello): scorriamo fino a renderlo visibile SOLO
+  // quando è appena stato aperto o riaperto — non ad ogni piccolo aggiornamento successivo di
+  // uno già visibile, altrimenti risulterebbe impossibile lavorarci sopra in pace (es.
+  // correggere la domanda o le opzioni mentre arrivano voti).
   // Il piccolo ritardo lascia al browser il tempo di calcolare le posizioni reali dopo che il
   // blocco è stato appena ricreato/spostato nel DOM, altrimenti lo scroll può risultare impreciso.
-  setTimeout(()=>{
-    const el=document.getElementById('active-poll');
-    if(el){
-      el.scrollIntoView({behavior:'smooth', block:'center'});
-      el.classList.remove('poll-just-opened');
-      void el.offsetWidth; // forza il reflow così l'animazione riparte anche se già usata prima
-      el.classList.add('poll-just-opened');
-    }
-  }, 60);
+  if(eSondaggioAppenaAperto){
+    setTimeout(()=>{
+      const el=document.getElementById('active-poll');
+      if(el){
+        el.scrollIntoView({behavior:'smooth', block:'center'});
+        el.classList.remove('poll-just-opened');
+        void el.offsetWidth; // forza il reflow così l'animazione riparte anche se già usata prima
+        el.classList.add('poll-just-opened');
+      }
+    }, 60);
+  }
 }
 // Tiene sincronizzata la configurazione "preset" del punto O.d.G. (domanda e opzioni) con
 // eventuali modifiche fatte al sondaggio mentre è aperto (domanda cambiata, opzioni aggiunte,
@@ -4908,6 +4926,11 @@ function modificaDomandaSondaggio(v){
 }
 function renderActivePollOptionsEdit(){
   const el=document.getElementById('active-poll-options-edit');
+  // Se l'amministratore ha il cursore dentro uno di questi campi in questo momento, non
+  // ricostruiamo tutto: perderebbe il focus e, soprattutto, qualsiasi lettera appena scritta
+  // che un aggiornamento arrivato nel frattempo (es. un voto in arrivo) non ha ancora fatto in
+  // tempo a salvare sui dati.
+  if(el.contains(document.activeElement)) return;
   el.innerHTML='';
   activePoll.options.forEach(o=>{
     const row=document.createElement('div');
@@ -5305,6 +5328,7 @@ function closePoll(){
     activePollOdgId=null;
   });
   document.getElementById('active-poll').classList.add('hidden');
+  __ultimoPollOdgIdMostratoAdmin = null;
   renderOdgBlocks();
   renderFloatingActivePoll();
   toast('Sondaggio chiuso. Il risultato resta visibile nel blocco e sarà incluso nel verbale.');
@@ -6049,8 +6073,11 @@ function renderCvPollArea_interno(){
     // riportiamo subito qui in cima, per essere sicuri che lo veda — solo la prima volta che
     // compare questo specifico sondaggio, non ad ogni piccolo ridisegno mentre si sta votando.
     // In orizzontale questo non serve: video e pulsanti restano dove sono già, non c'è nulla
-    // da cui "tornare in cima".
-    if(!inOrizzontale) window.scrollTo({top:0, behavior:'smooth'});
+    // da cui "tornare in cima". IMPORTANTE: questa funzione viene richiamata anche in
+    // sottofondo per tenere aggiornata l'anteprima quando è l'AMMINISTRATORE ad avere il
+    // sondaggio aperto (su una pagina diversa) — in quel caso non dobbiamo assolutamente
+    // muovere la sua finestra reale, che non c'entra nulla con questa vista.
+    if(!inOrizzontale && currentPage==='vista-condomino') window.scrollTo({top:0, behavior:'smooth'});
     if(currentCondomino && !activePoll.voted.has(currentCondomino.id) && recordAttivo(assembleaCorrente, currentCondomino.id)){
       sceltaVotoCorrente = null;
       collegaInterazioneSondaggioAttivo();
