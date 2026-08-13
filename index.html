@@ -546,7 +546,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 13/08/2026 alle 11:11">LT-95</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 13/08/2026 alle 12:14">LT-96</span></div>
   </div>
 
   <!-- MAIN -->
@@ -4671,6 +4671,15 @@ function renderOdgBlocks(){
   const assemblea=getAssembleaInCorso(b);
   const container=document.getElementById('odg-blocks-container');
   if(!container) return;
+  // Se l'amministratore ha il cursore in questo momento dentro al riquadro del sondaggio
+  // attivo (domanda, opzioni, o altro campo lì dentro), non tocchiamo proprio nulla qui:
+  // persino lo spostamento "protettivo" del riquadro (fatto normalmente per evitare che venga
+  // distrutto insieme al resto) comporta comunque un riposizionamento nel documento, che può
+  // far perdere il focus al campo su cui si sta scrivendo in quel preciso istante.
+  const liveNodeInUso = document.getElementById('active-poll');
+  if(liveNodeInUso && liveNodeInUso.contains(document.activeElement) && document.activeElement.tagName!=='BODY'){
+    return;
+  }
   if(!assemblea){ container.innerHTML=''; return; }
   if(assemblea.odg.length===0){
     container.innerHTML = '<div class="empty">Nessun punto all\'ordine del giorno. Aggiungili dalla pagina "Crea assemblea".</div>';
@@ -4863,20 +4872,21 @@ let __ultimoPollOdgIdMostratoAdmin = null; // per accorgerci se è un sondaggio 
 function showActivePoll(){
   const eSondaggioAppenaAperto = (activePollOdgId !== __ultimoPollOdgIdMostratoAdmin);
   __ultimoPollOdgIdMostratoAdmin = activePollOdgId;
-  const slot=document.getElementById('odg-live-slot-'+activePollOdgId);
   const liveNode=document.getElementById('active-poll');
-  if(slot && liveNode && liveNode.parentNode!==slot) slot.appendChild(liveNode);
-  document.getElementById('active-poll').classList.remove('hidden');
   // Se l'amministratore ha il cursore in questo momento da qualche parte dentro al riquadro
-  // del sondaggio (domanda, opzioni, o qualsiasi altro campo lì dentro), NON ricostruiamo
-  // nient'altro qui: anche se non chiamassimo mai scrollTo noi stessi, il solo fatto di
-  // ricreare contenuto vicino al campo attivo fa sì che il browser scorra da solo per
-  // "seguirlo" — impossibile lavorarci sopra in pace. I dati restano comunque aggiornati (li
-  // scrivono direttamente i gestori oninput dei singoli campi): appena l'amministratore clicca
-  // altrove, la prossima sincronizzazione naturale mostrerà tutto allineato.
+  // del sondaggio (domanda, opzioni, o qualsiasi altro campo lì dentro), fermiamoci SUBITO,
+  // prima di qualunque altra cosa — persino prima di spostare il riquadro nel suo "slot"
+  // giusto: anche solo riposizionare un elemento nel documento (per quanto innocuo sembri) può
+  // far perdere il focus al campo su cui si sta scrivendo in quel preciso istante. I dati
+  // restano comunque aggiornati (li scrivono direttamente i gestori oninput dei singoli
+  // campi): appena l'amministratore clicca altrove, la prossima sincronizzazione naturale
+  // rimette tutto al suo posto.
   if(liveNode && liveNode.contains(document.activeElement) && document.activeElement.tagName!=='BODY'){
     return;
   }
+  const slot=document.getElementById('odg-live-slot-'+activePollOdgId);
+  if(slot && liveNode && liveNode.parentNode!==slot) slot.appendChild(liveNode);
+  document.getElementById('active-poll').classList.remove('hidden');
   document.getElementById('active-poll-title-input').value=activePoll.question;
   renderSelettoreTabellaSondaggio();
   renderActivePollOptionsEdit();
