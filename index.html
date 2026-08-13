@@ -546,7 +546,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 13/08/2026 alle 12:14">LT-96</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 13/08/2026 alle 20:27">LT-97</span></div>
   </div>
 
   <!-- MAIN -->
@@ -4457,6 +4457,21 @@ function salvaAssembleaInElenco(){
   if(a.id==null){
     a.id = generaIdAssembleaUnivoco();
     b.assemblee.push(a);
+  }else{
+    // Anche se ha già un identificativo, potrebbe essere rimasta "orfana": un aggiornamento
+    // arrivato nel frattempo dal database condiviso (anche solo l'eco di un nostro stesso
+    // salvataggio precedente) sostituisce SEMPRE l'intero elenco delle assemblee con oggetti
+    // nuovi — anche se l'id corrisponde, quello nell'elenco NON è più lo stesso oggetto su cui
+    // stiamo lavorando qui. Senza questo controllo, ogni modifica fatta da quel momento in poi
+    // (data, orario, ordine del giorno, sondaggi, tipo di convocazione...) andrebbe persa in
+    // silenzio al momento del salvataggio: si salverebbe la versione vecchia rimasta
+    // nell'elenco, non quella su cui si sta davvero lavorando.
+    const indice = b.assemblee.findIndex(x=>x.id===a.id);
+    if(indice===-1){
+      b.assemblee.push(a);
+    }else if(b.assemblee[indice]!==a){
+      b.assemblee[indice] = a;
+    }
   }
   return a;
 }
