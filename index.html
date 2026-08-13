@@ -546,7 +546,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 13/08/2026 alle 20:27">LT-97</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 13/08/2026 alle 21:10">LT-98</span></div>
   </div>
 
   <!-- MAIN -->
@@ -5646,16 +5646,39 @@ function renderVistaCondomino(){
     return;
   }
   const b = getActiveBuilding();
-  const assembleaCorrente = b ? getAssembleaContestualizzataCondomino(b) : null;
+  let assembleaCorrente = b ? getAssembleaContestualizzataCondomino(b) : null;
+  // Se l'assemblea a cui questo dispositivo è collegato è appena stata conclusa E fa parte di
+  // una catena (assemblea concatenata successiva già avviata), seguiamo automaticamente la
+  // catena invece di mostrare la schermata "terminata": esattamente come viene promesso
+  // all'amministratore quando termina un'assemblea con una successiva già pronta ("si passerà
+  // subito alla prossima... nella STESSA videochiamata, senza disconnettere nessuno") — quella
+  // promessa vale anche per ogni singolo condòmino collegato con il link della prima, non solo
+  // per l'amministratore stesso.
+  if(assembleaCorrente && assembleaCorrente.stato==='conclusa' && assembleaCorrente.assembleaSuccessivaId){
+    const successiva = (b.assemblee||[]).find(a=>a.id===assembleaCorrente.assembleaSuccessivaId);
+    if(successiva){
+      contestoAssembleaIdCondomino = successiva.id;
+      assembleaCorrente = successiva;
+    }
+  }
   if(assembleaCorrente){ __ultimaAssembleaIdCondomino = assembleaCorrente.id; }
-  // Un'assemblea CONCLUSA ma comunque trovata (perché il link è legato in modo specifico a lei,
-  // indipendentemente da dove l'amministratore sta navigando) va trattata come "terminata" —
-  // non solo il vecchio caso in cui smetteva del tutto di essere "in corso" per il condominio.
-  const assembleaConclusa = (assembleaCorrente && assembleaCorrente.stato==='conclusa')
+  // Stessa logica anche nel caso di riserva (assemblea non più trovata affatto, si usa l'ultima
+  // nota): se quell'ultima nota risulta conclusa ma concatenata, seguiamo la catena allo stesso
+  // modo, invece di bloccarci sulla schermata "terminata".
+  let assembleaConclusa = (assembleaCorrente && assembleaCorrente.stato==='conclusa')
     ? assembleaCorrente
     : ((!assembleaCorrente && b && __ultimaAssembleaIdCondomino)
         ? (b.assemblee||[]).find(a=>a.id===__ultimaAssembleaIdCondomino && a.stato==='conclusa')
         : null);
+  if(assembleaConclusa && assembleaConclusa.assembleaSuccessivaId){
+    const successivaRiserva = (b.assemblee||[]).find(a=>a.id===assembleaConclusa.assembleaSuccessivaId);
+    if(successivaRiserva){
+      contestoAssembleaIdCondomino = successivaRiserva.id;
+      __ultimaAssembleaIdCondomino = successivaRiserva.id;
+      assembleaCorrente = successivaRiserva;
+      assembleaConclusa = null;
+    }
+  }
   if(assembleaConclusa){
     if(schermataRientro) schermataRientro.classList.add('hidden');
     if(schermataTerminata) schermataTerminata.classList.remove('hidden');
