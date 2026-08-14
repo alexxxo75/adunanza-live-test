@@ -300,7 +300,6 @@
 
   .tag-close{cursor:pointer;color:var(--text-soft);margin-left:6px;}
   .list-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:13.5px;}
-  #buildings-grid{background:var(--paper);}
   .building-wrapper{margin-bottom:28px;}
   .building-wrapper:last-child{margin-bottom:0;}
   .building-nome-fuori{font-size:17px;font-weight:700;margin-bottom:7px;padding-left:2px;color:var(--ink);}
@@ -309,6 +308,7 @@
   #ca-assemblee-list:empty, #ca-assemblee-chiuse-list:empty{padding:0;background:transparent;}
   .assemblea-row-card{transition:.12s;}
   .assemblea-row-card:hover{background:rgba(169,130,44,.04);border-color:var(--brass);}
+  .assemblea-conclusa-grigia{background:#E4E1D8;border-color:#C9C2AE;}
   .building-row{padding:16px 18px;border:1px solid #C9C2AE;border-radius:8px;background:#fff;transition:.12s;align-items:flex-start;min-height:82px;box-shadow:0 2px 8px rgba(0,0,0,.06);}
   .building-row:hover{background:rgba(169,130,44,.04);border-color:var(--brass);}
   .list-row:last-child{border-bottom:none;}
@@ -549,7 +549,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 14/08/2026 alle 11:05">LT-103</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 14/08/2026 alle 11:18">LT-104</span></div>
   </div>
 
   <!-- MAIN -->
@@ -607,11 +607,11 @@
       </div>
       <button class="btn brass" style="margin-bottom:18px;" onclick="iniziaCreazioneCondominio()">+ Nuovo condominio</button>
 
-      <div class="card" id="buildings-grid"></div>
+      <div id="buildings-grid"></div>
 
       <div id="condomini-inattivi-wrap" class="hidden" style="margin-top:28px;">
         <div class="section-title">Condomìni inattivi</div>
-        <div class="card" id="buildings-grid-inattivi"></div>
+        <div id="buildings-grid-inattivi"></div>
       </div>
     </div>
 
@@ -3951,7 +3951,7 @@ function renderElencoAssemblee(){
     const promemoriaAttivo = a.stato==='conclusa' && !giaInviato && !a.promemoriaVerbaleNascosto;
     const nascondiPulsanteInvio = a.promemoriaVerbaleNascosto && !giaInviato;
     return `
-    <div class="card assemblea-row-card" style="margin-bottom:14px;background:#E4E1D8;border-color:#C9C2AE;">
+    <div class="card assemblea-row-card assemblea-conclusa-grigia" style="margin-bottom:14px;">
       <div class="list-row" style="border:none;padding:0;">
         <span><b>${a.dataSeconda||'data da definire'}</b> ore ${a.oraSeconda||'--:--'} — <b>${escapeHtml(a.oggetto||'(oggetto non indicato)')}</b> <span class="muted">(${a.tipo})</span> <span class="badge">Conclusa</span></span>
         <span style="display:flex;gap:8px;align-items:center;">
@@ -4692,6 +4692,14 @@ async function completaInvioEmailSingola(condominoId, indirizzo, corpo, salvaAna
     toast(`Email reinviata a ${indirizzo}.`);
     chiudiAnteprimaEmail();
     if(assembleaFresca) renderTabellaRiepilogoInvitati(assembleaFresca, b);
+    // Rete di sicurezza: un secondo ridisegno poco dopo, per coprire l'eventualità che un eco
+    // dal database condiviso arrivi con un piccolo ritardo rispetto a questo invio, dopo che
+    // questo stesso ridisegno è già avvenuto.
+    setTimeout(()=>{
+      const bTardivo = getActiveBuilding();
+      const assembleaTardiva = bTardivo ? bTardivo.assemblee.find(x=>x.id===__anteprimaEmailAssembleaId) : null;
+      if(bTardivo && assembleaTardiva && currentPage==='crea-assemblea') renderTabellaRiepilogoInvitati(assembleaTardiva, bTardivo);
+    }, 800);
   }catch(err){
     toast('Invio non riuscito: '+(err && err.message ? err.message : 'errore sconosciuto') + '. Riprova, o controlla la configurazione del servizio email.');
   }
@@ -7294,6 +7302,14 @@ function rirenderizzaDopoSincronizzazione(){
     segnalaNuoviMessaggiChat();
     renderOdgBlocks();
     if(activePoll){ showActivePoll(); }
+  }
+  if(currentPage==='crea-assemblea' && workingAssembly && workingAssembly.invitiInviati){
+    // Tiene aggiornato il riepilogo invitati (indirizzi email compresi) anche quando il
+    // cambiamento arriva da un aggiornamento del database condiviso — non solo da un'azione
+    // fatta qui stesso — così non serve mai uscire e rientrare dalla pagina per vederlo.
+    const bFresco = getActiveBuilding();
+    const assembleaFresca = bFresco ? bFresco.assemblee.find(x=>x.id===workingAssembly.id) : null;
+    if(assembleaFresca) renderTabellaRiepilogoInvitati(assembleaFresca, bFresco);
   }
   if(currentPage==='vista-condomino'){ renderVistaCondomino(); }
   if(currentPage==='delega-condomino'){ renderPaginaDelegaCondomino(); }
