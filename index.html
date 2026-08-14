@@ -546,7 +546,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 13/08/2026 alle 21:10">LT-98</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 14/08/2026 alle 10:18">LT-99</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1802,6 +1802,15 @@ function getActiveBuilding(){ return buildings.find(b=>b.id===activeBuildingId);
 let draftBuilding = null; // condominio in fase di creazione, non ancora salvato in buildings[]
 function getWorkingBuilding(){ return draftBuilding || getActiveBuilding(); }
 function nomeCompletoCondomino(c){ return c.nome + (c.cognome?(' '+c.cognome):''); }
+// Se per QUESTA assemblea è stata registrata una sostituzione (es. cambio di proprietà tra
+// convocazione e assemblea, scoperto solo in aula), restituisce il nome di chi lo sostituisce;
+// altrimenti il nome del condòmino stesso. Usata ovunque si mostri il nome di un condòmino in
+// un contesto legato a una specifica assemblea (appello, deleghe, voti), così la sostituzione
+// si riflette automaticamente dappertutto, senza doverla gestire in ogni singolo punto.
+function nomeEffettivoCondominoAssemblea(c, assemblea){
+  const sostituzione = assemblea && assemblea.sostituzioniPartecipanti && assemblea.sostituzioniPartecipanti[c.id];
+  return sostituzione ? sostituzione.nomeCompleto : nomeCompletoCondomino(c);
+}
 
 function populatePreviewCondominoSelect(){
   const sel=document.getElementById('preview-condomino-select');
@@ -3111,6 +3120,47 @@ function annullaDelega(deleganteId){
   renderAppello();
   salvaStato();
 }
+// Sostituzione di un partecipante SOLO per questa assemblea (es. cambio di proprietà tra
+// convocazione e assemblea, scoperto solo in aula): non tocca l'anagrafica permanente, usa
+// sempre automaticamente gli stessi millesimi del condòmino originale (stessa unità, stesso
+// peso) — cambia solo il nome mostrato per questa specifica assemblea.
+function apriSostituzionePartecipante(condominoId){
+  const b = getActiveBuilding();
+  const assemblea = getAssembleaInCorso(b);
+  if(!assemblea) return;
+  const c = b.condomini.find(x=>x.id===condominoId);
+  if(!c) return;
+  const esistente = assemblea.sostituzioniPartecipanti && assemblea.sostituzioniPartecipanti[condominoId];
+  const inserito = prompt(
+    `Sostituire "${nomeCompletoCondomino(c)}" per questa assemblea (es. cambio di proprietà tra convocazione e assemblea).\n\n`+
+    `Scrivi nome e cognome del sostituto — userà automaticamente gli stessi millesimi di "${nomeCompletoCondomino(c)}".\n\n`+
+    `Se il sostituto è già un condòmino di questo edificio, scrivi il suo nome esatto: verrà riconosciuto e collegato in automatico.\n\n`+
+    `Lascia vuoto per annullare.`,
+    esistente ? esistente.nomeCompleto : ''
+  );
+  if(inserito==null || !inserito.trim()) return;
+  const nomeInserito = inserito.trim();
+  // Riconoscimento automatico di un condòmino già esistente con lo stesso nome: se trovato,
+  // chiediamo conferma prima di collegarlo, così è sempre chiaro se si sta scrivendo un nome
+  // nuovo o richiamando qualcuno già in anagrafica.
+  const corrispondenza = b.condomini.find(x=>x.id!==condominoId && nomeCompletoCondomino(x).toLowerCase()===nomeInserito.toLowerCase());
+  let condominoIdRiferimento = null;
+  if(corrispondenza){
+    const conferma = confirm(`"${nomeInserito}" corrisponde a un condòmino già esistente in questo edificio (${nomeCompletoCondomino(corrispondenza)}).\n\nVuoi collegarlo come sostituto? (Premi Annulla per usare comunque solo il nome scritto, senza collegarlo all'anagrafica)`);
+    if(conferma) condominoIdRiferimento = corrispondenza.id;
+  }
+  if(!assemblea.sostituzioniPartecipanti) assemblea.sostituzioniPartecipanti = {};
+  assemblea.sostituzioniPartecipanti[condominoId] = { nomeCompleto: nomeInserito, condominoIdRiferimento };
+  renderAppello();
+  salvaStato();
+}
+function annullaSostituzionePartecipante(condominoId){
+  const assemblea = getAssembleaInCorso(getActiveBuilding());
+  if(!assemblea || !assemblea.sostituzioniPartecipanti) return;
+  delete assemblea.sostituzioniPartecipanti[condominoId];
+  renderAppello();
+  salvaStato();
+}
 
 // ---------- PAGINA SELF-SERVICE: DELEGA DA PARTE DEL CONDOMINO ----------
 // Raggiunta tramite il link personale nell'email di convocazione (token + id assemblea).
@@ -3379,7 +3429,7 @@ function iniziaAssemblea(){
 function nomePersonaAppello(building, assemblea, id){
   if(typeof id === 'number'){
     const c = building.condomini.find(x=>x.id===id);
-    return c ? nomeCompletoCondomino(c) : '⚠️ condòmino non trovato';
+    return c ? nomeEffettivoCondominoAssemblea(c, assemblea) : '⚠️ condòmino non trovato';
   }
   const est = (assemblea.deleghiEsterni||[]).find(x=>x.id===id);
   return est ? est.nome+' (esterno)' : '⚠️ persona non trovata — chiedi al condòmino di rifare la delega';
@@ -3511,7 +3561,10 @@ function renderAppello(){
       : collegatoIdAttivo ? 'arancio'
       : 'grigio';
 
-    const tdNome=document.createElement('td'); tdNome.className='appello-nome-cella'; tdNome.innerHTML=semaforoAppello(semStato)+nomeCompletoCondomino(c); tr.appendChild(tdNome);
+    const sostituzioneRiga = assemblea.sostituzioniPartecipanti && assemblea.sostituzioniPartecipanti[c.id];
+    const tdNome=document.createElement('td'); tdNome.className='appello-nome-cella';
+    tdNome.innerHTML=semaforoAppello(semStato)+`<span class="nome-cliccabile-sostituzione" title="Clicca per sostituire questo partecipante per questa assemblea" onclick="apriSostituzionePartecipante(${c.id})" style="cursor:pointer;border-bottom:1px dotted var(--text-soft);">${nomeEffettivoCondominoAssemblea(c, assemblea)}</span>`;
+    tr.appendChild(tdNome);
 
     const rappresentatoRiga = convocatoRappresentato(c, assemblea, b);
     const tdMill=document.createElement('td');
@@ -3608,6 +3661,24 @@ function renderAppello(){
     tdAz.appendChild(azioniRow);
     tr.appendChild(tdAz);
     tbody.appendChild(tr);
+
+    // Se è stata registrata una sostituzione per questo condòmino (cambio di proprietà tra
+    // convocazione e assemblea, es. scoperto solo in aula), mostriamo subito sotto una riga di
+    // nota: il nome originale barrato, e la possibilità di annullare la sostituzione se fatta
+    // per errore. La riga principale sopra mostra già il nome del sostituto (con lo stesso peso
+    // millesimale e le stesse azioni del condòmino originale, dato che è la stessa unità).
+    if(sostituzioneRiga){
+      const trNota = document.createElement('tr');
+      trNota.style.background = 'var(--paper)';
+      const tdNota = document.createElement('td');
+      tdNota.colSpan = 4;
+      tdNota.style.padding = '4px 10px 4px 34px';
+      tdNota.style.fontSize = '12px';
+      tdNota.innerHTML = `<span class="muted" style="text-decoration:line-through;">${nomeCompletoCondomino(c)}</span> <span class="muted">— sostituito/a per questa assemblea</span> ` +
+        `<button class="btn small secondary" style="padding:2px 8px;font-size:11px;margin-left:8px;" onclick="annullaSostituzionePartecipante(${c.id})">Annulla sostituzione</button>`;
+      trNota.appendChild(tdNota);
+      tbody.appendChild(trNota);
+    }
 
     // Se questo condòmino ha delegato una persona esterna, la mostriamo subito sotto, indentata
     // — non più in una lista separata in fondo alla tabella — con la propria riga per
@@ -5155,7 +5226,7 @@ function confermaSbloccoVotoDelegante(){
 // tipo "ext-1"): usata ovunque va mostrato "Delega a ...".
 function nomeDelegato(delegatoId, building, assemblea){
   const delegato = building.condomini.find(x=>x.id===delegatoId);
-  if(delegato) return nomeCompletoCondomino(delegato);
+  if(delegato) return nomeEffettivoCondominoAssemblea(delegato, assemblea);
   const esterno = (assemblea.deleghiEsterni||[]).find(e=>e.id===delegatoId);
   return esterno ? esterno.nome+' (esterno)' : '—';
 }
@@ -5208,7 +5279,7 @@ function renderTabellaVotiSondaggio(){
     if(delegatoId) tr.style.background = '#F1EFE9'; // riga chiara: presente per delega
     if(eUscito) tr.style.background = '#DCD8CC'; // riga più scura: uscito, voto da registrare solo se comunicato a voce
 
-    const tdNome=document.createElement('td'); tdNome.textContent=nomeCompletoCondomino(c); tr.appendChild(tdNome);
+    const tdNome=document.createElement('td'); tdNome.textContent=nomeEffettivoCondominoAssemblea(c, assemblea); tr.appendChild(tdNome);
 
     const tdMillVoto=document.createElement('td');
     tdMillVoto.innerHTML = `<b>${pesoVoto(c,b,assemblea)}</b>`;
