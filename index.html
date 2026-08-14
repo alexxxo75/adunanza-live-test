@@ -308,8 +308,8 @@
   #ca-assemblee-list:empty, #ca-assemblee-chiuse-list:empty{padding:0;background:transparent;}
   .assemblea-row-card{transition:.12s;}
   .assemblea-row-card:hover{background:rgba(169,130,44,.04);border-color:var(--brass);}
-  .assemblea-conclusa-grigia{background:#E4E1D8;border-color:#C9C2AE;}
   .building-row{padding:16px 18px;border:1px solid #C9C2AE;border-radius:8px;background:#fff;transition:.12s;align-items:flex-start;min-height:82px;box-shadow:0 2px 8px rgba(0,0,0,.06);}
+  .assemblea-conclusa-grigia{background:#E4E1D8;border-color:#C9C2AE;}
   .building-row:hover{background:rgba(169,130,44,.04);border-color:var(--brass);}
   .list-row:last-child{border-bottom:none;}
   .building-row.list-row:last-child{border-bottom:1px solid var(--line);}
@@ -549,7 +549,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 14/08/2026 alle 11:18">LT-104</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 14/08/2026 alle 11:27">LT-105</span></div>
   </div>
 
   <!-- MAIN -->
@@ -2619,13 +2619,11 @@ function renderCondominiElenco(){
     wrapper.className='building-wrapper';
     const nomeFuori=document.createElement('div');
     nomeFuori.className='building-nome-fuori';
-    nomeFuori.style.opacity='.65';
     nomeFuori.textContent=b.nome;
     wrapper.appendChild(nomeFuori);
 
     const row=document.createElement('div');
-    row.className='list-row building-row';
-    row.style.opacity='.65';
+    row.className='list-row building-row assemblea-conclusa-grigia';
     row.innerHTML = `<span><span class="badge pending">Inattivo</span> <span class="muted">— ${(b.assemblee||[]).filter(a=>a.stato==='conclusa').length} assemblee archiviate, solo consultazione</span></span>
       <span style="display:flex;gap:6px;">
         <button class="btn small secondary" onclick="vaiCondominioDaLista(${b.id},'registrazioni')">Archivio</button>
