@@ -546,7 +546,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 14/08/2026 alle 10:18">LT-99</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 14/08/2026 alle 10:35">LT-101</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1012,13 +1012,11 @@
           <button class="btn" style="background:var(--brick);border-color:var(--brick);" onclick="eliminaAssembleaCorrente()">🗑 Elimina assemblea</button>
         </div>
 
-        <div id="email-previews" style="display:flex;flex-direction:column;gap:14px;"></div>
-
         <div class="card assemblea-row-card" id="ca-tabella-riepilogo-wrap" style="margin:18px 0;">
           <h3 style="margin-bottom:12px;">📋 Riepilogo invitati</h3>
           <div style="overflow-x:auto;">
             <table id="ca-tabella-riepilogo">
-              <thead><tr><th>Cognome</th><th>Nome</th><th>Email</th><th>Indirizzo di accesso all'assemblea</th></tr></thead>
+              <thead><tr><th>Cognome</th><th>Nome</th><th></th><th>Email</th><th>Indirizzo di accesso all'assemblea</th></tr></thead>
               <tbody id="ca-tabella-riepilogo-body"></tbody>
             </table>
           </div>
@@ -1414,6 +1412,22 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
     <div class="modal-actions">
       <button class="btn secondary" onclick="chiudiModalSbloccoDelega()">Annulla</button>
       <button class="btn brass" onclick="confermaSbloccoVotoDelegante()">Sì, sblocca il voto (5 secondi)</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="modal-anteprima-email">
+  <div class="modal-box" style="max-width:640px;width:100%;max-height:88vh;overflow-y:auto;">
+    <h3 style="margin-bottom:4px;">✉ Anteprima email</h3>
+    <p class="muted" style="font-size:12px;margin-bottom:14px;">Verrà inviata davvero dal Gmail collegato a EmailJS. Puoi correggere l'indirizzo o il testo prima di reinviarla.</p>
+    <label class="muted" style="font-size:12px;display:block;margin-bottom:3px;">Indirizzo destinatario</label>
+    <input type="email" id="anteprima-email-indirizzo" style="margin-bottom:12px;">
+    <p class="muted" style="font-size:12px;margin-bottom:3px;">Oggetto: <b id="anteprima-email-oggetto" style="color:var(--ink);"></b></p>
+    <label class="muted" style="font-size:12px;display:block;margin-bottom:3px;">Testo dell'email (modificabile)</label>
+    <textarea id="anteprima-email-corpo" style="width:100%;min-height:280px;font-family:var(--font-body);font-size:13px;padding:10px;border:1px solid var(--line);border-radius:4px;resize:vertical;"></textarea>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="chiudiAnteprimaEmail()">Chiudi</button>
+      <button class="btn brass" onclick="reinviaEmailDaAnteprima()">✉ Reinvia questa email</button>
     </div>
   </div>
 </div>
@@ -3134,8 +3148,7 @@ function apriSostituzionePartecipante(condominoId){
   const inserito = prompt(
     `Sostituire "${nomeCompletoCondomino(c)}" per questa assemblea (es. cambio di proprietà tra convocazione e assemblea).\n\n`+
     `Scrivi nome e cognome del sostituto — userà automaticamente gli stessi millesimi di "${nomeCompletoCondomino(c)}".\n\n`+
-    `Se il sostituto è già un condòmino di questo edificio, scrivi il suo nome esatto: verrà riconosciuto e collegato in automatico.\n\n`+
-    `Lascia vuoto per annullare.`,
+    `Se il sostituto è già un condòmino di questo edificio, scrivi il suo nome esatto: verrà riconosciuto e collegato in automatico.`,
     esistente ? esistente.nomeCompleto : ''
   );
   if(inserito==null || !inserito.trim()) return;
@@ -4067,7 +4080,8 @@ function aprireModuloAssemblea(esistente){
   if(a.invitiInviati){
     renderAnteprimeEmailConvocazione(a, getActiveBuilding());
   }else{
-    document.getElementById('email-previews').innerHTML='';
+    const corpoTabella = document.getElementById('ca-tabella-riepilogo-body');
+    if(corpoTabella) corpoTabella.innerHTML='';
   }
 
   ['ca-oggetto','ca-tipo','ca-data-prima','ca-ora-prima','ca-data-seconda','ca-ora-seconda','ca-testo'].forEach(id=>{
@@ -4560,20 +4574,6 @@ function salvaSenzaInviare(){
   tornaElencoAssemblee();
 }
 function renderAnteprimeEmailConvocazione(a, b){
-  const box=document.getElementById('email-previews');
-  if(!box) return;
-  box.innerHTML='';
-  const convocati = a.convocati.selezionati.map(id=>b.condomini.find(c=>c.id===id)).filter(Boolean);
-  if(convocati.length===0) return;
-  convocati.forEach(c=>{
-    const corpo = costruisciEmail(c, a, b);
-    const div=document.createElement('div');
-    div.className='email-preview';
-    div.innerHTML=`
-      <div class="email-head">Anteprima — verrà inviata davvero dal Gmail collegato a EmailJS (non da questo indirizzo dimostrativo)<br>A: <b>${c.email}</b><br>Oggetto: <b>${escapeHtml(a.oggetto)}</b></div>
-      <div class="email-body">${corpo}</div>`;
-    box.appendChild(div);
-  });
   renderTabellaRiepilogoInvitati(a, b);
 }
 function renderTabellaRiepilogoInvitati(a, b){
@@ -4581,7 +4581,7 @@ function renderTabellaRiepilogoInvitati(a, b){
   if(!tbody) return;
   const convocati = a.convocati.selezionati.map(id=>b.condomini.find(c=>c.id===id)).filter(Boolean);
   if(convocati.length===0){
-    tbody.innerHTML = '<tr><td colspan="4" class="muted">Nessun invitato selezionato.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="muted">Nessun invitato selezionato.</td></tr>';
     return;
   }
   const baseUrl = window.location.origin + window.location.pathname;
@@ -4592,8 +4592,56 @@ function renderTabellaRiepilogoInvitati(a, b){
     const cellaLink = link
       ? `<span style="font-family:var(--font-mono);font-size:12px;word-break:break-all;">${link}</span>`
       : '<span class="muted">— (assemblea solo in presenza)</span>';
-    return `<tr><td>${escapeHtml(c.cognome||'')}</td><td>${escapeHtml(c.nome||'')}</td><td>${escapeHtml(c.email||'')}</td><td>${cellaLink}</td></tr>`;
+    const cellaBusta = `<span onclick="apriAnteprimaEmailSingola(${c.id})" title="Vedi e modifica l'email di questo invitato" style="cursor:pointer;font-size:17px;" role="button">✉️</span>`;
+    return `<tr><td>${escapeHtml(c.cognome||'')}</td><td>${escapeHtml(c.nome||'')}</td><td style="text-align:center;">${cellaBusta}</td><td>${escapeHtml(c.email||'')}</td><td>${cellaLink}</td></tr>`;
   }).join('');
+}
+// ---------- Anteprima e reinvio di una singola email di convocazione ----------
+let __anteprimaEmailCondominoId = null;
+function apriAnteprimaEmailSingola(condominoId){
+  const b = getActiveBuilding();
+  const a = workingAssembly || getAssembleaInCorso(b);
+  const c = b.condomini.find(x=>x.id===condominoId);
+  if(!a || !c) return;
+  __anteprimaEmailCondominoId = condominoId;
+  document.getElementById('anteprima-email-indirizzo').value = c.email||'';
+  document.getElementById('anteprima-email-oggetto').textContent = a.oggetto||'(nessun oggetto impostato)';
+  document.getElementById('anteprima-email-corpo').value = costruisciEmail(c, a, b);
+  document.getElementById('modal-anteprima-email').classList.remove('hidden');
+}
+function chiudiAnteprimaEmail(){
+  document.getElementById('modal-anteprima-email').classList.add('hidden');
+  __anteprimaEmailCondominoId = null;
+}
+async function reinviaEmailDaAnteprima(){
+  if(__anteprimaEmailCondominoId==null) return;
+  const b = getActiveBuilding();
+  const a = workingAssembly || getAssembleaInCorso(b);
+  const c = b.condomini.find(x=>x.id===__anteprimaEmailCondominoId);
+  if(!a || !c) return;
+  const nuovoIndirizzo = document.getElementById('anteprima-email-indirizzo').value.trim();
+  const corpoModificato = document.getElementById('anteprima-email-corpo').value;
+  if(!nuovoIndirizzo){ toast('Inserisci un indirizzo email valido prima di reinviare.'); return; }
+
+  // Se l'indirizzo è stato corretto rispetto a quello registrato, chiediamo se correggere anche
+  // l'anagrafica per sempre, o se vale solo per questo invio — l'amministratore decide di volta
+  // in volta, non lo facciamo mai in automatico.
+  if(nuovoIndirizzo !== (c.email||'')){
+    const correggiAnagrafica = confirm(`Hai cambiato l'indirizzo email (era "${c.email||'(vuoto)'}", ora "${nuovoIndirizzo}").\n\nVuoi correggerlo anche in anagrafica per questo condòmino, così resterà così anche per il futuro?\n\n(Premi Annulla per usarlo solo per questo invio, senza toccare i suoi dati permanenti)`);
+    if(correggiAnagrafica){
+      c.email = nuovoIndirizzo;
+      salvaStato();
+    }
+  }
+
+  try{
+    await inviaEmailVeraTramiteEmailJS({email:nuovoIndirizzo}, a.oggetto, corpoModificato);
+    toast(`Email reinviata a ${nuovoIndirizzo}.`);
+    chiudiAnteprimaEmail();
+    renderTabellaRiepilogoInvitati(a, b);
+  }catch(err){
+    toast('Invio non riuscito: '+(err && err.message ? err.message : 'errore sconosciuto') + '. Riprova, o controlla la configurazione del servizio email.');
+  }
 }
 // Invio VERO di una singola email, tramite EmailJS collegato al Gmail dedicato di Alessandro.
 // I link restano cliccabili anche nell'email reale (sono HTML), anche se non avranno lo stesso
