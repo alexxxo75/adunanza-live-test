@@ -301,12 +301,15 @@
   .tag-close{cursor:pointer;color:var(--text-soft);margin-left:6px;}
   .list-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:13.5px;}
   #buildings-grid{background:var(--paper);}
+  .building-wrapper{margin-bottom:28px;}
+  .building-wrapper:last-child{margin-bottom:0;}
+  .building-nome-fuori{font-size:17px;font-weight:700;margin-bottom:7px;padding-left:2px;color:var(--ink);}
   #buildings-grid-inattivi{background:var(--paper);}
   #ca-assemblee-list, #ca-assemblee-chiuse-list{background:var(--paper);padding:16px;border-radius:4px;}
   #ca-assemblee-list:empty, #ca-assemblee-chiuse-list:empty{padding:0;background:transparent;}
   .assemblea-row-card{transition:.12s;}
   .assemblea-row-card:hover{background:rgba(169,130,44,.04);border-color:var(--brass);}
-  .building-row{padding:16px 18px;margin-bottom:12px;border:1px solid var(--line);border-radius:6px;background:#fff;transition:.12s;align-items:flex-start;min-height:82px;}
+  .building-row{padding:16px 18px;border:1px solid #C9C2AE;border-radius:8px;background:#fff;transition:.12s;align-items:flex-start;min-height:82px;box-shadow:0 2px 8px rgba(0,0,0,.06);}
   .building-row:hover{background:rgba(169,130,44,.04);border-color:var(--brass);}
   .list-row:last-child{border-bottom:none;}
   .building-row.list-row:last-child{border-bottom:1px solid var(--line);}
@@ -546,7 +549,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 14/08/2026 alle 10:50">LT-102</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 14/08/2026 alle 11:05">LT-103</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1416,15 +1419,15 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
 </div>
 
 <div class="modal-overlay hidden" id="modal-anteprima-email">
-  <div class="modal-box" style="max-width:640px;width:100%;max-height:88vh;overflow-y:auto;">
-    <h3 style="margin-bottom:4px;">✉ Anteprima email</h3>
-    <p class="muted" style="font-size:12px;margin-bottom:14px;">Verrà inviata davvero dal Gmail collegato a EmailJS. Puoi correggere l'indirizzo o il testo prima di reinviarla.</p>
-    <label class="muted" style="font-size:12px;display:block;margin-bottom:3px;">Indirizzo destinatario</label>
-    <input type="email" id="anteprima-email-indirizzo" style="margin-bottom:12px;">
-    <p class="muted" style="font-size:12px;margin-bottom:3px;">Oggetto: <b id="anteprima-email-oggetto" style="color:var(--ink);"></b></p>
-    <label class="muted" style="font-size:12px;display:block;margin-bottom:3px;">Testo dell'email (modificabile)</label>
-    <textarea id="anteprima-email-corpo" style="width:100%;min-height:280px;font-family:var(--font-body);font-size:13px;padding:10px;border:1px solid var(--line);border-radius:4px;resize:vertical;"></textarea>
-    <div class="modal-actions">
+  <div class="modal-box" style="max-width:780px;width:100%;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;">
+    <h3 style="margin-bottom:4px;flex-shrink:0;">✉ Anteprima email</h3>
+    <p class="muted" style="font-size:12px;margin-bottom:14px;flex-shrink:0;">Verrà inviata davvero dal Gmail collegato a EmailJS. Puoi correggere l'indirizzo o il testo prima di reinviarla.</p>
+    <label class="muted" style="font-size:12px;display:block;margin-bottom:3px;flex-shrink:0;">Indirizzo destinatario</label>
+    <input type="email" id="anteprima-email-indirizzo" style="margin-bottom:12px;flex-shrink:0;">
+    <p class="muted" style="font-size:12px;margin-bottom:3px;flex-shrink:0;">Oggetto: <b id="anteprima-email-oggetto" style="color:var(--ink);"></b></p>
+    <label class="muted" style="font-size:12px;display:block;margin-bottom:3px;flex-shrink:0;">Testo dell'email (modificabile)</label>
+    <textarea id="anteprima-email-corpo" style="width:100%;flex:1;min-height:220px;font-family:var(--font-body);font-size:13px;padding:10px;border:1px solid var(--line);border-radius:4px;resize:none;overflow-y:auto;box-sizing:border-box;"></textarea>
+    <div class="modal-actions" style="flex-shrink:0;margin-top:14px;">
       <button class="btn secondary" onclick="chiudiAnteprimaEmail()">Chiudi</button>
       <button class="btn brass" onclick="reinviaEmailDaAnteprima()">✉ Reinvia questa email</button>
     </div>
@@ -2567,6 +2570,13 @@ function renderCondominiElenco(){
   const grid = document.getElementById('buildings-grid');
   grid.innerHTML='';
   attivi.forEach(b=>{
+    const wrapper=document.createElement('div');
+    wrapper.className='building-wrapper';
+    const nomeFuori=document.createElement('div');
+    nomeFuori.className='building-nome-fuori';
+    nomeFuori.textContent=b.nome;
+    wrapper.appendChild(nomeFuori);
+
     const row=document.createElement('div');
     row.className='list-row building-row';
     const pianificate = (b.assemblee||[]).filter(a=>a.stato!=='conclusa' && a.dataSeconda);
@@ -2588,13 +2598,14 @@ function renderCondominiElenco(){
           `<span style="color:#2E6B44;font-weight:600;background:rgba(62,122,84,.1);padding:2px 8px;border-radius:3px;display:inline-block;margin-top:2px;">- Assemblea ${a.tipo==='straordinaria'?'straordinaria':'ordinaria'} pianificata per il ${a.dataSeconda}</span>`
         ).join('<br>') + '</div>'
       : '';
-    row.innerHTML = `<span><span style="font-size:16.5px;font-weight:700;">${b.nome}</span> <span class="muted">— ${b.condomini.length} condòmini · ${(b.assemblee||[]).filter(a=>a.stato==='conclusa').length} assemblee archiviate</span>${rigaDaInviare}${rigaPianificate}</span>
+    row.innerHTML = `<span><span class="muted">${b.condomini.length} condòmini · ${(b.assemblee||[]).filter(a=>a.stato==='conclusa').length} assemblee archiviate</span>${rigaDaInviare}${rigaPianificate}</span>
       <span style="display:flex;gap:6px;">
         <button class="btn small brass" onclick="vaiCondominioDaLista(${b.id},'crea-assemblea')">Gestione Assemblee</button>
         <button class="btn small secondary" onclick="vaiCondominioDaLista(${b.id},'registrazioni')">Archivio</button>
         <button class="btn small secondary" onclick="vaiCondominioDaLista(${b.id},'dashboard')">Dashboard</button>
       </span>`;
-    grid.appendChild(row);
+    wrapper.appendChild(row);
+    grid.appendChild(wrapper);
   });
   if(attivi.length===0){ grid.innerHTML='<div class="empty">Nessun condominio ancora creato.</div>'; }
 
@@ -2604,16 +2615,25 @@ function renderCondominiElenco(){
   wrap.classList.remove('hidden');
   gridIn.innerHTML='';
   inattivi.forEach(b=>{
+    const wrapper=document.createElement('div');
+    wrapper.className='building-wrapper';
+    const nomeFuori=document.createElement('div');
+    nomeFuori.className='building-nome-fuori';
+    nomeFuori.style.opacity='.65';
+    nomeFuori.textContent=b.nome;
+    wrapper.appendChild(nomeFuori);
+
     const row=document.createElement('div');
     row.className='list-row building-row';
     row.style.opacity='.65';
-    row.innerHTML = `<span><b>${b.nome}</b> <span class="badge pending">Inattivo</span> <span class="muted">— ${(b.assemblee||[]).filter(a=>a.stato==='conclusa').length} assemblee archiviate, solo consultazione</span></span>
+    row.innerHTML = `<span><span class="badge pending">Inattivo</span> <span class="muted">— ${(b.assemblee||[]).filter(a=>a.stato==='conclusa').length} assemblee archiviate, solo consultazione</span></span>
       <span style="display:flex;gap:6px;">
         <button class="btn small secondary" onclick="vaiCondominioDaLista(${b.id},'registrazioni')">Archivio</button>
         <button class="btn small secondary" onclick="vaiCondominioDaLista(${b.id},'dashboard')">Dashboard</button>
         <button class="btn small" style="background:var(--brick);border-color:var(--brick);" onclick="avviaEliminazioneCondominio(${b.id})">🗑 Elimina</button>
       </span>`;
-    gridIn.appendChild(row);
+    wrapper.appendChild(row);
+    gridIn.appendChild(wrapper);
   });
 }
 // Naviga verso una sezione (Assemblea/Archivio/Dashboard) di un condominio scelto dalla
@@ -3931,7 +3951,7 @@ function renderElencoAssemblee(){
     const promemoriaAttivo = a.stato==='conclusa' && !giaInviato && !a.promemoriaVerbaleNascosto;
     const nascondiPulsanteInvio = a.promemoriaVerbaleNascosto && !giaInviato;
     return `
-    <div class="card assemblea-row-card" style="margin-bottom:14px;opacity:.85;">
+    <div class="card assemblea-row-card" style="margin-bottom:14px;background:#E4E1D8;border-color:#C9C2AE;">
       <div class="list-row" style="border:none;padding:0;">
         <span><b>${a.dataSeconda||'data da definire'}</b> ore ${a.oraSeconda||'--:--'} — <b>${escapeHtml(a.oggetto||'(oggetto non indicato)')}</b> <span class="muted">(${a.tipo})</span> <span class="badge">Conclusa</span></span>
         <span style="display:flex;gap:8px;align-items:center;">
@@ -4608,12 +4628,14 @@ function renderTabellaRiepilogoInvitati(a, b){
 }
 // ---------- Anteprima e reinvio di una singola email di convocazione ----------
 let __anteprimaEmailCondominoId = null;
+let __anteprimaEmailAssembleaId = null;
 function apriAnteprimaEmailSingola(condominoId){
   const b = getActiveBuilding();
   const a = workingAssembly || getAssembleaInCorso(b);
   const c = b.condomini.find(x=>x.id===condominoId);
   if(!a || !c) return;
   __anteprimaEmailCondominoId = condominoId;
+  __anteprimaEmailAssembleaId = a.id;
   document.getElementById('anteprima-email-indirizzo').value = c.email||'';
   document.getElementById('anteprima-email-oggetto').textContent = a.oggetto||'(nessun oggetto impostato)';
   document.getElementById('anteprima-email-corpo').value = costruisciEmail(c, a, b);
@@ -4660,15 +4682,15 @@ async function completaInvioEmailSingola(condominoId, indirizzo, corpo, salvaAna
     c.email = indirizzo;
     salvaStato();
   }
+  // Ricerca fresca per identificativo, non tramite getAssembleaInCorso() (che restituirebbe
+  // vuoto se l'assemblea è ancora in bozza, non ancora avviata) né tramite workingAssembly da
+  // solo (che può restare "vecchia" se nel frattempo è arrivato un aggiornamento dal database
+  // condiviso) — la ricerca per id dentro b.assemblee funziona sempre, qualunque sia lo stato.
+  const assembleaFresca = b.assemblee.find(x=>x.id===__anteprimaEmailAssembleaId) || workingAssembly || getAssembleaInCorso(b);
   try{
-    await inviaEmailVeraTramiteEmailJS({email:indirizzo}, (workingAssembly||getAssembleaInCorso(b)||{}).oggetto||'', corpo);
+    await inviaEmailVeraTramiteEmailJS({email:indirizzo}, (assembleaFresca||{}).oggetto||'', corpo);
     toast(`Email reinviata a ${indirizzo}.`);
     chiudiAnteprimaEmail();
-    // Rileggiamo l'assemblea "fresca" invece di riusare un riferimento tenuto da prima: se nel
-    // frattempo è arrivato un aggiornamento dal database condiviso, un riferimento vecchio
-    // mostrerebbe la tabella non aggiornata finché non si esce e si rientra dalla pagina — lo
-    // stesso problema già risolto altrove, corretto qui allo stesso modo.
-    const assembleaFresca = getAssembleaInCorso(b) || workingAssembly;
     if(assembleaFresca) renderTabellaRiepilogoInvitati(assembleaFresca, b);
   }catch(err){
     toast('Invio non riuscito: '+(err && err.message ? err.message : 'errore sconosciuto') + '. Riprova, o controlla la configurazione del servizio email.');
