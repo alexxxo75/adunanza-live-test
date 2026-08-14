@@ -357,7 +357,7 @@
   .seal{position:absolute;top:28px;right:36px;width:74px;height:74px;border:2px dashed var(--brass);border-radius:50%;display:flex;align-items:center;justify-content:center;transform:rotate(-8deg);font-family:var(--font-mono);font-size:9px;color:var(--brass);text-align:center;line-height:1.3;padding:6px;}
 
   .empty{border:1px dashed var(--line);border-radius:3px;padding:32px;text-align:center;color:var(--text-soft);font-size:13.5px;}
-  .toast{position:fixed;bottom:24px;right:24px;background:var(--ink);color:#fff;padding:13px 20px;border-radius:3px;font-size:13.5px;box-shadow:0 6px 20px rgba(0,0,0,.25);opacity:0;transform:translateY(8px);transition:.25s;pointer-events:none;z-index:50;}
+  .toast{position:fixed;bottom:24px;right:24px;background:var(--ink);color:#fff;padding:13px 20px;border-radius:3px;font-size:13.5px;box-shadow:0 6px 20px rgba(0,0,0,.25);opacity:0;transform:translateY(8px);transition:.25s;pointer-events:none;z-index:600;}
   .popup-msg-chat{position:fixed;top:70px;right:24px;background:var(--paper-card);border:1px solid var(--line);border-left:4px solid var(--brass);border-radius:6px;padding:14px 18px;max-width:300px;box-shadow:0 10px 28px rgba(0,0,0,.22);z-index:120;cursor:pointer;animation:popupMsgChatEntra .25s ease;}
   .popup-msg-chat .autore{font-weight:700;font-size:13px;margin-bottom:3px;}
   .popup-msg-chat .testo{font-size:13px;color:var(--ink);}
@@ -546,7 +546,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 14/08/2026 alle 10:35">LT-101</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 14/08/2026 alle 10:50">LT-102</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1002,9 +1002,8 @@
           <div id="ca-coda-azione"></div>
         </div>
 
-        <div class="card assemblea-row-card" style="margin-bottom:18px;text-align:center;display:flex;gap:12px;">
+        <div class="card assemblea-row-card" style="margin-bottom:18px;text-align:center;">
           <button class="btn secondary full" onclick="window.scrollTo({top:0, behavior:'smooth'})">⬆ Torna a inizio pagina</button>
-          <button class="btn secondary full" onclick="document.getElementById('ca-tabella-riepilogo-wrap').scrollIntoView({behavior:'smooth', block:'start'})">📋 Vai a Riepilogo invitati</button>
         </div>
 
         <div class="card hidden assemblea-row-card" id="ca-elimina-wrap" style="margin-bottom:18px;">
@@ -1428,6 +1427,17 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
     <div class="modal-actions">
       <button class="btn secondary" onclick="chiudiAnteprimaEmail()">Chiudi</button>
       <button class="btn brass" onclick="reinviaEmailDaAnteprima()">✉ Reinvia questa email</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="modal-conferma-cambio-email">
+  <div class="modal-box">
+    <h3>Modifica email convocazione assemblea</h3>
+    <p class="muted" style="font-size:15px;color:var(--ink);" id="modal-conferma-cambio-email-testo"></p>
+    <div class="modal-actions" style="flex-direction:column;gap:8px;align-items:stretch;">
+      <button class="btn brass" onclick="confermaCambioEmailEInvia(true)">Modifica anagrafica ed invia</button>
+      <button class="btn secondary" onclick="confermaCambioEmailEInvia(false)">Invia</button>
     </div>
   </div>
 </div>
@@ -2178,7 +2188,7 @@ document.querySelectorAll('.nav-item[data-page]').forEach(n=>n.addEventListener(
 function toast(msg){
   const t=document.getElementById('toast');
   t.textContent=msg; t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'),2600);
+  setTimeout(()=>t.classList.remove('show'),4600);
 }
 
 // ---------- HOME ----------
@@ -4616,29 +4626,50 @@ function chiudiAnteprimaEmail(){
 async function reinviaEmailDaAnteprima(){
   if(__anteprimaEmailCondominoId==null) return;
   const b = getActiveBuilding();
-  const a = workingAssembly || getAssembleaInCorso(b);
   const c = b.condomini.find(x=>x.id===__anteprimaEmailCondominoId);
-  if(!a || !c) return;
+  if(!c) return;
   const nuovoIndirizzo = document.getElementById('anteprima-email-indirizzo').value.trim();
   const corpoModificato = document.getElementById('anteprima-email-corpo').value;
   if(!nuovoIndirizzo){ toast('Inserisci un indirizzo email valido prima di reinviare.'); return; }
 
-  // Se l'indirizzo è stato corretto rispetto a quello registrato, chiediamo se correggere anche
-  // l'anagrafica per sempre, o se vale solo per questo invio — l'amministratore decide di volta
-  // in volta, non lo facciamo mai in automatico.
+  // Se l'indirizzo è stato corretto rispetto a quello registrato, chiediamo (con un modale
+  // apposito, non con il conferma nativo del browser) se correggerlo anche in anagrafica per
+  // sempre, o se vale solo per questo invio — l'amministratore decide di volta in volta.
   if(nuovoIndirizzo !== (c.email||'')){
-    const correggiAnagrafica = confirm(`Hai cambiato l'indirizzo email (era "${c.email||'(vuoto)'}", ora "${nuovoIndirizzo}").\n\nVuoi correggerlo anche in anagrafica per questo condòmino, così resterà così anche per il futuro?\n\n(Premi Annulla per usarlo solo per questo invio, senza toccare i suoi dati permanenti)`);
-    if(correggiAnagrafica){
-      c.email = nuovoIndirizzo;
-      salvaStato();
-    }
+    __cambioEmailInSospeso = {condominoId: c.id, nuovoIndirizzo, corpoModificato};
+    document.getElementById('modal-conferma-cambio-email-testo').textContent =
+      `Hai cambiato l'indirizzo email da ${c.email||'(vuoto)'} a ${nuovoIndirizzo}. Se vuoi che questo indirizzo venga modificato anche in anagrafica clicca su "Modifica anagrafica ed invia"; se vuoi usarlo solo per questa email, clicca su "Invia".`;
+    document.getElementById('modal-conferma-cambio-email').classList.remove('hidden');
+    return;
   }
-
+  await completaInvioEmailSingola(c.id, nuovoIndirizzo, corpoModificato, false);
+}
+let __cambioEmailInSospeso = null;
+async function confermaCambioEmailEInvia(salvaAnagrafica){
+  if(!__cambioEmailInSospeso) return;
+  const {condominoId, nuovoIndirizzo, corpoModificato} = __cambioEmailInSospeso;
+  document.getElementById('modal-conferma-cambio-email').classList.add('hidden');
+  __cambioEmailInSospeso = null;
+  await completaInvioEmailSingola(condominoId, nuovoIndirizzo, corpoModificato, salvaAnagrafica);
+}
+async function completaInvioEmailSingola(condominoId, indirizzo, corpo, salvaAnagrafica){
+  const b = getActiveBuilding();
+  const c = b.condomini.find(x=>x.id===condominoId);
+  if(!c) return;
+  if(salvaAnagrafica){
+    c.email = indirizzo;
+    salvaStato();
+  }
   try{
-    await inviaEmailVeraTramiteEmailJS({email:nuovoIndirizzo}, a.oggetto, corpoModificato);
-    toast(`Email reinviata a ${nuovoIndirizzo}.`);
+    await inviaEmailVeraTramiteEmailJS({email:indirizzo}, (workingAssembly||getAssembleaInCorso(b)||{}).oggetto||'', corpo);
+    toast(`Email reinviata a ${indirizzo}.`);
     chiudiAnteprimaEmail();
-    renderTabellaRiepilogoInvitati(a, b);
+    // Rileggiamo l'assemblea "fresca" invece di riusare un riferimento tenuto da prima: se nel
+    // frattempo è arrivato un aggiornamento dal database condiviso, un riferimento vecchio
+    // mostrerebbe la tabella non aggiornata finché non si esce e si rientra dalla pagina — lo
+    // stesso problema già risolto altrove, corretto qui allo stesso modo.
+    const assembleaFresca = getAssembleaInCorso(b) || workingAssembly;
+    if(assembleaFresca) renderTabellaRiepilogoInvitati(assembleaFresca, b);
   }catch(err){
     toast('Invio non riuscito: '+(err && err.message ? err.message : 'errore sconosciuto') + '. Riprova, o controlla la configurazione del servizio email.');
   }
