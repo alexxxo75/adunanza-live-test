@@ -548,7 +548,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 16/08/2026 alle 00:33">LT-122</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 16/08/2026 alle 00:47">LT-123</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1093,7 +1093,7 @@
             </table>
           </div>
           <div id="appello-schema-deleghe-wrap" class="hidden" style="margin-top:14px;">
-            <div class="section-title" style="font-size:14px;margin:0 0 8px;">📝 Situazione deleghe</div>
+            <div class="section-title" style="font-size:19px;margin:0 0 8px;">📝 Situazione deleghe</div>
             <div class="table-wrap">
               <table>
                 <thead><tr><th>Delegato</th><th>Numero deleganti</th><th>Millesimi rappresentati</th></tr></thead>
@@ -3801,7 +3801,7 @@ function renderAppello(){
     const semStato = (attivo && attivo.tipo==='online') ? 'verde'
       : (attivo && attivo.tipo==='presenza' && attivo.rec.online) ? 'rosa'
       : (attivo && attivo.tipo==='presenza') ? 'blu'
-      : (delegatoId!=null) ? 'arancio'
+      : (delegatoId!=null && delegatoAttivo) ? 'arancio'
       : (rOnUscitoSem||rPresUscitoSem) ? 'nero'
       : collegatoIdAttivo ? 'arancio'
       : 'grigio';
@@ -4050,9 +4050,10 @@ function renderAppello(){
   renderSchemaDelegheAppello(assemblea, b);
 }
 // Piccolo riepilogo, sotto ai totali dell'appello: per ciascuna persona che ha ricevuto
-// almeno una delega, quante persone l'hanno delegata, il totale dei millesimi che rappresenta
-// (i propri esclusi — solo quelli ricevuti in delega), e sotto, rientrati, i nominativi di chi
-// gliel'ha data, con i rispettivi millesimi.
+// almeno una delega ED È DAVVERO PRESENTE (senza la sua presenza la delega non vale ancora ai
+// fini del conteggio), quante persone l'hanno delegata, il totale dei millesimi che
+// rappresenta (i propri esclusi — solo quelli ricevuti in delega), e sotto, rientrati, i
+// nominativi di chi gliel'ha data, con i rispettivi millesimi.
 function renderSchemaDelegheAppello(assemblea, b){
   const wrap = document.getElementById('appello-schema-deleghe-wrap');
   const tbody = document.getElementById('appello-schema-deleghe-tbody');
@@ -4062,6 +4063,7 @@ function renderSchemaDelegheAppello(assemblea, b){
   Object.keys(deleghe).forEach(deleganteIdStr=>{
     const delegatoId = deleghe[deleganteIdStr];
     if(delegatoId==null) return;
+    if(!recordAttivo(assemblea, delegatoId)) return; // il delegato non è presente: la delega non conta ancora
     const deleganteId = Number(deleganteIdStr);
     const deleganteCondomino = b.condomini.find(c=>c.id===deleganteId);
     if(!deleganteCondomino) return; // per sicurezza: non dovrebbe mai mancare, ma evitiamo comunque un errore
@@ -4083,7 +4085,7 @@ function renderSchemaDelegheAppello(assemblea, b){
   tbody.innerHTML = righe.map(r=>{
     const rigaDelegato = `<tr><td>${escapeHtml(r.nome)}</td><td>${r.deleganti.length}</td><td>${arrotondaMillesimi(r.millesimiTotali)} / 1000‰</td></tr>`;
     const righeDeleganti = r.deleganti.map(d=>
-      `<tr style="background:#EDEAE2;color:var(--text-soft);"><td style="padding-left:34px;">- ${escapeHtml(d.nome)}</td><td></td><td>${arrotondaMillesimi(d.millesimi)}‰</td></tr>`
+      `<tr><td style="padding-left:34px;">- ${escapeHtml(d.nome)}</td><td></td><td>${arrotondaMillesimi(d.millesimi)}‰</td></tr>`
     ).join('');
     return rigaDelegato + righeDeleganti;
   }).join('');
@@ -6556,7 +6558,8 @@ function costruisciSezionePresenti(assemblea, b){
       pallino = attivo.tipo==='online' ? '🟢' : '🔵';
       infoTesto = attivo.tipo==='online' ? `Online dalle ${attivo.rec.entrata}` : `In presenza dalle ${attivo.rec.entrata}`;
     }else if(delegatoId!=null){
-      pallino = '📝';
+      const delegatoAttivoCv = recordAttivo(assemblea, delegatoId);
+      pallino = delegatoAttivoCv ? '🟠' : '⚪';
       infoTesto = `Delega a ${escapeHtml(nomePersonaAppello(b, assemblea, delegatoId))}`;
     }else if(recOnlineUscito || recPresenzaUscito){
       const rec = recOnlineUscito || recPresenzaUscito;
