@@ -548,7 +548,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 15/08/2026 alle 11:55">LT-113</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 15/08/2026 alle 16:56">LT-114</span></div>
   </div>
 
   <!-- MAIN -->
@@ -3019,6 +3019,7 @@ function mostraPopupDuplicatiNome(building, gruppi){
         <label style="display:flex;align-items:center;gap:12px;font-weight:700;margin-bottom:14px;cursor:pointer;flex-wrap:wrap;">
           <input type="checkbox" id="popup-dup-selall-${i}" style="width:20px;height:20px;flex-shrink:0;" checked onchange="document.querySelectorAll('.popup-dup-riga-${i}').forEach(cb=>cb.checked=this.checked)">
           <span style="font-size:19px;">${escapeHtml(nomeCompletoCondomino(g[0]))}</span>
+          <span class="muted" style="font-weight:400;font-size:13px;">— ${g.length} proprietà trovate</span>
           <span class="muted" style="font-weight:400;font-size:12px;">(seleziona/deseleziona tutte le righe sotto)</span>
         </label>
         <table style="width:100%;font-size:13.5px;border-collapse:collapse;">
@@ -3028,7 +3029,14 @@ function mostraPopupDuplicatiNome(building, gruppi){
             <th style="width:200px;padding:6px 12px;text-align:left;">Unità</th>
             <th style="padding:6px 12px;text-align:left;">Email</th>
           </tr></thead>
-          <tbody>${secondari.map((c,j)=>`<tr>
+          <tbody>
+            <tr style="background:rgba(169,130,44,.08);">
+              <td style="padding:9px 8px;vertical-align:middle;" title="Riferimento: le altre righe verranno collegate a questa">★</td>
+              <td style="padding:9px 12px;vertical-align:middle;">${escapeHtml(g[0].interno||'—')}</td>
+              <td style="padding:9px 12px;vertical-align:middle;">${escapeHtml(g[0].unita||'—')}</td>
+              <td style="padding:9px 12px;vertical-align:middle;">${escapeHtml(g[0].email||'—')}</td>
+            </tr>
+            ${secondari.map((c,j)=>`<tr>
             <td style="padding:9px 8px;vertical-align:middle;"><input type="checkbox" class="popup-dup-riga-${i}" id="popup-dup-flag-${i}-${j}" style="width:19px;height:19px;display:block;" checked></td>
             <td style="padding:9px 12px;vertical-align:middle;">${escapeHtml(c.interno||'—')}</td>
             <td style="padding:9px 12px;vertical-align:middle;">${escapeHtml(c.unita||'—')}</td>
