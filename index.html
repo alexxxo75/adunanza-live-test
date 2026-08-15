@@ -548,7 +548,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 15/08/2026 alle 11:36">LT-111</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 15/08/2026 alle 11:55">LT-113</span></div>
   </div>
 
   <!-- MAIN -->
@@ -718,7 +718,7 @@
           <label>2. Anagrafica</label>
           <p class="muted" style="margin-bottom:10px;">Dati identificativi del condominio, tutti obbligatori.</p>
           <div class="row-inline">
-            <div class="field"><label>Denominazione</label><input id="dash-denominazione" placeholder="Es. Condominio Le Querce" oninput="aggiornaAnagrafica('denominazione', this.value)"></div>
+            <div class="field"><label>Denominazione</label><input id="dash-denominazione" readonly style="background:var(--paper);cursor:not-allowed;" title="Segue automaticamente il Nome del condominio (punto 1)"></div>
           </div>
           <div class="row-inline">
             <div class="field"><label>Via/Piazza</label><input id="dash-via" placeholder="Es. Via delle Querce 12" oninput="aggiornaAnagrafica('via', this.value)"></div>
@@ -2453,6 +2453,11 @@ function aggiornaNomeCondominio(v){
   const b=getWorkingBuilding();
   if(!b) return;
   b.nome=v;
+  // La Denominazione (punto 2) non si scrive più a mano: segue sempre il Nome del condominio
+  // (punto 1), copiato qui sotto appena viene scritto.
+  b.denominazione=v;
+  const campoDenominazione = document.getElementById('dash-denominazione');
+  if(campoDenominazione) campoDenominazione.value=v;
   if(!draftBuilding) salvaStato();
   aggiornaIconeWizard();
   renderNavSubmenu();
@@ -7252,6 +7257,7 @@ function esportaDatiDiagnostica(){
       autore: __ADUNANZA_AUTORE__,
       timestamp: new Date().toISOString(),
       buildingsInMemoria: buildings,
+      draftBuildingInMemoria: draftBuilding || null,
       activeBuildingIdInMemoria: activeBuildingId,
       currentPage: currentPage,
       activePollInMemoria: serializzaPoll(activePoll),
