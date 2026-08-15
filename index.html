@@ -548,7 +548,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 16/08/2026 alle 01:23">LT-128</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 16/08/2026 alle 01:34">LT-129</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1972,14 +1972,19 @@ function initFromUrlToken(){
         if(__giaSegnatoOnlineToken) return;
         __giaSegnatoOnlineToken = true;
         try{
+          let idRisoltoPerPing = idCondominoToken;
           eseguiConUnioneSuServer(()=>{
             const bCorrente = buildings.find(x=>x.id===idBuildingToken);
-            if(bCorrente) segnaOnlinePerLinkPersonale(bCorrente, idCondominoToken);
+            if(bCorrente) idRisoltoPerPing = segnaOnlinePerLinkPersonale(bCorrente, idCondominoToken);
           });
           // Registriamo la presenza di questo dispositivo: se la connessione si interrompe
           // all'improvviso (chiusura del browser, telefono spento, rete persa), il sistema a
           // ping se ne accorgerà da solo dopo qualche tentativo mancato.
-          avviaRispostaPing(idCondominoToken);
+          // IMPORTANTE: ascoltiamo i numeri sull'identificativo DAVVERO segnato online (che può
+          // essere quello di un delegato, condòmino o esterno, se questo link ha una delega
+          // registrata sopra) — non su quello grezzo del link, altrimenti aspetteremmo numeri
+          // che Adunanza non manderebbe mai a quell'identificativo specifico.
+          avviaRispostaPing(idRisoltoPerPing);
         }catch(e){
           console.error('[Adunanza] Segnalazione online fallita (il riconoscimento del condòmino prosegue comunque):', e);
         }
@@ -3191,9 +3196,17 @@ function segnaOnlinePerLinkPersonale(building, condominoId){
   // lui (capita spesso, arriva puntuale o in anticipo), la ricerca fallirebbe silenziosamente
   // e la persona non risulterebbe mai online, pur avendo aperto correttamente la pagina giusta.
   const assemblea = getAssembleaContestualizzataCondomino(building);
-  if(!assemblea){ segnaOnlineSeAssente(building, condominoId); return; }
-  const delegatoId = assemblea.appello.deleghe[condominoId];
-  segnaOnlineSeAssente(building, delegatoId!=null ? delegatoId : condominoId, assemblea);
+  if(!assemblea){ segnaOnlineSeAssente(building, condominoId); return condominoId; }
+  // La delega, se c'è, è sempre registrata sul "primario" (l'unica riga con i comandi
+  // nell'appello) — se il link usato era invece quello di una delle sue unità secondarie
+  // (ogni proprietà ha comunque il proprio collegamento distinto), la delega non si troverebbe
+  // cercandola sotto l'id dell'unità secondaria: controlliamo quindi anche sotto il primario.
+  const c = building.condomini.find(x=>x.id===condominoId);
+  const idPerDelega = (c && c.unificatoCon) ? c.unificatoCon : condominoId;
+  const delegatoId = assemblea.appello.deleghe[idPerDelega];
+  const idRisolto = delegatoId!=null ? delegatoId : condominoId;
+  segnaOnlineSeAssente(building, idRisolto, assemblea);
+  return idRisolto;
 }
 function recordAttivo(assemblea, condominoId){
   const rOn = assemblea.appello.online.find(r=>r.condominoId===condominoId && !r.uscita);
@@ -6218,11 +6231,12 @@ function rientraInAssemblea(){
   usciteVolontariamenteInAttesaDiRientro = false;
   const idCondominoToken = currentCondomino.id;
   try{
+    let idRisoltoPerPing = idCondominoToken;
     eseguiConUnioneSuServer(()=>{
       const bCorrente = getActiveBuilding();
-      if(bCorrente) segnaOnlinePerLinkPersonale(bCorrente, idCondominoToken);
+      if(bCorrente) idRisoltoPerPing = segnaOnlinePerLinkPersonale(bCorrente, idCondominoToken);
     });
-    avviaRispostaPing(idCondominoToken);
+    avviaRispostaPing(idRisoltoPerPing);
   }catch(e){
     console.error('[Adunanza] Rientro in assemblea fallito:', e);
   }
