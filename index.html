@@ -548,7 +548,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 15/08/2026 alle 10:59">LT-108</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 15/08/2026 alle 11:10">LT-109</span></div>
   </div>
 
   <!-- MAIN -->
@@ -2986,31 +2986,35 @@ function controllaDuplicatiNomeDopoNuovaTabella(building, nomeTabella){
 }
 function mostraPopupDuplicatiNome(building, gruppi){
   const cont = document.getElementById('popup-duplicati-corpo');
-  cont.innerHTML = `<p class="muted" style="margin-bottom:14px;">Ho trovato condòmini con lo stesso nome e cognome. Se sono la stessa persona con più proprietà, collegali: in appello e nei sondaggi compariranno come un'unica riga (con sotto, in grigio, le singole unità). Se sono persone diverse per caso omonime, lascia stare — resta comunque disponibile il collegamento manuale "Stesso proprietario di" in Dashboard.</p>` +
-    gruppi.map((g,i)=>`
+  cont.innerHTML = `<p class="muted" style="margin-bottom:14px;">Sono stati trovati condòmini con lo stesso Nome e Cognome. Se sono la stessa persona con più proprietà, collegali con un flag; nell'appello e nei sondaggi delle assemblee saranno tutti visibili ma gestiti da un'unica riga.<br><br>Se sono persone diverse, omonime, o non si è sicuri non mettere il flag e resteranno condòmini differenti; sarà possibile unirli manualmente in un secondo momento con la funzione "Stesso proprietario di" presente in Dashboard.</p>` +
+    gruppi.map((g,i)=>{
+      const secondari = g.slice(1); // il primo (g[0]) è il riferimento — le righe con flag sono le altre unità da collegare a lui
+      return `
       <div class="card" style="margin-bottom:14px;background:var(--paper);">
-        <div style="font-weight:700;margin-bottom:8px;">${escapeHtml(nomeCompletoCondomino(g[0]))}</div>
-        <table style="width:100%;font-size:13px;margin-bottom:10px;">
-          <thead><tr><th>Interno</th><th>Unità</th><th>Email</th></tr></thead>
-          <tbody>${g.map(c=>`<tr><td>${escapeHtml(c.interno||'—')}</td><td>${escapeHtml(c.unita||'—')}</td><td>${escapeHtml(c.email||'—')}</td></tr>`).join('')}</tbody>
-        </table>
-        <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;cursor:pointer;">
-          <input type="checkbox" id="popup-dup-flag-${i}" checked>
-          È la stessa persona: collega queste ${g.length} righe
+        <label style="display:flex;align-items:center;gap:8px;font-weight:700;margin-bottom:8px;cursor:pointer;">
+          <input type="checkbox" id="popup-dup-selall-${i}" checked onchange="document.querySelectorAll('.popup-dup-riga-${i}').forEach(cb=>cb.checked=this.checked)">
+          ${escapeHtml(nomeCompletoCondomino(g[0]))} <span class="muted" style="font-weight:400;font-size:12px;">(seleziona/deseleziona tutte le righe sotto)</span>
         </label>
-      </div>`).join('');
+        <table style="width:100%;font-size:13px;margin-bottom:4px;">
+          <thead><tr><th></th><th>Interno</th><th>Unità</th><th>Email</th></tr></thead>
+          <tbody>${secondari.map((c,j)=>`<tr>
+            <td><input type="checkbox" class="popup-dup-riga-${i}" id="popup-dup-flag-${i}-${j}" checked></td>
+            <td>${escapeHtml(c.interno||'—')}</td><td>${escapeHtml(c.unita||'—')}</td><td>${escapeHtml(c.email||'—')}</td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </div>`;
+    }).join('');
   window.__gruppiDuplicatiInSospeso = gruppi;
   document.getElementById('modal-duplicati-nome').classList.remove('hidden');
 }
 function confermaCollegamentoDuplicati(){
   const gruppi = window.__gruppiDuplicatiInSospeso || [];
-  const b = getWorkingBuilding();
   gruppi.forEach((g,i)=>{
-    const flag = document.getElementById('popup-dup-flag-'+i);
-    if(flag && flag.checked){
-      const primario = g[0];
-      g.slice(1).forEach(c=>{ c.unificatoCon = primario.id; });
-    }
+    const primario = g[0];
+    g.slice(1).forEach((c,j)=>{
+      const flag = document.getElementById(`popup-dup-flag-${i}-${j}`);
+      c.unificatoCon = (flag && flag.checked) ? primario.id : (c.unificatoCon===primario.id ? null : c.unificatoCon);
+    });
   });
   window.__gruppiDuplicatiInSospeso = null;
   document.getElementById('modal-duplicati-nome').classList.add('hidden');
