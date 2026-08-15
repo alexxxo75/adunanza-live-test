@@ -548,7 +548,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 15/08/2026 alle 20:13">LT-120</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 16/08/2026 alle 00:33">LT-122</span></div>
   </div>
 
   <!-- MAIN -->
@@ -3150,8 +3150,8 @@ function getAssembleaInCorso(building){
   if(!building || !building.assembleaInCorsoId) return null;
   return building.assemblee.find(a=>a.id===building.assembleaInCorsoId) || null;
 }
-function segnaOnlineSeAssente(building, condominoId){
-  const assemblea=getAssembleaInCorso(building);
+function segnaOnlineSeAssente(building, condominoId, assembleaForzata){
+  const assemblea = assembleaForzata || getAssembleaInCorso(building);
   if(!assemblea) return;
   const rec = assemblea.appello.online.find(r=>r.condominoId===condominoId);
   if(!rec) assemblea.appello.online.push({condominoId, entrata:oraAdesso(), uscita:null});
@@ -3162,10 +3162,15 @@ function segnaOnlineSeAssente(building, condominoId){
 // online proprio lui — sulla sua riga, condòmino o persona esterna che sia — non il condòmino
 // che ha delegato, che a quel punto non risulta essere lui a partecipare.
 function segnaOnlinePerLinkPersonale(building, condominoId){
-  const assemblea=getAssembleaInCorso(building);
+  // Usiamo l'assemblea "contestualizzata" del link personale (quella indicata nel proprio
+  // collegamento), non getAssembleaInCorso: quest'ultima trova qualcosa solo se
+  // l'amministratore ha già premuto "Avvia assemblea" — se il condòmino si collega PRIMA di
+  // lui (capita spesso, arriva puntuale o in anticipo), la ricerca fallirebbe silenziosamente
+  // e la persona non risulterebbe mai online, pur avendo aperto correttamente la pagina giusta.
+  const assemblea = getAssembleaContestualizzataCondomino(building);
   if(!assemblea){ segnaOnlineSeAssente(building, condominoId); return; }
   const delegatoId = assemblea.appello.deleghe[condominoId];
-  segnaOnlineSeAssente(building, delegatoId!=null ? delegatoId : condominoId);
+  segnaOnlineSeAssente(building, delegatoId!=null ? delegatoId : condominoId, assemblea);
 }
 function recordAttivo(assemblea, condominoId){
   const rOn = assemblea.appello.online.find(r=>r.condominoId===condominoId && !r.uscita);
@@ -3203,6 +3208,10 @@ function segnaPresenteInAula(condominoId){
     const rec = assemblea.appello.presenzeFisiche.find(r=>r.condominoId===id);
     if(!rec) assemblea.appello.presenzeFisiche.push({condominoId:id, entrata:oraAdesso(), uscita:null});
     else if(rec.uscita) rec.uscita=null;
+    // Se questa persona aveva già dato una delega, essendo ora presente di persona la delega
+    // non ha più senso: la rimuoviamo, altrimenti resterebbe un riferimento "fantasma" — una
+    // delega che risulta ancora ricevuta da qualcuno, ma che in realtà nessuno sta più dando.
+    if(assemblea.appello.deleghe[id]!=null) delete assemblea.appello.deleghe[id];
   });
   renderAppello();
   salvaStato();
@@ -3220,6 +3229,7 @@ function segnaOnlineAMano(condominoId){
     const rec = assemblea.appello.presenzeFisiche.find(r=>r.condominoId===id);
     if(!rec) assemblea.appello.presenzeFisiche.push({condominoId:id, entrata:oraAdesso(), uscita:null, online:true});
     else{ rec.online=true; if(rec.uscita) rec.uscita=null; }
+    if(assemblea.appello.deleghe[id]!=null) delete assemblea.appello.deleghe[id];
   });
   renderAppello();
   salvaStato();
@@ -3436,8 +3446,10 @@ function mostraDelegaCondomino(){
   document.getElementById('delega-scelta-iniziale').classList.add('hidden');
   const lista = document.getElementById('delega-lista-condomini');
   const candidati = a.convocati.selezionati.map(id=>b.condomini.find(c=>c.id===id)).filter(c=>c && c.id!==currentCondomino.id);
-  lista.innerHTML = candidati.length
-    ? candidati.map(c=>`<button class="btn secondary" style="display:block;width:100%;text-align:left;margin-bottom:8px;" onclick="sceltaCondominoDelega(${c.id})">${escapeHtml(nomeCompletoCondomino(c))}</button>`).join('')
+  const idsCandidati = new Set(candidati.map(c=>c.id));
+  const candidatiUnici = candidati.filter(c=>!(c.unificatoCon && idsCandidati.has(c.unificatoCon)));
+  lista.innerHTML = candidatiUnici.length
+    ? candidatiUnici.map(c=>`<button class="btn secondary" style="display:block;width:100%;text-align:left;margin-bottom:8px;" onclick="sceltaCondominoDelega(${c.id})">${escapeHtml(nomeCompletoCondomino(c))}</button>`).join('')
     : '<p class="muted">Non risultano altri condòmini convocati per questa assemblea.</p>';
   document.getElementById('delega-form-condomino').classList.remove('hidden');
 }
@@ -3789,7 +3801,7 @@ function renderAppello(){
     const semStato = (attivo && attivo.tipo==='online') ? 'verde'
       : (attivo && attivo.tipo==='presenza' && attivo.rec.online) ? 'rosa'
       : (attivo && attivo.tipo==='presenza') ? 'blu'
-      : (delegatoId!=null && delegatoAttivo) ? 'arancio'
+      : (delegatoId!=null) ? 'arancio'
       : (rOnUscitoSem||rPresUscitoSem) ? 'nero'
       : collegatoIdAttivo ? 'arancio'
       : 'grigio';
@@ -3886,7 +3898,7 @@ function renderAppello(){
       // Il menù per assegnare una delega è sempre disponibile — sia che il condòmino risulti
       // ancora online/in presenza, sia che sia già uscito, sia che non ci siano ancora altri
       // candidati (l'opzione "+ Aggiungi persona esterna..." resta comunque sempre valida).
-      const candidatiDelega = convocatiList.filter(x=>x.id!==c.id);
+      const candidatiDelega = convocatiList.filter(x=>x.id!==c.id && !(x.unificatoCon && convocatiIds.includes(x.unificatoCon)));
       const esterni = assemblea.deleghiEsterni||[];
       slot3=document.createElement('select'); slot3.id='delega-select-'+c.id; slot3.className='btn-appello-azione';
       slot3.innerHTML = '<option value="">Registra delega</option>' +
@@ -4038,14 +4050,15 @@ function renderAppello(){
   renderSchemaDelegheAppello(assemblea, b);
 }
 // Piccolo riepilogo, sotto ai totali dell'appello: per ciascuna persona che ha ricevuto
-// almeno una delega, quante persone l'hanno delegata e il totale dei millesimi che rappresenta
-// (i propri esclusi — solo quelli ricevuti in delega).
+// almeno una delega, quante persone l'hanno delegata, il totale dei millesimi che rappresenta
+// (i propri esclusi — solo quelli ricevuti in delega), e sotto, rientrati, i nominativi di chi
+// gliel'ha data, con i rispettivi millesimi.
 function renderSchemaDelegheAppello(assemblea, b){
   const wrap = document.getElementById('appello-schema-deleghe-wrap');
   const tbody = document.getElementById('appello-schema-deleghe-tbody');
   if(!wrap || !tbody) return;
   const deleghe = assemblea.appello.deleghe || {};
-  const gruppiPerDelegato = {}; // delegatoId -> {nome, numeroDeleganti, millesimiTotali}
+  const gruppiPerDelegato = {}; // delegatoId -> {nome, deleganti:[{nome,millesimi}], millesimiTotali}
   Object.keys(deleghe).forEach(deleganteIdStr=>{
     const delegatoId = deleghe[deleganteIdStr];
     if(delegatoId==null) return;
@@ -4053,10 +4066,11 @@ function renderSchemaDelegheAppello(assemblea, b){
     const deleganteCondomino = b.condomini.find(c=>c.id===deleganteId);
     if(!deleganteCondomino) return; // per sicurezza: non dovrebbe mai mancare, ma evitiamo comunque un errore
     if(!gruppiPerDelegato[delegatoId]){
-      gruppiPerDelegato[delegatoId] = { nome: nomeDelegato(delegatoId, b, assemblea), numeroDeleganti: 0, millesimiTotali: 0 };
+      gruppiPerDelegato[delegatoId] = { nome: nomeDelegato(delegatoId, b, assemblea), deleganti: [], millesimiTotali: 0 };
     }
-    gruppiPerDelegato[delegatoId].numeroDeleganti++;
-    gruppiPerDelegato[delegatoId].millesimiTotali += pesoConvocato(deleganteCondomino, assemblea, b);
+    const millesimiDelegante = pesoConvocato(deleganteCondomino, assemblea, b);
+    gruppiPerDelegato[delegatoId].deleganti.push({ nome: nomeCompletoCondomino(deleganteCondomino), millesimi: millesimiDelegante });
+    gruppiPerDelegato[delegatoId].millesimiTotali += millesimiDelegante;
   });
   const righe = Object.values(gruppiPerDelegato);
   if(righe.length===0){
@@ -4066,7 +4080,13 @@ function renderSchemaDelegheAppello(assemblea, b){
   wrap.classList.remove('hidden');
   // In ordine dal delegato che rappresenta più millesimi a chi ne rappresenta meno.
   righe.sort((x,y)=>y.millesimiTotali-x.millesimiTotali);
-  tbody.innerHTML = righe.map(r=>`<tr><td>${escapeHtml(r.nome)}</td><td>${r.numeroDeleganti}</td><td>${arrotondaMillesimi(r.millesimiTotali)} / 1000‰</td></tr>`).join('');
+  tbody.innerHTML = righe.map(r=>{
+    const rigaDelegato = `<tr><td>${escapeHtml(r.nome)}</td><td>${r.deleganti.length}</td><td>${arrotondaMillesimi(r.millesimiTotali)} / 1000‰</td></tr>`;
+    const righeDeleganti = r.deleganti.map(d=>
+      `<tr style="background:#EDEAE2;color:var(--text-soft);"><td style="padding-left:34px;">- ${escapeHtml(d.nome)}</td><td></td><td>${arrotondaMillesimi(d.millesimi)}‰</td></tr>`
+    ).join('');
+    return rigaDelegato + righeDeleganti;
+  }).join('');
 }
 
 // ---------- CREA ASSEMBLEA ----------
