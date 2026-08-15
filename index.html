@@ -548,7 +548,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 15/08/2026 alle 11:10">LT-109</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 15/08/2026 alle 11:20">LT-110</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1445,7 +1445,7 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
 </div>
 
 <div class="modal-overlay hidden" id="modal-duplicati-nome">
-  <div class="modal-box" style="max-width:560px;width:100%;max-height:85vh;overflow-y:auto;">
+  <div class="modal-box" style="max-width:800px;width:100%;max-height:85vh;overflow-y:auto;">
     <h3>Condòmini con lo stesso nome</h3>
     <div id="popup-duplicati-corpo"></div>
     <div class="modal-actions">
@@ -2959,10 +2959,9 @@ function renderTotaliMillesimi(){
 // ---------- RILEVAMENTO CONDÒMINI CON LO STESSO NOME (nuova unione, distinta dal vecchio
 // collegamento manuale "Stesso proprietario" — usa un campo a parte, unificatoCon, che
 // determina anche una visualizzazione diversa nelle tabelle di assemblea) ----------
-function trovaGruppiNomiUguali(building, soloConMillesimiInTabella){
+function trovaGruppiNomiUguali(building){
   const gruppi = {};
   building.condomini.forEach(c=>{
-    if(soloConMillesimiInTabella && !(c.millesimi[soloConMillesimiInTabella]>0)) return;
     const chiave = (c.cognome||'').trim().toLowerCase() + '|' + (c.nome||'').trim().toLowerCase();
     if(chiave==='|') return; // riga senza nome né cognome, ignorata
     if(!gruppi[chiave]) gruppi[chiave] = [];
@@ -2980,7 +2979,7 @@ function controllaDuplicatiNomeDopoNuovaTabella(building, nomeTabella){
   if(!building.tabelleGiaControllatePerDuplicati) building.tabelleGiaControllatePerDuplicati = [];
   if(building.tabelleGiaControllatePerDuplicati.includes(nomeTabella)) return; // già controllata una volta, non richiediamo più
   building.tabelleGiaControllatePerDuplicati.push(nomeTabella);
-  const gruppi = trovaGruppiNomiUguali(building, nomeTabella);
+  const gruppi = trovaGruppiNomiUguali(building);
   if(gruppi.length===0){ salvaStato(); return; }
   mostraPopupDuplicatiNome(building, gruppi);
 }
@@ -2991,15 +2990,17 @@ function mostraPopupDuplicatiNome(building, gruppi){
       const secondari = g.slice(1); // il primo (g[0]) è il riferimento — le righe con flag sono le altre unità da collegare a lui
       return `
       <div class="card" style="margin-bottom:14px;background:var(--paper);">
-        <label style="display:flex;align-items:center;gap:8px;font-weight:700;margin-bottom:8px;cursor:pointer;">
-          <input type="checkbox" id="popup-dup-selall-${i}" checked onchange="document.querySelectorAll('.popup-dup-riga-${i}').forEach(cb=>cb.checked=this.checked)">
-          ${escapeHtml(nomeCompletoCondomino(g[0]))} <span class="muted" style="font-weight:400;font-size:12px;">(seleziona/deseleziona tutte le righe sotto)</span>
+        <label style="display:flex;align-items:center;gap:10px;font-weight:700;margin-bottom:10px;cursor:pointer;white-space:nowrap;">
+          <input type="checkbox" id="popup-dup-selall-${i}" style="width:19px;height:19px;flex-shrink:0;" checked onchange="document.querySelectorAll('.popup-dup-riga-${i}').forEach(cb=>cb.checked=this.checked)">
+          <span style="font-size:19px;">${escapeHtml(nomeCompletoCondomino(g[0]))}</span>
+          <span class="muted" style="font-weight:400;font-size:12px;">(seleziona/deseleziona tutte le righe sotto)</span>
         </label>
-        <table style="width:100%;font-size:13px;margin-bottom:4px;">
+        <table style="width:100%;font-size:13px;margin-bottom:4px;table-layout:fixed;">
+          <colgroup><col style="width:40px;"><col style="width:90px;"><col style="width:150px;"><col></colgroup>
           <thead><tr><th></th><th>Interno</th><th>Unità</th><th>Email</th></tr></thead>
           <tbody>${secondari.map((c,j)=>`<tr>
-            <td><input type="checkbox" class="popup-dup-riga-${i}" id="popup-dup-flag-${i}-${j}" checked></td>
-            <td>${escapeHtml(c.interno||'—')}</td><td>${escapeHtml(c.unita||'—')}</td><td>${escapeHtml(c.email||'—')}</td>
+            <td><input type="checkbox" class="popup-dup-riga-${i}" id="popup-dup-flag-${i}-${j}" style="width:18px;height:18px;" checked></td>
+            <td>${escapeHtml(c.interno||'—')}</td><td>${escapeHtml(c.unita||'—')}</td><td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(c.email||'—')}</td>
           </tr>`).join('')}</tbody>
         </table>
       </div>`;
