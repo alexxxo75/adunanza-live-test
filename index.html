@@ -548,7 +548,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 15/08/2026 alle 17:11">LT-116</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 15/08/2026 alle 17:18">LT-117</span></div>
   </div>
 
   <!-- MAIN -->
@@ -5529,6 +5529,19 @@ function impostaVoto(condominoId, optId, isPropagazioneAutomatica, isVotoInBlocc
   activePoll.voted.add(condominoId);
   if(isVotoInBlocco) activePoll.votatoInBlocco.add(condominoId);
   else activePoll.votatoInBlocco.delete(condominoId);
+
+  // Se questo condòmino è il "primario" di una o più unità unificate (stesso proprietario,
+  // collegate col nuovo meccanismo), il voto espresso sulla sua riga vale automaticamente
+  // anche per quelle unità — stesso principio già usato in appello per la presenza.
+  if(!isPropagazioneAutomatica){
+    const bCorrente = getActiveBuilding();
+    (bCorrente.condomini||[]).filter(x=>x.unificatoCon===condominoId).forEach(u=>{
+      activePoll.scelte[u.id]=optId;
+      activePoll.voted.add(u.id);
+      if(isVotoInBlocco) activePoll.votatoInBlocco.add(u.id);
+      else activePoll.votatoInBlocco.delete(u.id);
+    });
+  }
   const eDelegante = Object.prototype.hasOwnProperty.call(assemblea.appello.deleghe, condominoId);
   if(!isPropagazioneAutomatica && eDelegante){
     activePoll.overridden.add(condominoId); // l'amministratore ha impostato un voto specifico per il delegante
@@ -5628,7 +5641,7 @@ function renderTabellaVotiSondaggio(){
     tr.appendChild(tdVoto);
     return tr;
   }
-  b.condomini.filter(c=>assemblea.convocati.selezionati.includes(c.id)).forEach(c=>{
+  b.condomini.filter(c=>assemblea.convocati.selezionati.includes(c.id) && !(c.unificatoCon && assemblea.convocati.selezionati.includes(c.unificatoCon))).forEach(c=>{
     const attivo = recordAttivo(assemblea, c.id);
     const delegatoId = assemblea.appello.deleghe[c.id];
     // Chi non è mai comparso a questa assemblea (mai online, mai in presenza) e non ha
@@ -5645,8 +5658,9 @@ function renderTabellaVotiSondaggio(){
 
     const tdNome=document.createElement('td'); tdNome.textContent=nomeEffettivoCondominoAssemblea(c, assemblea); tr.appendChild(tdNome);
 
+    const unitaUnificateVoto = b.condomini.filter(x=>x.unificatoCon===c.id && assemblea.convocati.selezionati.includes(x.id));
     const tdMillVoto=document.createElement('td');
-    tdMillVoto.innerHTML = `<b>${pesoVoto(c,b,assemblea)}</b>`;
+    tdMillVoto.innerHTML = unitaUnificateVoto.length>0 ? '<span class="muted">—</span>' : `<b>${pesoVoto(c,b,assemblea)}</b>`;
     tr.appendChild(tdMillVoto);
 
     const tdStato=document.createElement('td');
@@ -5668,7 +5682,10 @@ function renderTabellaVotiSondaggio(){
     sel.onchange=()=>{
       const posizioneScorrimento = window.scrollY;
       const val=sel.value;
-      if(!val){ delete activePoll.scelte[c.id]; activePoll.voted.delete(c.id); activePoll.overridden.delete(c.id); activePoll.votatoInBlocco.delete(c.id); }
+      if(!val){
+        delete activePoll.scelte[c.id]; activePoll.voted.delete(c.id); activePoll.overridden.delete(c.id); activePoll.votatoInBlocco.delete(c.id);
+        b.condomini.filter(x=>x.unificatoCon===c.id).forEach(u=>{ delete activePoll.scelte[u.id]; activePoll.voted.delete(u.id); activePoll.votatoInBlocco.delete(u.id); });
+      }
       else impostaVoto(c.id, parseInt(val), false);
       renderPollResults(); renderTabellaVotiSondaggio(); renderCvPollArea(); salvaStato();
       // La ricostruzione della tabella appena fatta può far "saltare" la pagina in cima per un
@@ -5727,6 +5744,31 @@ function renderTabellaVotiSondaggio(){
     }
     tr.appendChild(tdVoto);
     tbody.appendChild(tr);
+
+    // Se questo condòmino ha una o più unità unificate a lui (stesso proprietario), mostriamo
+    // subito sotto TUTTE le proprietà coinvolte — compresa la sua — come righe rientrate, in
+    // grigio, non interattive: il voto è unico ed è già stato registrato sulla riga principale
+    // per tutte queste unità insieme, qui servono solo a mostrare quali proprietà sono comprese.
+    if(unitaUnificateVoto.length>0){
+      [c, ...unitaUnificateVoto].forEach(u=>{
+        const trUnita=document.createElement('tr');
+        trUnita.style.background='#EDEAE2';
+        trUnita.style.color='var(--text-soft)';
+        const tdUnitaNome=document.createElement('td');
+        tdUnitaNome.style.paddingLeft='34px';
+        tdUnitaNome.innerHTML = `- ${escapeHtml(nomeCompletoCondomino(u))} <span class="muted">(${escapeHtml(u.unita||u.interno||'unità')})</span>`;
+        trUnita.appendChild(tdUnitaNome);
+        const tdUnitaMill=document.createElement('td');
+        tdUnitaMill.textContent = pesoVoto(u,b,assemblea);
+        trUnita.appendChild(tdUnitaMill);
+        const tdUnitaStato=document.createElement('td');
+        tdUnitaStato.innerHTML = '<span class="muted">unita a '+escapeHtml(nomeCompletoCondomino(c))+'</span>';
+        trUnita.appendChild(tdUnitaStato);
+        const tdUnitaVoto=document.createElement('td');
+        trUnita.appendChild(tdUnitaVoto);
+        tbody.appendChild(trUnita);
+      });
+    }
 
     // Se questo condòmino ha delegato una persona esterna, la sua riga di voto compare subito
     // sotto, indentata — non più in una sezione separata in fondo alla tabella.
