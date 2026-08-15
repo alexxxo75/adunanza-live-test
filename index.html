@@ -548,7 +548,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 15/08/2026 alle 16:56">LT-114</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 15/08/2026 alle 17:11">LT-116</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1424,8 +1424,12 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
     <label class="muted" style="font-size:12px;display:block;margin-bottom:3px;flex-shrink:0;">Indirizzo destinatario</label>
     <input type="email" id="anteprima-email-indirizzo" style="margin-bottom:12px;flex-shrink:0;">
     <p class="muted" style="font-size:12px;margin-bottom:3px;flex-shrink:0;">Oggetto: <b id="anteprima-email-oggetto" style="color:var(--ink);"></b></p>
-    <label class="muted" style="font-size:12px;display:block;margin-bottom:3px;flex-shrink:0;">Testo dell'email (modificabile)</label>
-    <textarea id="anteprima-email-corpo" style="width:100%;flex:1;min-height:220px;font-family:var(--font-body);font-size:13px;padding:10px;border:1px solid var(--line);border-radius:4px;resize:none;overflow-y:auto;box-sizing:border-box;"></textarea>
+    <div style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;">
+      <label class="muted" style="font-size:12px;display:block;margin-bottom:3px;flex-shrink:0;">Anteprima (come apparirà davvero, pulsante compreso)</label>
+      <div id="anteprima-email-render" style="background:#fff;border:1px solid var(--line);border-radius:4px;padding:16px;margin-bottom:16px;font-size:13.5px;white-space:pre-wrap;line-height:1.6;flex-shrink:0;"></div>
+      <label class="muted" style="font-size:12px;display:block;margin-bottom:3px;flex-shrink:0;">Testo dell'email (modificabile — il pulsante e il link si aggiornano da soli, non serve modificarli qui)</label>
+      <textarea id="anteprima-email-corpo" style="width:100%;min-height:180px;flex:1;font-family:var(--font-body);font-size:13px;padding:10px;border:1px solid var(--line);border-radius:4px;resize:none;box-sizing:border-box;"></textarea>
+    </div>
     <div class="modal-actions" style="flex-shrink:0;margin-top:14px;">
       <button class="btn secondary" onclick="chiudiAnteprimaEmail()">Chiudi</button>
       <button class="btn brass" onclick="reinviaEmailDaAnteprima()">✉ Reinvia questa email</button>
@@ -1850,7 +1854,7 @@ let fontScale = 17;
 function getActiveBuilding(){ return buildings.find(b=>b.id===activeBuildingId); }
 let draftBuilding = null; // condominio in fase di creazione, non ancora salvato in buildings[]
 function getWorkingBuilding(){ return draftBuilding || getActiveBuilding(); }
-function nomeCompletoCondomino(c){ return c.nome + (c.cognome?(' '+c.cognome):''); }
+function nomeCompletoCondomino(c){ return (c.cognome?(c.cognome+' '):'') + c.nome; }
 // Se per QUESTA assemblea è stata registrata una sostituzione (es. cambio di proprietà tra
 // convocazione e assemblea, scoperto solo in aula), restituisce il nome di chi lo sostituisce;
 // altrimenti il nome del condòmino stesso. Usata ovunque si mostri il nome di un condòmino in
@@ -3077,7 +3081,7 @@ function renderCondomini(){
   renderMillesimiInputs();
 
   const thead = document.getElementById('tbl-condomini-head');
-  thead.innerHTML = `<th>Nome</th><th>Cognome</th><th>Interno</th><th>Unità immobiliare</th><th>Email</th>` +
+  thead.innerHTML = `<th>Cognome</th><th>Nome</th><th>Interno</th><th>Unità immobiliare</th><th>Email</th>` +
     building.tabelleMillesimali.map(t=>`<th>${t}</th>`).join('') +
     `<th>Stesso proprietario di</th><th></th>`;
 
@@ -3088,13 +3092,13 @@ function renderCondomini(){
   building.condomini.forEach(c=>{
     const tr=document.createElement('tr');
 
-    const tdNome=document.createElement('td');
-    const inNome=document.createElement('input'); inNome.className='cell-nome'; inNome.value=c.nome; inNome.oninput=()=>c.nome=inNome.value; inNome.onblur=()=>salvaStato();
-    tdNome.appendChild(inNome); tr.appendChild(tdNome);
-
     const tdCognome=document.createElement('td');
     const inCognome=document.createElement('input'); inCognome.value=c.cognome||''; inCognome.oninput=()=>c.cognome=inCognome.value; inCognome.onblur=()=>salvaStato();
     tdCognome.appendChild(inCognome); tr.appendChild(tdCognome);
+
+    const tdNome=document.createElement('td');
+    const inNome=document.createElement('input'); inNome.className='cell-nome'; inNome.value=c.nome; inNome.oninput=()=>c.nome=inNome.value; inNome.onblur=()=>salvaStato();
+    tdNome.appendChild(inNome); tr.appendChild(tdNome);
 
     const tdInterno=document.createElement('td');
     const inInterno=document.createElement('input'); inInterno.value=c.interno||''; inInterno.oninput=()=>c.interno=inInterno.value; inInterno.onblur=()=>salvaStato();
@@ -3119,7 +3123,7 @@ function renderCondomini(){
     const tdGruppo=document.createElement('td');
     const selGruppo=document.createElement('select'); selGruppo.style.minWidth='140px';
     selGruppo.innerHTML = '<option value="">— nessuno (persona diversa) —</option>' +
-      building.condomini.filter(x=>x.id!==c.id).map(x=>`<option value="${x.id}" ${c.gruppoCon===x.id?'selected':''}>${nomeCompletoCondomino(x)}${x.unita?' ('+x.unita+')':''}</option>`).join('');
+      building.condomini.filter(x=>x.id!==c.id).map(x=>`<option value="${x.id}" ${(c.gruppoCon===x.id||c.unificatoCon===x.id)?'selected':''}>${nomeCompletoCondomino(x)}${x.unita?' ('+x.unita+')':''}</option>`).join('');
     selGruppo.onchange=()=>{ c.gruppoCon = selGruppo.value?parseInt(selGruppo.value):null; salvaStato(); };
     tdGruppo.appendChild(selGruppo); tr.appendChild(tdGruppo);
 
@@ -3770,10 +3774,20 @@ function renderAppello(){
     tdNome.innerHTML=semaforoAppello(semStato)+`<span class="nome-cliccabile-sostituzione" title="Clicca per sostituire questo partecipante per questa assemblea" onclick="apriSostituzionePartecipante(${c.id})" style="cursor:pointer;border-bottom:1px dotted var(--text-soft);">${nomeEffettivoCondominoAssemblea(c, assemblea)}</span>`;
     tr.appendChild(tdNome);
 
+    // Se questo condòmino ha una o più unità unificate a lui (stesso proprietario, collegate
+    // col nuovo meccanismo), la riga principale NON mostra un peso in millesimi proprio —
+    // sarebbe fuorviante, dato che rappresenta più di una proprietà insieme: il peso di
+    // ciascuna proprietà si vede nelle righe sottostanti, dove compaiono tutte, compresa
+    // quella di questo stesso condòmino.
+    const unitaUnificateAnticipo = b.condomini.filter(x=>x.unificatoCon===c.id && convocatiIds.includes(x.id));
     const rappresentatoRiga = convocatoRappresentato(c, assemblea, b);
     const tdMill=document.createElement('td');
-    const millRiga = pesoConvocato(c, assemblea, b);
-    tdMill.innerHTML = rappresentatoRiga ? `<b>${millRiga}</b>` : `${millRiga}`;
+    if(unitaUnificateAnticipo.length>0){
+      tdMill.innerHTML = '<span class="muted">—</span>';
+    }else{
+      const millRiga = pesoConvocato(c, assemblea, b);
+      tdMill.innerHTML = rappresentatoRiga ? `<b>${millRiga}</b>` : `${millRiga}`;
+    }
     tr.appendChild(tdMill);
 
     const tdStato=document.createElement('td');
@@ -3871,25 +3885,33 @@ function renderAppello(){
     // grigio, non interattive: il peso e la presenza di quest'unità sono già conteggiati a
     // parte (ogni unità resta un convocato a sé ai fini del calcolo dei millesimi), qui
     // servono solo a rendere visibile che fanno capo alla stessa persona.
-    const unitaUnificate = b.condomini.filter(x=>x.unificatoCon===c.id && convocatiIds.includes(x.id));
-    unitaUnificate.forEach(u=>{
-      const trUnita=document.createElement('tr');
-      trUnita.style.background='#EDEAE2';
-      trUnita.style.color='var(--text-soft)';
-      const tdUnitaNome=document.createElement('td');
-      tdUnitaNome.style.paddingLeft='34px';
-      tdUnitaNome.innerHTML = `- ${escapeHtml(nomeCompletoCondomino(u))} <span class="muted">(${escapeHtml(u.unita||u.interno||'unità')})</span>`;
-      trUnita.appendChild(tdUnitaNome);
-      const tdUnitaMill=document.createElement('td');
-      tdUnitaMill.textContent = pesoConvocato(u, assemblea, b) + '‰';
-      trUnita.appendChild(tdUnitaMill);
-      const tdUnitaStato=document.createElement('td');
-      tdUnitaStato.innerHTML = '<span class="muted">unita a '+escapeHtml(nomeCompletoCondomino(c))+'</span>';
-      trUnita.appendChild(tdUnitaStato);
-      const tdUnitaAz=document.createElement('td');
-      trUnita.appendChild(tdUnitaAz);
-      tbody.appendChild(trUnita);
-    });
+    // Se questo condòmino è il "primario" di una o più unità unificate (stesso proprietario,
+    // collegate col nuovo meccanismo), mostriamo subito sotto TUTTE le proprietà coinvolte —
+    // compresa la sua — come righe rientrate, in grigio, non interattive: il peso e la
+    // presenza di ciascuna unità sono già conteggiati a parte (ogni unità resta un convocato a
+    // sé ai fini del calcolo dei millesimi), qui servono solo a rendere visibile quali
+    // proprietà fanno capo alla stessa persona, senza ambiguità su quante siano.
+    const unitaUnificate = unitaUnificateAnticipo;
+    if(unitaUnificate.length>0){
+      [c, ...unitaUnificate].forEach(u=>{
+        const trUnita=document.createElement('tr');
+        trUnita.style.background='#EDEAE2';
+        trUnita.style.color='var(--text-soft)';
+        const tdUnitaNome=document.createElement('td');
+        tdUnitaNome.style.paddingLeft='34px';
+        tdUnitaNome.innerHTML = `- ${escapeHtml(nomeCompletoCondomino(u))} <span class="muted">(${escapeHtml(u.unita||u.interno||'unità')})</span>`;
+        trUnita.appendChild(tdUnitaNome);
+        const tdUnitaMill=document.createElement('td');
+        tdUnitaMill.textContent = pesoConvocato(u, assemblea, b) + '‰';
+        trUnita.appendChild(tdUnitaMill);
+        const tdUnitaStato=document.createElement('td');
+        tdUnitaStato.innerHTML = '<span class="muted">unita a '+escapeHtml(nomeCompletoCondomino(c))+'</span>';
+        trUnita.appendChild(tdUnitaStato);
+        const tdUnitaAz=document.createElement('td');
+        trUnita.appendChild(tdUnitaAz);
+        tbody.appendChild(trUnita);
+      });
+    }
 
     // Se è stata registrata una sostituzione per questo condòmino (cambio di proprietà tra
     // convocazione e assemblea, es. scoperto solo in aula), mostriamo subito sotto una riga di
@@ -4864,7 +4886,14 @@ function apriAnteprimaEmailSingola(condominoId){
   __anteprimaEmailAssembleaId = a.id;
   document.getElementById('anteprima-email-indirizzo').value = c.email||'';
   document.getElementById('anteprima-email-oggetto').textContent = a.oggetto||'(nessun oggetto impostato)';
-  document.getElementById('anteprima-email-corpo').value = costruisciEmail(c, a, b);
+  const corpo = costruisciEmail(c, a, b);
+  const areaTesto = document.getElementById('anteprima-email-corpo');
+  areaTesto.value = corpo;
+  const render = document.getElementById('anteprima-email-render');
+  render.innerHTML = corpo;
+  // L'anteprima resta sincronizzata mentre si modifica il testo, così si vede subito l'effetto
+  // di eventuali modifiche (compreso, se capitasse per sbaglio, un pulsante rovinato).
+  areaTesto.oninput = () => { render.innerHTML = areaTesto.value; };
   document.getElementById('modal-anteprima-email').classList.remove('hidden');
 }
 function chiudiAnteprimaEmail(){
