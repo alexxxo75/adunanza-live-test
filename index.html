@@ -548,7 +548,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 16/08/2026 alle 00:47">LT-123</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 16/08/2026 alle 01:04">LT-125</span></div>
   </div>
 
   <!-- MAIN -->
@@ -3179,6 +3179,21 @@ function recordAttivo(assemblea, condominoId){
   if(rPres) return {tipo:'presenza', rec:rPres};
   return null;
 }
+// Come recordAttivo, ma per un "primario" (condòmino con una o più unità unificate a lui)
+// controlla anche le sue unità secondarie: ciascuna ha un proprio link personale distinto, e
+// se il condòmino si collega tramite il link di una proprietà secondaria invece che quella
+// della riga principale, senza questo controllo la riga principale (quella che vede
+// l'amministratore) risulterebbe ancora "assente" nonostante la persona sia online per davvero.
+function recordAttivoConSecondarie(building, assemblea, condominoId){
+  const diretto = recordAttivo(assemblea, condominoId);
+  if(diretto) return diretto;
+  const secondarie = building.condomini.filter(x=>x.unificatoCon===condominoId);
+  for(const u of secondarie){
+    const att = recordAttivo(assemblea, u.id);
+    if(att) return att;
+  }
+  return null;
+}
 function presentiDiretti(building){
   // chi vota "di persona" in questo momento: online oppure presente fisicamente, senza uscita
   // registrata — condòmini E persone esterne (delegati terzi) che risultano presenti, MA solo
@@ -3787,7 +3802,7 @@ function renderAppello(){
     return tr;
   }
   b.condomini.filter(c=>convocatiIds.includes(c.id) && !(c.unificatoCon && convocatiIds.includes(c.unificatoCon))).forEach(c=>{
-    const attivo = recordAttivo(assemblea, c.id);
+    const attivo = recordAttivoConSecondarie(b, assemblea, c.id);
     const delegatoId = assemblea.appello.deleghe[c.id];
     const collegate = personeCollegate(b, c.id);
     const collegatoAttivo = !attivo && !delegatoId ? collegate.map(id=>recordAttivo(assemblea,id)).find(Boolean) : null;
@@ -4904,22 +4919,33 @@ function renderAnteprimeEmailConvocazione(a, b){
 function renderTabellaRiepilogoInvitati(a, b){
   const tbody=document.getElementById('ca-tabella-riepilogo-body');
   if(!tbody) return;
-  const convocati = a.convocati.selezionati.map(id=>b.condomini.find(c=>c.id===id)).filter(Boolean);
-  if(convocati.length===0){
+  const tuttiIConvocati = a.convocati.selezionati.map(id=>b.condomini.find(c=>c.id===id)).filter(Boolean);
+  if(tuttiIConvocati.length===0){
     tbody.innerHTML = '<tr><td colspan="5" class="muted">Nessun invitato selezionato.</td></tr>';
     return;
   }
+  const idsTuttiIConvocati = new Set(tuttiIConvocati.map(c=>c.id));
   const baseUrl = window.location.origin + window.location.pathname;
   // Stessa identica costruzione del link già usata dentro costruisciEmail: se una assemblea è
   // puramente in presenza, non esiste un link di accesso online (non applicabile).
-  tbody.innerHTML = convocati.map(c=>{
-    const link = a.modalita==='in-presenza' ? null : `${baseUrl}?token=${c.token}&assemblea=${a.id}`;
-    const cellaLink = link
-      ? `<span style="font-family:var(--font-mono);font-size:12px;word-break:break-all;">${link}</span>`
-      : '<span class="muted">— (assemblea solo in presenza)</span>';
-    const cellaBusta = `<span onclick="apriAnteprimaEmailSingola(${c.id})" title="Vedi e modifica l'email di questo invitato" style="cursor:pointer;font-size:17px;" role="button">✉️</span>`;
-    return `<tr><td>${escapeHtml(c.cognome||'')}</td><td>${escapeHtml(c.nome||'')}</td><td style="text-align:center;">${cellaBusta}</td><td>${escapeHtml(c.email||'')}</td><td>${cellaLink}</td></tr>`;
-  }).join('');
+  tbody.innerHTML = tuttiIConvocati
+    .filter(c=>!(c.unificatoCon && idsTuttiIConvocati.has(c.unificatoCon))) // le unità secondarie non hanno una riga propria: vedi sotto
+    .map(c=>{
+      const link = a.modalita==='in-presenza' ? null : `${baseUrl}?token=${c.token}&assemblea=${a.id}`;
+      const cellaLink = link
+        ? `<span style="font-family:var(--font-mono);font-size:12px;word-break:break-all;">${link}</span>`
+        : '<span class="muted">— (assemblea solo in presenza)</span>';
+      const cellaBusta = `<span onclick="apriAnteprimaEmailSingola(${c.id})" title="Vedi e modifica l'email di questo invitato" style="cursor:pointer;font-size:17px;" role="button">✉️</span>`;
+      const rigaPrincipale = `<tr><td>${escapeHtml(c.cognome||'')}</td><td>${escapeHtml(c.nome||'')}</td><td style="text-align:center;">${cellaBusta}</td><td>${escapeHtml(c.email||'')}</td><td>${cellaLink}</td></tr>`;
+      // Le unità secondarie di questo primario (stesso proprietario, nuovo meccanismo): non
+      // ricevono una propria email, mostriamo solo una riga di nota sotto, così resta chiaro
+      // che sono comunque convocate, ma tramite l'unica email/link del primario.
+      const secondarie = tuttiIConvocati.filter(x=>x.unificatoCon===c.id);
+      const righeSecondarie = secondarie.map(s=>
+        `<tr style="background:#EDEAE2;color:var(--text-soft);"><td colspan="5" style="padding-left:34px;font-size:12.5px;">- ${escapeHtml(nomeCompletoCondomino(s))} (${escapeHtml(s.unita||s.interno||'altra unità')}) — stessa email/link del primario, nessuna email separata inviata</td></tr>`
+      ).join('');
+      return rigaPrincipale + righeSecondarie;
+    }).join('');
 }
 // ---------- Anteprima e reinvio di una singola email di convocazione ----------
 let __anteprimaEmailCondominoId = null;
@@ -5030,13 +5056,20 @@ async function salvaESpedisciAssemblea(){
     toast('Inserisci l\'oggetto dell\'assemblea prima di inviare la convocazione: aiuta a distinguerla dalle altre.');
     return;
   }
-  const convocati = a.convocati.selezionati.map(id=>b.condomini.find(c=>c.id===id)).filter(Boolean);
-  if(convocati.length===0){
+  const tuttiIConvocati = a.convocati.selezionati.map(id=>b.condomini.find(c=>c.id===id)).filter(Boolean);
+  if(tuttiIConvocati.length===0){
     toast(b.condomini.length===0
       ? 'Questo condominio non ha ancora nessun condòmino in anagrafica: aggiungili prima in Dashboard, poi torna qui a creare l\'assemblea.'
       : 'Nessun convocato selezionato: scegli almeno un destinatario prima di salvare e inviare.');
     return;
   }
+  // Le unità secondarie (stesso proprietario, unite con il nuovo meccanismo automatico) non
+  // ricevono una propria email separata: la convocazione del primario, con l'unico link, vale
+  // già per l'intero gruppo — presenza, voto e delega si comportano già come un'unica persona.
+  // Restano comunque segnate come "invitate" (vedi sotto), solo non spediamo loro un'email a
+  // parte, che sarebbe superflua e confonderebbe chi la riceve.
+  const idsTuttiIConvocati = new Set(tuttiIConvocati.map(c=>c.id));
+  const convocati = tuttiIConvocati.filter(c=>!(c.unificatoCon && idsTuttiIConvocati.has(c.unificatoCon)));
   // Prima di inviare email VERE, chiediamo sempre conferma esplicita — meglio un click in più
   // che un invio per sbaglio a persone reali, specie con un margine mensile limitato (200 email).
   const elencoDestinatari = convocati.map(c=>`- ${nomeCompletoCondomino(c)} <${c.email}>`).join('\n');
@@ -5044,7 +5077,7 @@ async function salvaESpedisciAssemblea(){
 
   salvaAssembleaInElenco();
   a.invitiInviati = true;
-  convocati.forEach(c=>{ c.invitato=true; });
+  tuttiIConvocati.forEach(c=>{ c.invitato=true; });
   renderAnteprimeEmailConvocazione(a, b);
   renderCondomini();
   const salvataggioRiuscito = salvaStato();
@@ -5836,7 +5869,7 @@ function renderTabellaVotiSondaggio(){
     return tr;
   }
   b.condomini.filter(c=>assemblea.convocati.selezionati.includes(c.id) && !(c.unificatoCon && assemblea.convocati.selezionati.includes(c.unificatoCon))).forEach(c=>{
-    const attivo = recordAttivo(assemblea, c.id);
+    const attivo = recordAttivoConSecondarie(b, assemblea, c.id);
     const delegatoId = assemblea.appello.deleghe[c.id];
     // Chi non è mai comparso a questa assemblea (mai online, mai in presenza) e non ha
     // delegato nessuno non compare più nell'elenco: non c'è nulla da fare per lui in questo
@@ -6549,7 +6582,7 @@ function costruisciSezionePresenti(assemblea, b){
   const totMillConvocati = arrotondaMillesimi(convocatiList.reduce((s,c)=>s+(pesoConvocato(c,assemblea,b)),0)) || 1;
   const millPresenti = arrotondaMillesimi(rappresentati.reduce((s,c)=>s+(pesoConvocato(c,assemblea,b)),0));
   const righeHtml = convocatiList.map(c=>{
-    const attivo = recordAttivo(assemblea, c.id);
+    const attivo = recordAttivoConSecondarie(b, assemblea, c.id);
     const recOnlineUscito = (assemblea.appello.online||[]).find(r=>r.condominoId===c.id && r.uscita);
     const recPresenzaUscito = (assemblea.appello.presenzeFisiche||[]).find(r=>r.condominoId===c.id && r.uscita);
     const delegatoId = assemblea.appello.deleghe ? assemblea.appello.deleghe[c.id] : undefined;
@@ -6913,7 +6946,7 @@ function costruisciTabellaPresentiVerbale(building, assemblea){
   const tabellaRif = tabellaQuorum(assemblea, building);
   const righe = [];
   building.condomini.filter(c=>assemblea.convocati.selezionati.includes(c.id)).forEach(c=>{
-    const attivo = recordAttivo(assemblea, c.id);
+    const attivo = recordAttivoConSecondarie(building, assemblea, c.id);
     const delegatoId = assemblea.appello.deleghe[c.id];
     let stato;
     if(attivo && attivo.tipo==='online') stato='Online';
