@@ -548,7 +548,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 16/08/2026 alle 01:04">LT-125</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 16/08/2026 alle 01:23">LT-128</span></div>
   </div>
 
   <!-- MAIN -->
@@ -560,7 +560,7 @@
     </div>
 
     <!-- PAGE: HOME -->
-    <div class="page" id="page-home">
+    <div class="page hidden" id="page-home">
       <div class="page-head">
         <div><h1>Planning assemblee</h1><p class="sub">Calendario e assemblee in programma.</p></div>
       </div>
@@ -1799,14 +1799,37 @@ function mostraStatoPingCondomino(testo){
   const el = document.getElementById('cv-diagnostica-battito');
   if(el) el.textContent = testo;
 }
+let __timerRipresentazionePing = null;
 function avviaRispostaPing(condominoId){
   __condominoInAscoltoPing = condominoId;
   __ultimoNumeroPingRisposto = null; // forza una risposta al prossimo controllo, anche se il numero è "vecchio"
   mostraStatoPingCondomino('In attesa del primo numero da Adunanza...');
   rispondiSeNuovoNumeroPing(); // non aspettiamo il prossimo aggiornamento: controlliamo subito
+
+  // Se il primo numero non arriva mai (es. Adunanza non aveva ancora "visto" questo
+  // condòmino come online al momento giusto), non restiamo in attesa passiva per sempre: ci
+  // ripresentiamo da soli ogni tanto, segnalando di nuovo la nostra presenza — così, al giro
+  // di controllo successivo, Adunanza ci ritrova e comincia a mandarci i numeri normalmente.
+  // Il canale funziona quindi in entrambe le direzioni: non solo "Adunanza chiede, il
+  // condòmino risponde", ma anche "il condòmino avvisa, se non sente nulla da un po'".
+  if(__timerRipresentazionePing) clearInterval(__timerRipresentazionePing);
+  __timerRipresentazionePing = setInterval(()=>{
+    if(!__condominoInAscoltoPing) return;
+    if(__ultimoNumeroPingRisposto != null) return; // il canale funziona già, non serve insistere
+    try{
+      eseguiConUnioneSuServer(()=>{
+        const bCorrente = getActiveBuilding();
+        if(bCorrente && currentCondomino) segnaOnlinePerLinkPersonale(bCorrente, currentCondomino.id);
+      });
+      mostraStatoPingCondomino('Ancora in attesa del primo numero — mi sono ripresentato ad Adunanza...');
+    }catch(e){
+      console.error('[Adunanza][ping] Ripresentazione fallita:', e);
+    }
+  }, 15000);
 }
 function fermaRispostaPing(){
   __condominoInAscoltoPing = null;
+  if(__timerRipresentazionePing){ clearInterval(__timerRipresentazionePing); __timerRipresentazionePing = null; }
   mostraStatoPingCondomino('Fermato (uscito dall\u2019assemblea)');
 }
 // Chiamata ogni volta che arrivano dati nuovi dal database condiviso (in applicaDatiRicevuti,
@@ -3411,6 +3434,15 @@ function trovaAssembleaDelegaCorrente(){
   return a ? {b, a} : null;
 }
 function renderPaginaDelegaCondomino(){
+  // Se l'utente ha il cursore in questo momento dentro un campo di questa pagina (es. sta
+  // scrivendo il nome di una persona esterna da delegare), non ridisegniamo nulla: il
+  // ridisegno periodico legato alla sincronizzazione con il database condiviso altrimenti
+  // azzererebbe tutto, riportando alla schermata di scelta iniziale e facendo perdere quello
+  // che si stava scrivendo.
+  const paginaDelega = document.getElementById('page-delega-condomino');
+  if(paginaDelega && paginaDelega.contains(document.activeElement) && document.activeElement.tagName!=='BODY'){
+    return;
+  }
   const ctx = trovaAssembleaDelegaCorrente();
   ['delega-stato-attuale','delega-form-condomino','delega-form-esterno','delega-conferma-email','delega-catena-wrap','delega-fatto','delega-avviso-limite'].forEach(id=>document.getElementById(id).classList.add('hidden'));
   document.getElementById('delega-scelta-iniziale').classList.remove('hidden');
@@ -3530,7 +3562,13 @@ function invaDelegaAdAmministratore(){
   a.appello.deleghe[currentCondomino.id] = delegatoId;
   salvaStato();
 
-  document.getElementById('delega-conferma-email').classList.add('hidden');
+  // Nascondiamo TUTTE le altre schede possibili, non solo quella dell'email di conferma: se
+  // arriviamo qui dopo aver già avuto una delega precedente ("Hai già delegato..."), quella
+  // scheda va comunque nascosta, altrimenti resterebbe visibile insieme alla nuova conferma.
+  ['delega-scelta-iniziale','delega-form-condomino','delega-form-esterno','delega-conferma-email','delega-stato-attuale','delega-avviso-limite'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.classList.add('hidden');
+  });
   const fatto = document.getElementById('delega-fatto');
   fatto.classList.remove('hidden');
   fatto.innerHTML = `<h3 style="margin-bottom:6px;">✅ Delega registrata e inviata</h3>
@@ -3769,7 +3807,6 @@ function renderAppello(){
     const semEst = (attivoEst && attivoEst.tipo==='online') ? 'verde' : (attivoEst && attivoEst.rec.online) ? 'rosa' : attivoEst ? 'blu' : 'grigio';
     const tdNome=document.createElement('td');
     tdNome.className='appello-nome-cella';
-    if(indentata) tdNome.style.paddingLeft='34px';
     tdNome.innerHTML=semaforoAppello(semEst)+`${est.nome} <span class="muted">${indentata?'(esterno delegato)':'(persona esterna)'}</span>`;
     tr.appendChild(tdNome);
     const tdMillEst=document.createElement('td'); tdMillEst.innerHTML='<span class="muted">—</span>'; tr.appendChild(tdMillEst);
@@ -7877,7 +7914,7 @@ function instradamentoIniziale(){
   }else{
     activeBuildingId = null;
     draftBuilding = null;
-    renderHome();
+    goPage('home');
     renderNavSubmenu();
   }
 }
@@ -7937,13 +7974,19 @@ function collegaAscoltoFirebase(){
 // diverso tra le due applicazioni.
 function eseguiCicloPing(){
   try{
-  const daSegnareUsciti = []; // [{buildingId, condominoId}]
-  const daRiconnettere = []; // [{buildingId, condominoId}] — chi torna a rispondere dopo un'uscita automatica
-  const nuoviNumeri = []; // [{buildingId, condominoId, numero, mancate}]
+  const daSegnareUsciti = []; // [{buildingId, assembleaId, condominoId}]
+  const daRiconnettere = []; // [{buildingId, assembleaId, condominoId}] — chi torna a rispondere dopo un'uscita automatica
+  const nuoviNumeri = []; // [{buildingId, assembleaId, condominoId, numero, mancate}]
   let quantiControllati = 0;
   buildings.forEach(bb=>{
-    const a = getAssembleaInCorso(bb);
-    if(!a) return;
+    // Consideriamo TUTTE le assemblee di questo condominio con qualcuno online, non solo
+    // quella "in corso" (bb.assembleaInCorsoId): quel campo si imposta solo quando
+    // l'amministratore la apre esplicitamente dal proprio dispositivo — se un condòmino si
+    // collega prima (o l'amministratore non ha ancora aperto la pagina), l'assemblea avrebbe
+    // comunque persone online in attesa, ma nessun numero verrebbe mai generato per loro,
+    // lasciandole bloccate per sempre "in attesa del primo numero".
+    (bb.assemblee||[]).forEach(a=>{
+    if(!a.appello || !(a.appello.online||[]).length) return;
     const pingNumeri = a.pingNumeri || {};
     const pingRisposte = a.pingRisposte || {};
     const pingMancate = a.pingMancate || {};
@@ -7962,12 +8005,12 @@ function eseguiCicloPing(){
         if(pingRisposte[id] === numeroInviatoPrima){
           mancateAggiornate = 0; // ha risposto correttamente: azzeriamo il conteggio
           if(rec.uscita && rec.usciteAutomatica){
-            daRiconnettere.push({buildingId: bb.id, condominoId: id});
+            daRiconnettere.push({buildingId: bb.id, assembleaId: a.id, condominoId: id});
           }
         }else if(!rec.uscita){
           mancateAggiornate++;
           if(mancateAggiornate >= TENTATIVI_PING_PRIMA_DI_USCITA){
-            daSegnareUsciti.push({buildingId: bb.id, condominoId: id});
+            daSegnareUsciti.push({buildingId: bb.id, assembleaId: a.id, condominoId: id});
           }
         }
         // Se è già uscito automaticamente e non ha ancora risposto, non contiamo altre
@@ -7976,28 +8019,29 @@ function eseguiCicloPing(){
       }
       let nuovoNumero;
       do{ nuovoNumero = Math.floor(10000000 + Math.random()*90000000); }while(nuovoNumero===numeroInviatoPrima);
-      nuoviNumeri.push({buildingId: bb.id, condominoId: id, numero: nuovoNumero, mancate: mancateAggiornate});
+      nuoviNumeri.push({buildingId: bb.id, assembleaId: a.id, condominoId: id, numero: nuovoNumero, mancate: mancateAggiornate});
+    });
     });
   });
   function applicaPiano(){
-    daSegnareUsciti.forEach(({buildingId, condominoId})=>{
+    daSegnareUsciti.forEach(({buildingId, assembleaId, condominoId})=>{
       const bb = buildings.find(x=>x.id===buildingId);
-      const a = bb ? getAssembleaInCorso(bb) : null;
+      const a = bb ? (bb.assemblee||[]).find(x=>x.id===assembleaId) : null;
       if(!a) return;
       const oraStr = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
       const rec = (a.appello.online||[]).find(r=>r.condominoId===condominoId && !r.uscita);
       if(rec){ rec.uscita = oraStr; rec.usciteAutomatica = true; }
     });
-    daRiconnettere.forEach(({buildingId, condominoId})=>{
+    daRiconnettere.forEach(({buildingId, assembleaId, condominoId})=>{
       const bb = buildings.find(x=>x.id===buildingId);
-      const a = bb ? getAssembleaInCorso(bb) : null;
+      const a = bb ? (bb.assemblee||[]).find(x=>x.id===assembleaId) : null;
       if(!a) return;
       const rec = (a.appello.online||[]).find(r=>r.condominoId===condominoId && r.uscita && r.usciteAutomatica);
       if(rec){ delete rec.uscita; delete rec.usciteAutomatica; }
     });
-    nuoviNumeri.forEach(({buildingId, condominoId, numero, mancate})=>{
+    nuoviNumeri.forEach(({buildingId, assembleaId, condominoId, numero, mancate})=>{
       const bb = buildings.find(x=>x.id===buildingId);
-      const a = bb ? getAssembleaInCorso(bb) : null;
+      const a = bb ? (bb.assemblee||[]).find(x=>x.id===assembleaId) : null;
       if(!a) return;
       a.pingNumeri = a.pingNumeri || {};
       a.pingMancate = a.pingMancate || {};
