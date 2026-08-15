@@ -548,7 +548,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 15/08/2026 alle 10:49">LT-107</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 15/08/2026 alle 10:59">LT-108</span></div>
   </div>
 
   <!-- MAIN -->
@@ -2900,6 +2900,7 @@ function handleExcelUpload(evt){
       // Il nuovo file sostituisce completamente anagrafica e tabelle millesimali precedenti
       building.condomini = [];
       building.tabelleMillesimali = [];
+      building.tabelleGiaControllatePerDuplicati = [];
       millesimiCols.forEach(mc=>{ if(!building.tabelleMillesimali.includes(mc.tabella)) building.tabelleMillesimali.push(mc.tabella); });
 
       let importati=0, senzaEmail=0;
@@ -2907,7 +2908,7 @@ function handleExcelUpload(evt){
         const millesimi={};
         building.tabelleMillesimali.forEach(t=>millesimi[t]=0);
         millesimiCols.forEach(mc=>{ millesimi[mc.tabella] = arrotondaMillesimi(ri.millesimiGrezzi[mc.tabella]*fattoreScala[mc.tabella]); });
-        building.condomini.push({id:idCounter++, nome:ri.nome, cognome:ri.cognome, interno:ri.interno, unita:ri.unita, email:ri.email, millesimi, invitato:false, gruppoCon:null, token: Math.random().toString(36).slice(2,10)});
+        building.condomini.push({id:idCounter++, nome:ri.nome, cognome:ri.cognome, interno:ri.interno, unita:ri.unita, email:ri.email, millesimi, invitato:false, gruppoCon:null, unificatoCon:null, token: Math.random().toString(36).slice(2,10)});
         importati++;
         if(!ri.email) senzaEmail++;
       });
@@ -2916,6 +2917,12 @@ function handleExcelUpload(evt){
       feedback.textContent = `Anagrafica sostituita: ${importati} righe caricate su "${building.nome}" — tabelle millesimali rilevate: ${millesimiCols.map(m=>m.tabella).join(', ')}.${notaScala}${notaSenzaEmail}`;
       renderCondomini();
       toast('Anagrafica sostituita con il nuovo file Excel.');
+      // Un unico controllo duplicati su tutta l'anagrafica appena importata, invece di uno per
+      // ciascuna tabella (che mostrerebbe più popup in sequenza, uno sopra l'altro).
+      building.tabelleMillesimali.forEach(t=>{ if(!building.tabelleGiaControllatePerDuplicati.includes(t)) building.tabelleGiaControllatePerDuplicati.push(t); });
+      const gruppiTrovati = trovaGruppiNomiUguali(building);
+      if(gruppiTrovati.length>0) mostraPopupDuplicatiNome(building, gruppiTrovati);
+      else salvaStato();
     }catch(err){
       feedback.textContent='Non sono riuscito a leggere il file. Verifica che sia un .xlsx valido.';
     }
