@@ -548,7 +548,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 15/08/2026 alle 17:18">LT-117</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 15/08/2026 alle 19:58">LT-119</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1123,12 +1123,14 @@
           <span class="badge live">● in corso</span>
         </div>
 
-        <div class="section-title" style="font-size:14px;margin-top:16px;">🗳️ Registra i voti — chi vota online lo fa da sé, per chi è in presenza o ha una delega imposta/correggi il voto qui sotto</div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Condòmino</th><th>Millesimi</th><th>Stato</th><th>Voto</th></tr></thead>
-            <tbody id="poll-voti-tbody"></tbody>
-          </table>
+        <div class="card" style="background:var(--paper);border:1px solid var(--line);margin-top:16px;padding:16px 18px;">
+          <div class="section-title" style="font-size:14px;margin-top:0;">🗳️ Registra i voti — chi vota online lo fa da sé, per chi è in presenza o ha una delega imposta/correggi il voto qui sotto</div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Condòmino</th><th>Millesimi</th><th>Stato</th><th>Voto</th></tr></thead>
+              <tbody id="poll-voti-tbody"></tbody>
+            </table>
+          </div>
         </div>
 
         <div class="grid grid-2" style="margin-top:20px;">
@@ -3660,6 +3662,28 @@ function convocatoRappresentato(c, assemblea, building){
   }
   return false;
 }
+// Conta le "teste" tra i convocati indicati, contando come UNA sola testa chi possiede più
+// proprietà unite con il nuovo meccanismo (unificatoCon) — a differenza del vecchio
+// collegamento manuale "Stesso proprietario di" (gruppoCon), che continua a contare una testa
+// per ciascuna proprietà come sempre, su richiesta esplicita di non cambiare il comportamento
+// già esistente. Restituisce sia il totale dei convocati (teste uniche) sia quante di queste
+// risultano rappresentate.
+function contaTeste(convocatiList, assemblea, building){
+  const idsNellaLista = new Set(convocatiList.map(c=>c.id));
+  // Le unità "secondarie" (unificatoCon punta a un altro convocato PRESENTE in questa stessa
+  // lista) non contano come teste a sé: la loro testa è già quella del primario.
+  const teste = convocatiList.filter(c=>!(c.unificatoCon && idsNellaLista.has(c.unificatoCon)));
+  const testePresenti = teste.filter(c=>{
+    if(convocatoRappresentato(c, assemblea, building)) return true;
+    // Anche se il primario stesso non risultasse rappresentato ma lo fosse una delle sue
+    // unità secondarie (non dovrebbe capitare passando dall'interfaccia, che segna sempre
+    // entrambi insieme, ma preferiamo essere corretti comunque), il gruppo conta comunque
+    // come rappresentato.
+    const secondarie = convocatiList.filter(x=>x.unificatoCon===c.id);
+    return secondarie.some(u=>convocatoRappresentato(u, assemblea, building));
+  });
+  return {totaleTeste: teste.length, testePresenti: testePresenti.length};
+}
 function semaforoAppello(stato){
   const colori = {verde:'#3D8B4C', blu:'#1D6FD1', arancio:'#E08A2C', grigio:'#9AA0A6', nero:'#2A2A2A', rosso:'#C0392B', rosa:'#C2508A'};
   const titoli = {verde:'Presente online', blu:'Presente fisicamente', arancio:'Delega', grigio:'Assente', nero:'Uscito/a', rosso:'Online, non ancora riconosciuto', rosa:'Online, segnato a mano dall\'amministratore'};
@@ -3682,17 +3706,18 @@ function renderAppello(){
   const tq = tabellaQuorum(assemblea, b);
   const convocatiList = b.condomini.filter(c=>assemblea.convocati.selezionati.includes(c.id));
   const rappresentati = convocatiList.filter(c=>convocatoRappresentato(c, assemblea, b));
+  const {totaleTeste, testePresenti} = contaTeste(convocatiList, assemblea, b);
   const totMillConvocati = arrotondaMillesimi(convocatiList.reduce((s,c)=>s+(pesoConvocato(c,assemblea,b)),0)) || 1;
   const millPresenti = arrotondaMillesimi(rappresentati.reduce((s,c)=>s+(pesoConvocato(c,assemblea,b)),0));
   document.getElementById('appello-summary').textContent =
-    `${assemblea.appello.online.filter(r=>!r.uscita).length} online · ${assemblea.appello.presenzeFisiche.filter(r=>!r.uscita).length} in presenza · ${Object.keys(assemblea.appello.deleghe).length} deleghe registrate — totale rappresentati: ${rappresentati.length} (${millPresenti}/${totMillConvocati}‰ su tabella "${tq}")`;
+    `${assemblea.appello.online.filter(r=>!r.uscita).length} online · ${assemblea.appello.presenzeFisiche.filter(r=>!r.uscita).length} in presenza · ${Object.keys(assemblea.appello.deleghe).length} deleghe registrate — totale rappresentati: ${testePresenti} (${millPresenti}/${totMillConvocati}‰ su tabella "${tq}")`;
 
   const validazioneEl = document.getElementById('appello-validazione-corpo');
   if(validazioneEl){
     const percMill = totMillConvocati>0 ? Math.round((millPresenti/totMillConvocati)*1000)/10 : 0;
     validazioneEl.innerHTML =
       `<div class="grid grid-2">` +
-        `<div><div class="muted" style="font-size:12px;">Teste presenti</div><div style="font-size:22px;font-weight:700;">${rappresentati.length} <span class="muted" style="font-size:14px;font-weight:400;">/ ${convocatiList.length} convocati</span></div></div>` +
+        `<div><div class="muted" style="font-size:12px;">Teste presenti</div><div style="font-size:22px;font-weight:700;">${testePresenti} <span class="muted" style="font-size:14px;font-weight:400;">/ ${totaleTeste} convocati</span></div></div>` +
         `<div><div class="muted" style="font-size:12px;">Millesimi presenti (tabella "${tq}")</div><div style="font-size:22px;font-weight:700;">${millPresenti} <span class="muted" style="font-size:14px;font-weight:400;">/ ${totMillConvocati}‰ (${percMill}%)</span></div></div>` +
       `</div>`;
   }
@@ -4008,7 +4033,7 @@ function renderAppello(){
 
   const tfoot = document.getElementById('appello-tfoot');
   if(tfoot){
-    tfoot.innerHTML = `<td colspan="2" style="font-weight:700;">Totale presenti: ${rappresentati.length}/${convocatiList.length}</td><td colspan="2" style="font-weight:700;">${millPresenti} / 1000‰</td>`;
+    tfoot.innerHTML = `<td colspan="2" style="font-weight:700;">Totale presenti: ${testePresenti}/${totaleTeste}</td><td colspan="2" style="font-weight:700;">${millPresenti} / 1000‰</td>`;
   }
   renderSchemaDelegheAppello(assemblea, b);
 }
@@ -5182,7 +5207,7 @@ function renderOdgBlocks(){
           <div><b>${s.question}</b> <span class="muted">(${s.tabella})</span></div>
           <div style="text-align:center;margin-top:6px;"><span class="badge" style="font-size:14px;padding:6px 16px;">Concluso</span></div>
         </div>${barsHtml}
-        <button class="btn small secondary" style="margin-top:8px;" onclick="duplicaSondaggio(${p.id}, ${si})">⧉ Duplica e ripeti sondaggio</button>
+        <button class="btn small secondary" style="margin-top:8px;" onclick="duplicaSondaggio(${p.id}, ${si})">⧉ Duplica sondaggio</button>
         ${btnRiapri}`;
       storicoEl.appendChild(card);
     });
@@ -5192,6 +5217,47 @@ function renderOdgBlocks(){
     liveSlot.className='odg-block-live-slot';
     liveSlot.id='odg-live-slot-'+p.id;
     block.appendChild(liveSlot);
+
+    // Sondaggi già creati/duplicati ma ancora in attesa (non avviati): ciascuno con il proprio
+    // tasto dedicato per aprirlo quando l'amministratore decide, e la possibilità di annullarlo
+    // se creato per errore.
+    if(p.sondaggiPreparati && p.sondaggiPreparati.length>0){
+      const preparatiEl=document.createElement('div');
+      preparatiEl.style.cssText='margin-top:10px;';
+      p.sondaggiPreparati.forEach(prep=>{
+        const card=document.createElement('div');
+        card.style.cssText='background:var(--paper);border:1px dashed var(--brass);border-radius:4px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;';
+        card.innerHTML = `<div><b>${escapeHtml(prep.question)}</b> <span class="muted" style="font-size:12px;">(${escapeHtml(prep.tabella)}) — in attesa</span></div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn small brass" onclick="apriSondaggioPreparato(${p.id}, '${prep.id}')">▶️ Apri questo sondaggio</button>
+            <button class="btn small secondary" onclick="rimuoviSondaggioPreparato(${p.id}, '${prep.id}')">Annulla</button>
+          </div>`;
+        preparatiEl.appendChild(card);
+      });
+      block.appendChild(preparatiEl);
+    }
+
+    // Pulsante "Crea nuovo sondaggio", sempre disponibile per ogni punto — sia che ci sia già
+    // un sondaggio pianificato, sia che non ce ne sia previsto nessuno.
+    const nuovoSondaggioWrap=document.createElement('div');
+    nuovoSondaggioWrap.style.cssText='margin-top:8px;';
+    const btnNuovo=document.createElement('button');
+    btnNuovo.className='btn small secondary';
+    btnNuovo.textContent = (__odgModuloNuovoSondaggioAperto===p.id) ? '✕ Chiudi' : '+ Crea nuovo sondaggio';
+    btnNuovo.onclick=()=>apriModuloNuovoSondaggio(p.id);
+    nuovoSondaggioWrap.appendChild(btnNuovo);
+    if(__odgModuloNuovoSondaggioAperto===p.id){
+      const tabelleVotoLive = tabelleDisponibiliPerVoto(assemblea, b);
+      const form=document.createElement('div');
+      form.style.cssText='background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:14px 16px;margin-top:8px;';
+      form.innerHTML = `
+        <div class="field"><label>Domanda del sondaggio</label><input type="text" id="nuovo-sondaggio-domanda-${p.id}" value="${escapeHtml(p.testo||'')}" placeholder="Es. Approvazione bilancio"></div>
+        <div class="field"><label>Opzioni di voto (una per riga)</label><textarea id="nuovo-sondaggio-opzioni-${p.id}" rows="3">Favorevole\nContrario\nAstenuto</textarea></div>
+        <div class="field"><label>Tabella millesimale da usare per il voto</label><select id="nuovo-sondaggio-tabella-${p.id}">${tabelleVotoLive.map(t=>`<option value="${escapeHtml(t)}" ${t===p.tabella?'selected':''}>${escapeHtml(t)}</option>`).join('')}</select></div>
+        <button class="btn small brass" style="margin-top:6px;" onclick="confermaCreazioneSondaggioPreparato(${p.id})">Crea (resterà in attesa, si apre a parte)</button>`;
+      nuovoSondaggioWrap.appendChild(form);
+    }
+    block.appendChild(nuovoSondaggioWrap);
 
     const actions=document.createElement('div');
     actions.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;';
@@ -5278,15 +5344,77 @@ function riapriSondaggio(odgId, storicoIndex){
     console.error('Errore riapriSondaggio:', err);
   }
 }
+const PAROLE_ORDINALI_SONDAGGIO = ['', 'Prima', 'Seconda', 'Terza', 'Quarta', 'Quinta', 'Sesta', 'Settima', 'Ottava', 'Nona', 'Decima', 'Undicesima', 'Dodicesima'];
+function parolaOrdinaleSondaggio(n){ return PAROLE_ORDINALI_SONDAGGIO[n] || (n+'ª'); }
+// Duplica il sondaggio: non lo avvia più subito come prima, lo mette in attesa (tra i
+// "sondaggi preparati" di questo punto) con un titolo numerato — resta all'amministratore
+// decidere quando aprirlo davvero, con il tasto dedicato che compare accanto.
 function duplicaSondaggio(odgId, storicoIndex){
   const b=getActiveBuilding();
   const assemblea=getAssembleaInCorso(b);
   const p=assemblea.odg.find(x=>x.id===odgId);
   if(!p) return;
-  // Duplica usando la configurazione ATTUALE del punto O.d.G. (domanda, opzioni, tabella), non
-  // quella congelata nello storico al momento della chiusura: se nel frattempo la domanda o le
-  // opzioni sono state modificate, il sondaggio ripetuto riflette le modifiche più recenti.
-  avviaSondaggioPerPunto(odgId, {question:p.testo, tabella:p.tabella, opzioniTesto:p.opzioni});
+  if(!p.sondaggiPreparati) p.sondaggiPreparati = [];
+  if(!p.prossimoNumeroDuplicato) p.prossimoNumeroDuplicato = 2; // la "prima" votazione è quella originale, implicita
+  const numero = p.prossimoNumeroDuplicato++;
+  p.sondaggiPreparati.push({
+    id: 'prep-'+odgIdCounter++,
+    question: p.testo + ' - ' + parolaOrdinaleSondaggio(numero) + ' votazione',
+    tabella: p.tabella,
+    opzioniTesto: p.opzioni
+  });
+  renderOdgBlocks();
+  salvaStato();
+  toast('Sondaggio duplicato e messo in attesa: puoi aprirlo quando vuoi con il tasto dedicato.');
+}
+// Apre un sondaggio già preparato (creato con "Crea nuovo sondaggio" o con "Duplica
+// sondaggio"), rimuovendolo dall'elenco d'attesa.
+function apriSondaggioPreparato(odgId, preparatoId){
+  const b=getActiveBuilding();
+  const assemblea=getAssembleaInCorso(b);
+  const p=assemblea.odg.find(x=>x.id===odgId);
+  if(!p || !p.sondaggiPreparati) return;
+  const idx = p.sondaggiPreparati.findIndex(s=>s.id===preparatoId);
+  if(idx===-1) return;
+  const prep = p.sondaggiPreparati[idx];
+  p.sondaggiPreparati.splice(idx,1);
+  avviaSondaggioPerPunto(odgId, {question:prep.question, tabella:prep.tabella, opzioniTesto:prep.opzioniTesto});
+}
+function rimuoviSondaggioPreparato(odgId, preparatoId){
+  const b=getActiveBuilding();
+  const assemblea=getAssembleaInCorso(b);
+  const p=assemblea.odg.find(x=>x.id===odgId);
+  if(!p || !p.sondaggiPreparati) return;
+  p.sondaggiPreparati = p.sondaggiPreparati.filter(s=>s.id!==preparatoId);
+  renderOdgBlocks();
+  salvaStato();
+}
+// Modulo semplice, nella pagina stessa, per creare un sondaggio nuovo (non pianificato in
+// fase di creazione dell'assemblea) — stesso stile di quando si preparano i punti dell'ordine
+// del giorno. Non avvia nulla subito: crea un sondaggio "in attesa", da aprire con il tasto
+// dedicato, come una duplicazione.
+let __odgModuloNuovoSondaggioAperto = null;
+function apriModuloNuovoSondaggio(odgId){
+  __odgModuloNuovoSondaggioAperto = (__odgModuloNuovoSondaggioAperto===odgId) ? null : odgId;
+  renderOdgBlocks();
+}
+function confermaCreazioneSondaggioPreparato(odgId){
+  const b=getActiveBuilding();
+  const assemblea=getAssembleaInCorso(b);
+  const p=assemblea.odg.find(x=>x.id===odgId);
+  if(!p) return;
+  const domandaEl = document.getElementById('nuovo-sondaggio-domanda-'+odgId);
+  const opzioniEl = document.getElementById('nuovo-sondaggio-opzioni-'+odgId);
+  const tabellaEl = document.getElementById('nuovo-sondaggio-tabella-'+odgId);
+  const domanda = (domandaEl && domandaEl.value.trim()) || p.testo || 'Votazione';
+  const opzioniTesto = (opzioniEl && opzioniEl.value) || 'Favorevole\nContrario\nAstenuto';
+  const tabella = (tabellaEl && tabellaEl.value) || p.tabella;
+  if(!p.sondaggiPreparati) p.sondaggiPreparati = [];
+  p.sondaggiPreparati.push({ id: 'prep-'+odgIdCounter++, question: domanda, tabella, opzioniTesto });
+  __odgModuloNuovoSondaggioAperto = null;
+  renderOdgBlocks();
+  salvaStato();
+  toast('Sondaggio creato e messo in attesa: puoi aprirlo quando vuoi con il tasto dedicato.');
 }
 function renderFloatingActivePoll(){
   const el = document.getElementById('floating-active-poll');
@@ -5699,6 +5827,7 @@ function renderTabellaVotiSondaggio(){
       // e sblocca il voto diretto solo per pochi secondi.
       const bloccato = votoDeleganteBloccato(c.id);
       sel.disabled = bloccato;
+      if(bloccato) sel.style.opacity = '0.45';
       const wrap=document.createElement('span'); wrap.style.cssText='position:relative;display:inline-block;';
       wrap.appendChild(sel);
       if(bloccato){
@@ -5720,6 +5849,7 @@ function renderTabellaVotiSondaggio(){
       // evita di registrare per sbaglio un voto per chi non è più presente.
       const bloccato = votoDeleganteBloccato(c.id);
       sel.disabled = bloccato;
+      if(bloccato) sel.style.opacity = '0.45';
       const wrap=document.createElement('span'); wrap.style.cssText='position:relative;display:inline-block;';
       wrap.appendChild(sel);
       if(bloccato){
@@ -5762,7 +5892,7 @@ function renderTabellaVotiSondaggio(){
         tdUnitaMill.textContent = pesoVoto(u,b,assemblea);
         trUnita.appendChild(tdUnitaMill);
         const tdUnitaStato=document.createElement('td');
-        tdUnitaStato.innerHTML = '<span class="muted">unita a '+escapeHtml(nomeCompletoCondomino(c))+'</span>';
+        tdUnitaStato.innerHTML = '<span class="muted">stessa proprietà</span>';
         trUnita.appendChild(tdUnitaStato);
         const tdUnitaVoto=document.createElement('td');
         trUnita.appendChild(tdUnitaVoto);
@@ -6349,6 +6479,7 @@ function costruisciSezionePresenti(assemblea, b){
   const tq = tabellaQuorum(assemblea, b);
   const convocatiList = b.condomini.filter(c=>assemblea.convocati.selezionati.includes(c.id));
   const rappresentati = convocatiList.filter(c=>convocatoRappresentato(c, assemblea, b));
+  const {totaleTeste, testePresenti} = contaTeste(convocatiList, assemblea, b);
   const totMillConvocati = arrotondaMillesimi(convocatiList.reduce((s,c)=>s+(pesoConvocato(c,assemblea,b)),0)) || 1;
   const millPresenti = arrotondaMillesimi(rappresentati.reduce((s,c)=>s+(pesoConvocato(c,assemblea,b)),0));
   const righeHtml = convocatiList.map(c=>{
@@ -6383,7 +6514,7 @@ function costruisciSezionePresenti(assemblea, b){
   }).join('');
   return `<div class="assist-panel" id="cv-sezione-presenti">
     <h3>👥 Partecipanti</h3>
-    <div class="cv-presenti-conteggio"><b>${rappresentati.length}</b> teste / ${convocatiList.length} convocati &nbsp;·&nbsp; <b>${millPresenti}</b> / ${totMillConvocati}\u2030 millesimi (tabella "${escapeHtml(tq)}")</div>
+    <div class="cv-presenti-conteggio"><b>${testePresenti}</b> teste / ${totaleTeste} convocati &nbsp;·&nbsp; <b>${millPresenti}</b> / ${totMillConvocati}\u2030 millesimi (tabella "${escapeHtml(tq)}")</div>
     <div class="cv-presenti-elenco">${righeHtml}</div>
   </div>`;
 }
