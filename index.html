@@ -548,7 +548,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 15/08/2026 alle 19:58">LT-119</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 15/08/2026 alle 20:13">LT-120</span></div>
   </div>
 
   <!-- MAIN -->
@@ -5224,14 +5224,28 @@ function renderOdgBlocks(){
     if(p.sondaggiPreparati && p.sondaggiPreparati.length>0){
       const preparatiEl=document.createElement('div');
       preparatiEl.style.cssText='margin-top:10px;';
+      const tabelleVotoPerModifica = tabelleDisponibiliPerVoto(assemblea, b);
       p.sondaggiPreparati.forEach(prep=>{
         const card=document.createElement('div');
-        card.style.cssText='background:var(--paper);border:1px dashed var(--brass);border-radius:4px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;';
-        card.innerHTML = `<div><b>${escapeHtml(prep.question)}</b> <span class="muted" style="font-size:12px;">(${escapeHtml(prep.tabella)}) — in attesa</span></div>
+        card.style.cssText='background:var(--paper);border:1px dashed var(--brass);border-radius:4px;padding:10px 14px;margin-bottom:8px;';
+        card.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+          <div><b>${escapeHtml(prep.question)}</b> <span class="muted" style="font-size:12px;">(${escapeHtml(prep.tabella)}) — in attesa</span></div>
           <div style="display:flex;gap:6px;">
             <button class="btn small brass" onclick="apriSondaggioPreparato(${p.id}, '${prep.id}')">▶️ Apri questo sondaggio</button>
+            <button class="btn small secondary" onclick="apriModuloModificaSondaggioPreparato(${p.id}, '${prep.id}')">✎ Modifica</button>
             <button class="btn small secondary" onclick="rimuoviSondaggioPreparato(${p.id}, '${prep.id}')">Annulla</button>
-          </div>`;
+          </div>
+        </div>`;
+        if(__odgModuloModificaPreparatoAperto===prep.id){
+          const formMod=document.createElement('div');
+          formMod.style.cssText='background:#fff;border:1px solid var(--line);border-radius:4px;padding:14px 16px;margin-top:10px;';
+          formMod.innerHTML = `
+            <div class="field"><label>Domanda del sondaggio</label><input type="text" id="modifica-sondaggio-domanda-${prep.id}" value="${escapeHtml(prep.question)}"></div>
+            <div class="field"><label>Opzioni di voto (una per riga)</label><textarea id="modifica-sondaggio-opzioni-${prep.id}" rows="3">${escapeHtml(prep.opzioniTesto)}</textarea></div>
+            <div class="field"><label>Tabella millesimale da usare per il voto</label><select id="modifica-sondaggio-tabella-${prep.id}">${tabelleVotoPerModifica.map(t=>`<option value="${escapeHtml(t)}" ${t===prep.tabella?'selected':''}>${escapeHtml(t)}</option>`).join('')}</select></div>
+            <button class="btn small brass" style="margin-top:6px;" onclick="confermaModificaSondaggioPreparato(${p.id}, '${prep.id}')">Salva modifiche</button>`;
+          card.appendChild(formMod);
+        }
         preparatiEl.appendChild(card);
       });
       block.appendChild(preparatiEl);
@@ -5251,7 +5265,7 @@ function renderOdgBlocks(){
       const form=document.createElement('div');
       form.style.cssText='background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:14px 16px;margin-top:8px;';
       form.innerHTML = `
-        <div class="field"><label>Domanda del sondaggio</label><input type="text" id="nuovo-sondaggio-domanda-${p.id}" value="${escapeHtml(p.testo||'')}" placeholder="Es. Approvazione bilancio"></div>
+        <div class="field"><label>Domanda del sondaggio</label><input type="text" id="nuovo-sondaggio-domanda-${p.id}" value="" placeholder="Es. Approvazione bilancio"></div>
         <div class="field"><label>Opzioni di voto (una per riga)</label><textarea id="nuovo-sondaggio-opzioni-${p.id}" rows="3">Favorevole\nContrario\nAstenuto</textarea></div>
         <div class="field"><label>Tabella millesimale da usare per il voto</label><select id="nuovo-sondaggio-tabella-${p.id}">${tabelleVotoLive.map(t=>`<option value="${escapeHtml(t)}" ${t===p.tabella?'selected':''}>${escapeHtml(t)}</option>`).join('')}</select></div>
         <button class="btn small brass" style="margin-top:6px;" onclick="confermaCreazioneSondaggioPreparato(${p.id})">Crea (resterà in attesa, si apre a parte)</button>`;
@@ -5344,8 +5358,7 @@ function riapriSondaggio(odgId, storicoIndex){
     console.error('Errore riapriSondaggio:', err);
   }
 }
-const PAROLE_ORDINALI_SONDAGGIO = ['', 'Prima', 'Seconda', 'Terza', 'Quarta', 'Quinta', 'Sesta', 'Settima', 'Ottava', 'Nona', 'Decima', 'Undicesima', 'Dodicesima'];
-function parolaOrdinaleSondaggio(n){ return PAROLE_ORDINALI_SONDAGGIO[n] || (n+'ª'); }
+function etichettaVotazioneSondaggio(n){ return n+' Votazione'; }
 // Duplica il sondaggio: non lo avvia più subito come prima, lo mette in attesa (tra i
 // "sondaggi preparati" di questo punto) con un titolo numerato — resta all'amministratore
 // decidere quando aprirlo davvero, con il tasto dedicato che compare accanto.
@@ -5359,7 +5372,7 @@ function duplicaSondaggio(odgId, storicoIndex){
   const numero = p.prossimoNumeroDuplicato++;
   p.sondaggiPreparati.push({
     id: 'prep-'+odgIdCounter++,
-    question: p.testo + ' - ' + parolaOrdinaleSondaggio(numero) + ' votazione',
+    question: p.testo + ' - ' + etichettaVotazioneSondaggio(numero),
     tabella: p.tabella,
     opzioniTesto: p.opzioni
   });
@@ -5388,6 +5401,32 @@ function rimuoviSondaggioPreparato(odgId, preparatoId){
   p.sondaggiPreparati = p.sondaggiPreparati.filter(s=>s.id!==preparatoId);
   renderOdgBlocks();
   salvaStato();
+}
+// Modifica di un sondaggio già preparato (non ancora avviato): stesso modulo della modifica,
+// ma pre-compilato con i valori attuali, e salva sopra allo stesso sondaggio in attesa invece
+// di crearne uno nuovo.
+let __odgModuloModificaPreparatoAperto = null;
+function apriModuloModificaSondaggioPreparato(odgId, preparatoId){
+  __odgModuloModificaPreparatoAperto = (__odgModuloModificaPreparatoAperto===preparatoId) ? null : preparatoId;
+  renderOdgBlocks();
+}
+function confermaModificaSondaggioPreparato(odgId, preparatoId){
+  const b=getActiveBuilding();
+  const assemblea=getAssembleaInCorso(b);
+  const p=assemblea.odg.find(x=>x.id===odgId);
+  if(!p || !p.sondaggiPreparati) return;
+  const prep = p.sondaggiPreparati.find(s=>s.id===preparatoId);
+  if(!prep) return;
+  const domandaEl = document.getElementById('modifica-sondaggio-domanda-'+preparatoId);
+  const opzioniEl = document.getElementById('modifica-sondaggio-opzioni-'+preparatoId);
+  const tabellaEl = document.getElementById('modifica-sondaggio-tabella-'+preparatoId);
+  prep.question = (domandaEl && domandaEl.value.trim()) || prep.question;
+  prep.opzioniTesto = (opzioniEl && opzioniEl.value) || prep.opzioniTesto;
+  prep.tabella = (tabellaEl && tabellaEl.value) || prep.tabella;
+  __odgModuloModificaPreparatoAperto = null;
+  renderOdgBlocks();
+  salvaStato();
+  toast('Sondaggio in attesa aggiornato.');
 }
 // Modulo semplice, nella pagina stessa, per creare un sondaggio nuovo (non pianificato in
 // fase di creazione dell'assemblea) — stesso stile di quando si preparano i punti dell'ordine
@@ -5562,6 +5601,11 @@ function rimuoviOpzioneSondaggio(optId){
     }
   });
   sincronizzaPuntoConSondaggioAttivo();
+  // Il pulsante "×" appena premuto è ancora "a fuoco" in questo istante: la protezione che
+  // evita di ridisegnare mentre l'amministratore sta scrivendo lo scambierebbe per un campo
+  // ancora in uso, bloccando il ridisegno e lasciando l'opzione rimossa visibile per errore.
+  // Togliamo il focus prima di ridisegnare, così la lista si aggiorna correttamente.
+  if(document.activeElement && document.activeElement.blur) document.activeElement.blur();
   renderActivePollOptionsEdit();
   renderUnanimeButtons();
   renderPollResults();
