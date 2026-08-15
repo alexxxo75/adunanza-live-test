@@ -548,7 +548,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 14/08/2026 alle 11:44">LT-106</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 15/08/2026 alle 10:49">LT-107</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1440,6 +1440,29 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
     <div class="modal-actions" style="flex-direction:column;gap:8px;align-items:stretch;">
       <button class="btn brass" onclick="confermaCambioEmailEInvia(true)">Modifica anagrafica ed invia</button>
       <button class="btn secondary" onclick="confermaCambioEmailEInvia(false)">Invia</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="modal-duplicati-nome">
+  <div class="modal-box" style="max-width:560px;width:100%;max-height:85vh;overflow-y:auto;">
+    <h3>Condòmini con lo stesso nome</h3>
+    <div id="popup-duplicati-corpo"></div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="document.getElementById('modal-duplicati-nome').classList.add('hidden'); window.__gruppiDuplicatiInSospeso=null; salvaStato();">Non collegare ora</button>
+      <button class="btn brass" onclick="confermaCollegamentoDuplicati()">Collega quelli spuntati</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="modal-unione-speciale">
+  <div class="modal-box" style="max-width:560px;width:100%;max-height:85vh;overflow-y:auto;">
+    <h3>Unione condòmini</h3>
+    <p class="muted" id="popup-unione-speciale-testo" style="margin-bottom:14px;"></p>
+    <div id="popup-unione-speciale-corpo"></div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="document.getElementById('modal-unione-speciale').classList.add('hidden'); window.__unioneSpecialeInSospeso=null;">Non unire i condomini</button>
+      <button class="btn brass" onclick="confermaUnioneSpeciale()">Procedi con l'unione</button>
     </div>
   </div>
 </div>
@@ -2720,6 +2743,7 @@ function addTabellaMillesimale(){
   b.condomini.forEach(c=>{ if(!(nome in c.millesimi)) c.millesimi[nome]=0; });
   input.value='';
   renderCondomini();
+  controllaDuplicatiNomeDopoNuovaTabella(b, nome);
 }
 function removeTabellaMillesimale(nome){
   const b = getWorkingBuilding();
@@ -2925,8 +2949,78 @@ function renderTotaliMillesimi(){
   html += `<td></td><td></td>`;
   foot.innerHTML = html;
 }
+// ---------- RILEVAMENTO CONDÒMINI CON LO STESSO NOME (nuova unione, distinta dal vecchio
+// collegamento manuale "Stesso proprietario" — usa un campo a parte, unificatoCon, che
+// determina anche una visualizzazione diversa nelle tabelle di assemblea) ----------
+function trovaGruppiNomiUguali(building, soloConMillesimiInTabella){
+  const gruppi = {};
+  building.condomini.forEach(c=>{
+    if(soloConMillesimiInTabella && !(c.millesimi[soloConMillesimiInTabella]>0)) return;
+    const chiave = (c.cognome||'').trim().toLowerCase() + '|' + (c.nome||'').trim().toLowerCase();
+    if(chiave==='|') return; // riga senza nome né cognome, ignorata
+    if(!gruppi[chiave]) gruppi[chiave] = [];
+    gruppi[chiave].push(c);
+  });
+  return Object.values(gruppi).filter(g=>{
+    if(g.length<2) return false;
+    // Se tutti, tranne al massimo uno (il "primario"), risultano già collegati tra loro
+    // tramite unificatoCon, il gruppo è già stato gestito in passato: non riproporlo.
+    const giaCollegati = g.filter(c=>c.unificatoCon && g.some(x=>x.id===c.unificatoCon)).length;
+    return giaCollegati < g.length-1;
+  });
+}
+function controllaDuplicatiNomeDopoNuovaTabella(building, nomeTabella){
+  if(!building.tabelleGiaControllatePerDuplicati) building.tabelleGiaControllatePerDuplicati = [];
+  if(building.tabelleGiaControllatePerDuplicati.includes(nomeTabella)) return; // già controllata una volta, non richiediamo più
+  building.tabelleGiaControllatePerDuplicati.push(nomeTabella);
+  const gruppi = trovaGruppiNomiUguali(building, nomeTabella);
+  if(gruppi.length===0){ salvaStato(); return; }
+  mostraPopupDuplicatiNome(building, gruppi);
+}
+function mostraPopupDuplicatiNome(building, gruppi){
+  const cont = document.getElementById('popup-duplicati-corpo');
+  cont.innerHTML = `<p class="muted" style="margin-bottom:14px;">Ho trovato condòmini con lo stesso nome e cognome. Se sono la stessa persona con più proprietà, collegali: in appello e nei sondaggi compariranno come un'unica riga (con sotto, in grigio, le singole unità). Se sono persone diverse per caso omonime, lascia stare — resta comunque disponibile il collegamento manuale "Stesso proprietario di" in Dashboard.</p>` +
+    gruppi.map((g,i)=>`
+      <div class="card" style="margin-bottom:14px;background:var(--paper);">
+        <div style="font-weight:700;margin-bottom:8px;">${escapeHtml(nomeCompletoCondomino(g[0]))}</div>
+        <table style="width:100%;font-size:13px;margin-bottom:10px;">
+          <thead><tr><th>Interno</th><th>Unità</th><th>Email</th></tr></thead>
+          <tbody>${g.map(c=>`<tr><td>${escapeHtml(c.interno||'—')}</td><td>${escapeHtml(c.unita||'—')}</td><td>${escapeHtml(c.email||'—')}</td></tr>`).join('')}</tbody>
+        </table>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;cursor:pointer;">
+          <input type="checkbox" id="popup-dup-flag-${i}" checked>
+          È la stessa persona: collega queste ${g.length} righe
+        </label>
+      </div>`).join('');
+  window.__gruppiDuplicatiInSospeso = gruppi;
+  document.getElementById('modal-duplicati-nome').classList.remove('hidden');
+}
+function confermaCollegamentoDuplicati(){
+  const gruppi = window.__gruppiDuplicatiInSospeso || [];
+  const b = getWorkingBuilding();
+  gruppi.forEach((g,i)=>{
+    const flag = document.getElementById('popup-dup-flag-'+i);
+    if(flag && flag.checked){
+      const primario = g[0];
+      g.slice(1).forEach(c=>{ c.unificatoCon = primario.id; });
+    }
+  });
+  window.__gruppiDuplicatiInSospeso = null;
+  document.getElementById('modal-duplicati-nome').classList.add('hidden');
+  salvaStato();
+  renderCondomini();
+  toast('Collegamenti aggiornati.');
+}
+
 function renderCondomini(){
   const building = getWorkingBuilding();
+  // Ordine alfabetico per cognome (poi nome, a parità di cognome), sempre — non solo alla
+  // prima apertura: così la tabella resta ordinata anche dopo aggiunte o modifiche manuali.
+  building.condomini.sort((a,b)=>{
+    const cogA=(a.cognome||'').toLowerCase(), cogB=(b.cognome||'').toLowerCase();
+    if(cogA!==cogB) return cogA.localeCompare(cogB,'it');
+    return (a.nome||'').toLowerCase().localeCompare((b.nome||'').toLowerCase(),'it');
+  });
   renderTabelleChips();
   renderMillesimiInputs();
 
@@ -3036,13 +3130,22 @@ function presentiDiretti(building){
 function toggleAppelloBody(){
   document.getElementById('appello-body').classList.toggle('hidden');
 }
+// Unità la cui presenza in appello è mostrata come riga unica insieme a questo condòmino
+// (stesso proprietario, collegate col nuovo meccanismo di unione): quando si segna presente,
+// online o l'uscita di QUESTO condòmino, la stessa azione si applica automaticamente anche a
+// loro, così il loro peso in millesimi conta correttamente nel calcolo del quorum.
+function unitaUnificateDi(building, condominoId){
+  return building.condomini.filter(x=>x.unificatoCon===condominoId);
+}
 function segnaPresenteInAula(condominoId){
   const b=getActiveBuilding();
   const assemblea=getAssembleaInCorso(b);
   if(!assemblea) return;
-  const rec = assemblea.appello.presenzeFisiche.find(r=>r.condominoId===condominoId);
-  if(!rec) assemblea.appello.presenzeFisiche.push({condominoId, entrata:oraAdesso(), uscita:null});
-  else if(rec.uscita) rec.uscita=null;
+  [condominoId, ...unitaUnificateDi(b,condominoId).map(u=>u.id)].forEach(id=>{
+    const rec = assemblea.appello.presenzeFisiche.find(r=>r.condominoId===id);
+    if(!rec) assemblea.appello.presenzeFisiche.push({condominoId:id, entrata:oraAdesso(), uscita:null});
+    else if(rec.uscita) rec.uscita=null;
+  });
   renderAppello();
   salvaStato();
 }
@@ -3055,26 +3158,35 @@ function segnaOnlineAMano(condominoId){
   const b=getActiveBuilding();
   const assemblea=getAssembleaInCorso(b);
   if(!assemblea) return;
-  const rec = assemblea.appello.presenzeFisiche.find(r=>r.condominoId===condominoId);
-  if(!rec) assemblea.appello.presenzeFisiche.push({condominoId, entrata:oraAdesso(), uscita:null, online:true});
-  else{ rec.online=true; if(rec.uscita) rec.uscita=null; }
+  [condominoId, ...unitaUnificateDi(b,condominoId).map(u=>u.id)].forEach(id=>{
+    const rec = assemblea.appello.presenzeFisiche.find(r=>r.condominoId===id);
+    if(!rec) assemblea.appello.presenzeFisiche.push({condominoId:id, entrata:oraAdesso(), uscita:null, online:true});
+    else{ rec.online=true; if(rec.uscita) rec.uscita=null; }
+  });
   renderAppello();
   salvaStato();
 }
 function rimuoviPresenzaInAula(condominoId){
   // correzione di un errore prima che l'assemblea sia iniziata: rimuove del tutto la presenza
-  const assemblea=getAssembleaInCorso(getActiveBuilding());
+  const b=getActiveBuilding();
+  const assemblea=getAssembleaInCorso(b);
   if(!assemblea) return;
-  assemblea.appello.presenzeFisiche = assemblea.appello.presenzeFisiche.filter(r=>r.condominoId!==condominoId);
+  const idsDaRimuovere = [condominoId, ...unitaUnificateDi(b,condominoId).map(u=>u.id)];
+  assemblea.appello.presenzeFisiche = assemblea.appello.presenzeFisiche.filter(r=>!idsDaRimuovere.includes(r.condominoId));
   renderAppello();
   salvaStato();
 }
 function usciteAnticipata(condominoId){
-  const assemblea=getAssembleaInCorso(getActiveBuilding());
+  const b=getActiveBuilding();
+  const assemblea=getAssembleaInCorso(b);
   if(!assemblea) return;
   const attivo = recordAttivo(assemblea, condominoId);
   if(!attivo) return;
   attivo.rec.uscita = oraAdesso();
+  unitaUnificateDi(b,condominoId).forEach(u=>{
+    const attivoUnita = recordAttivo(assemblea, u.id);
+    if(attivoUnita) attivoUnita.rec.uscita = oraAdesso();
+  });
   renderAppello();
   salvaStato();
   toast('Uscita registrata. Se vuole delegare il voto a chi resta, usa il menù qui sotto.');
@@ -3581,7 +3693,7 @@ function renderAppello(){
     tr.appendChild(tdAz);
     return tr;
   }
-  b.condomini.filter(c=>convocatiIds.includes(c.id)).forEach(c=>{
+  b.condomini.filter(c=>convocatiIds.includes(c.id) && !(c.unificatoCon && convocatiIds.includes(c.unificatoCon))).forEach(c=>{
     const attivo = recordAttivo(assemblea, c.id);
     const delegatoId = assemblea.appello.deleghe[c.id];
     const collegate = personeCollegate(b, c.id);
@@ -3701,6 +3813,31 @@ function renderAppello(){
     tdAz.appendChild(azioniRow);
     tr.appendChild(tdAz);
     tbody.appendChild(tr);
+
+    // Se questo condòmino è il "primario" di una o più unità unificate (stesso proprietario,
+    // collegate col nuovo meccanismo), le mostriamo subito sotto come righe rientrate, in
+    // grigio, non interattive: il peso e la presenza di quest'unità sono già conteggiati a
+    // parte (ogni unità resta un convocato a sé ai fini del calcolo dei millesimi), qui
+    // servono solo a rendere visibile che fanno capo alla stessa persona.
+    const unitaUnificate = b.condomini.filter(x=>x.unificatoCon===c.id && convocatiIds.includes(x.id));
+    unitaUnificate.forEach(u=>{
+      const trUnita=document.createElement('tr');
+      trUnita.style.background='#EDEAE2';
+      trUnita.style.color='var(--text-soft)';
+      const tdUnitaNome=document.createElement('td');
+      tdUnitaNome.style.paddingLeft='34px';
+      tdUnitaNome.innerHTML = `- ${escapeHtml(nomeCompletoCondomino(u))} <span class="muted">(${escapeHtml(u.unita||u.interno||'unità')})</span>`;
+      trUnita.appendChild(tdUnitaNome);
+      const tdUnitaMill=document.createElement('td');
+      tdUnitaMill.textContent = pesoConvocato(u, assemblea, b) + '‰';
+      trUnita.appendChild(tdUnitaMill);
+      const tdUnitaStato=document.createElement('td');
+      tdUnitaStato.innerHTML = '<span class="muted">unita a '+escapeHtml(nomeCompletoCondomino(c))+'</span>';
+      trUnita.appendChild(tdUnitaStato);
+      const tdUnitaAz=document.createElement('td');
+      trUnita.appendChild(tdUnitaAz);
+      tbody.appendChild(trUnita);
+    });
 
     // Se è stata registrata una sostituzione per questo condòmino (cambio di proprietà tra
     // convocazione e assemblea, es. scoperto solo in aula), mostriamo subito sotto una riga di
@@ -4247,6 +4384,43 @@ function applicaConvocatiTabelleMultiple(){
   a.convocati = {modo: tabelle.length>1?'tabelle':'tabella', tabelle, selezionati:b.condomini.filter(c=>tabelle.some(t=>(c.millesimi[t]||0)>0)).map(c=>c.id)};
   a.pesiPersonalizzati = null;
   renderConvocatiTable();
+  controllaUnioneSpecialeConDashboard(b);
+}
+// Se tra i convocati di questa assemblea ci sono condòmini già collegati in Dashboard come
+// "Stesso proprietario" (gruppoCon), ma non ancora "unificati" per questa assemblea nel nuovo
+// modo (riga unica + unità rientrate), proponiamo di farlo — senza mai deciderlo in automatico.
+function controllaUnioneSpecialeConDashboard(b){
+  const a = workingAssembly;
+  const daProporre = [];
+  (a.convocati.selezionati||[]).forEach(id=>{
+    const c = b.condomini.find(x=>x.id===id);
+    if(!c || !c.gruppoCon) return;
+    if(!a.convocati.selezionati.includes(c.gruppoCon)) return;
+    if(c.unificatoCon===c.gruppoCon) return; // già fatto per questa assemblea, non riproporlo
+    const primario = b.condomini.find(x=>x.id===c.gruppoCon);
+    if(!primario) return;
+    daProporre.push({secondario:c, primario});
+  });
+  if(daProporre.length===0) return;
+  mostraPopupUnioneSpeciale(daProporre);
+}
+function mostraPopupUnioneSpeciale(coppie){
+  document.getElementById('popup-unione-speciale-testo').textContent =
+    'Come da Dashboard, questi condòmini risultano lo stesso proprietario: per questa assemblea, verranno mostrati come un\'unica riga (con le singole unità rientrate sotto).';
+  document.getElementById('popup-unione-speciale-corpo').innerHTML = coppie.map(cp=>
+    `<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px;">${escapeHtml(nomeCompletoCondomino(cp.secondario))} (${escapeHtml(cp.secondario.unita||cp.secondario.interno||'—')}) → unito a ${escapeHtml(nomeCompletoCondomino(cp.primario))}</div>`
+  ).join('');
+  window.__unioneSpecialeInSospeso = coppie;
+  document.getElementById('modal-unione-speciale').classList.remove('hidden');
+}
+function confermaUnioneSpeciale(){
+  const coppie = window.__unioneSpecialeInSospeso || [];
+  coppie.forEach(cp=>{ cp.secondario.unificatoCon = cp.primario.id; });
+  window.__unioneSpecialeInSospeso = null;
+  document.getElementById('modal-unione-speciale').classList.add('hidden');
+  salvaStato();
+  renderConvocatiTable();
+  toast('Condòmini uniti per questa assemblea.');
 }
 function impostaConvocatiManualeVuoto(){
   const b=getActiveBuilding(); const a=workingAssembly;
@@ -4353,6 +4527,7 @@ function handleExcelConvocati(evt){
       // Ogni tabella viene poi creata/aggiornata nella Dashboard del condominio.
       const tabelleImportate = [];
       const tabelleScalateNote = [];
+      const tabelleNuoveDaControllare = [];
       millesimiCols.forEach(mc=>{
         const grezzi = pesiGrezziPerTabella[mc.tabella];
         const idsConValore = Object.keys(grezzi);
@@ -4363,6 +4538,7 @@ function handleExcelConvocati(evt){
         if(!b.tabelleMillesimali.includes(mc.tabella)){
           b.tabelleMillesimali.push(mc.tabella);
           b.condomini.forEach(c=>{ if(!(mc.tabella in c.millesimi)) c.millesimi[mc.tabella]=0; });
+          tabelleNuoveDaControllare.push(mc.tabella);
         }
         idsConValore.forEach(id=>{
           const cond=b.condomini.find(c=>c.id===Number(id));
@@ -4399,6 +4575,7 @@ function handleExcelConvocati(evt){
       if(avvisoHtml){ avviso.classList.remove('hidden'); avviso.innerHTML = avvisoHtml; }
       else{ avviso.classList.add('hidden'); }
       renderConvocatiTable();
+      tabelleNuoveDaControllare.forEach(nomeTabella=>controllaDuplicatiNomeDopoNuovaTabella(b, nomeTabella));
       const msgPeso = pesiAttivi ? ` (tabelle millesimali create/aggiornate: ${tabelleImportate.join(', ')}, ora selezionabili anche nei sondaggi)` : '';
       if(selezionati.length===0){ toast('Nessun convocato trovato nel file: controlla le email (vedi avviso sopra).'); }
       else{ toast(`${selezionati.length} convocati caricati da Excel${msgPeso}.`); }
