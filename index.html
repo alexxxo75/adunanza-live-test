@@ -548,7 +548,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 16/08/2026 alle 10:45">LT-134</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 16/08/2026 alle 15:23">LT-137</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1801,7 +1801,8 @@ const TENTATIVI_PING_PRIMA_DI_USCITA = 3;
 // Adunanza a dover generare e recapitare un numero a ciascuno. Molto più solido: non dipende
 // più dal fatto che l'amministratore abbia "visto" per tempo il condòmino giusto, né da un
 // singolo identificativo che deve corrispondere esattamente da entrambe le parti.
-let __condominoInAscoltoPing = null; // id del condòmino per cui questo dispositivo sta mandando il battito, o null se fermo
+let __condominoOriginaleIdPing = null; // id del link davvero usato (non cambia mai per questa sessione): da qui si ricalcola la delega a ogni battito
+let __condominoInAscoltoPing = null; // id RISOLTO sotto cui si sta mandando il battito in questo momento (aggiornato a ogni battito), o null se fermo
 function mostraStatoPingCondomino(testo){
   const el = document.getElementById('cv-diagnostica-battito');
   if(el) el.textContent = testo;
@@ -1848,8 +1849,8 @@ function creaPingWorkerSeServe(){
   else __pingWorker.postMessage({tipo:'avvia', intervalloMs: INTERVALLO_PING_MS}); // già esistente: lo riavviamo comunque, non fa danno se era già acceso
   return __pingWorker;
 }
-function avviaRispostaPing(condominoId){
-  __condominoInAscoltoPing = condominoId;
+function avviaRispostaPing(condominoIdOriginale){
+  __condominoOriginaleIdPing = condominoIdOriginale;
   mandaBattitoPing(); // il primo, subito — non aspettiamo il prossimo giro
   if(__timerBattitoPing){ clearInterval(__timerBattitoPing); __timerBattitoPing = null; }
   const worker = creaPingWorkerSeServe();
@@ -1858,13 +1859,19 @@ function avviaRispostaPing(condominoId){
 // Manda un battito: un numero che cresce sempre, scritto sotto il proprio id. Ad Adunanza
 // basta accorgersi che il numero è cambiato rispetto all'ultimo giro per sapere che il
 // dispositivo è ancora collegato — nessun bisogno di aspettare risposte a un numero specifico.
+// L'identificativo sotto cui mandarlo (il condòmino stesso, o il suo delegato se ne ha dato
+// una a una persona esterna) viene ricalcolato ad OGNI battito, non solo al collegamento
+// iniziale: così anche se la delega cambia mentre si resta sulla stessa pagina aperta, senza
+// mai cambiare scheda, il battito successivo si adegua da solo alla situazione più recente.
 function mandaBattitoPing(){
-  if(!__condominoInAscoltoPing) return;
-  const condominoId = __condominoInAscoltoPing;
+  if(__condominoOriginaleIdPing == null) return;
+  const bCorrente = getActiveBuilding();
+  const condominoId = bCorrente ? risolviIdentificativoPing(bCorrente, __condominoOriginaleIdPing) : __condominoOriginaleIdPing;
+  __condominoInAscoltoPing = condominoId; // per riferimento: sotto quale nome sta battendo in questo momento
   try{
     eseguiConUnioneSuServer(()=>{
-      const bCorrente = getActiveBuilding();
-      const aCorrente = bCorrente ? getAssembleaContestualizzataCondomino(bCorrente) : null;
+      const bFresco = getActiveBuilding();
+      const aCorrente = bFresco ? getAssembleaContestualizzataCondomino(bFresco) : null;
       if(!aCorrente) return;
       aCorrente.pingBattito = aCorrente.pingBattito || {};
       aCorrente.pingBattito[condominoId] = (aCorrente.pingBattito[condominoId]||0) + 1;
@@ -1877,6 +1884,7 @@ function mandaBattitoPing(){
   }
 }
 function fermaRispostaPing(){
+  __condominoOriginaleIdPing = null;
   __condominoInAscoltoPing = null;
   if(__timerBattitoPing){ clearInterval(__timerBattitoPing); __timerBattitoPing = null; }
   if(__pingWorker) __pingWorker.postMessage({tipo:'ferma'});
@@ -1995,11 +2003,11 @@ function initFromUrlToken(){
         try{
           const bCorrente = buildings.find(x=>x.id===idBuildingToken);
           const idRisoltoPerPing = bCorrente ? risolviIdentificativoPing(bCorrente, idCondominoToken) : idCondominoToken;
-          // Avviamo l'invio del battito con l'identificativo giusto (che può essere quello di
-          // un delegato, condòmino o esterno, se questo link ha una delega registrata sopra):
-          // sarà poi il ciclo di controllo di Adunanza, guardando quel battito, a decidere se
-          // e quando segnare la persona online — non serve fare nulla qui oltre ad avviarlo.
-          avviaRispostaPing(idRisoltoPerPing);
+          // Il primo collegamento è un momento certo (la pagina si è appena caricata, o la
+          // persona ha appena interagito davvero): segniamo online subito, senza aspettare
+          // fino a 15 secondi il prossimo giro di controllo di Adunanza.
+          segnaSubitoOnline(bCorrente, idRisoltoPerPing);
+          avviaRispostaPing(idCondominoToken);
         }catch(e){
           console.error('[Adunanza] Segnalazione online fallita (il riconoscimento del condòmino prosegue comunque):', e);
         }
@@ -3218,7 +3226,14 @@ function risolviIdentificativoPing(building, condominoId){
   const c = building.condomini.find(x=>x.id===condominoId);
   const idPerDelega = (c && c.unificatoCon) ? c.unificatoCon : condominoId;
   const delegatoId = assemblea.appello.deleghe[idPerDelega];
-  return delegatoId!=null ? delegatoId : condominoId;
+  if(delegatoId==null) return condominoId;
+  // Inoltriamo al delegato SOLO se è una persona ESTERNA (id testuale, es. "ext-1"): non
+  // avendo un proprio link, se qualcuno sta usando il link del condòmino che l'ha delegata è
+  // quasi certo che gliel'abbia inoltrato apposta lei stessa. Se invece il delegato è un altro
+  // CONDÒMINO (id numerico), lui ha il proprio link personale a disposizione — chi apre il
+  // link del delegante è quasi certamente il delegante stesso (magari solo per controllare,
+  // o per errore), non il delegato, che userebbe il proprio collegamento.
+  return (typeof delegatoId === 'string') ? delegatoId : condominoId;
 }
 function recordAttivo(assemblea, condominoId){
   const rOn = assemblea.appello.online.find(r=>r.condominoId===condominoId && !r.uscita);
@@ -6249,6 +6264,22 @@ function distruggiVideoCondomino(){
   const preIngresso = document.getElementById('cv-pre-ingresso');
   if(preIngresso) preIngresso.style.display='block';
 }
+// Segna SUBITO online un identificativo (senza aspettare il prossimo giro di controllo di
+// Adunanza): usata nei momenti in cui sappiamo con certezza che la persona è appena arrivata
+// o è appena rientrata di proposito — un tocco/un caricamento pagina espliciti, non un
+// semplice battito che potrebbe anche essere in ritardo o residuo. Il giro di controllo
+// periodico resta comunque l'unico a decidere le USCITE (dopo 3 battiti mancati) e a
+// occuparsi di chi si ricollega DOPO un'uscita automatica.
+function segnaSubitoOnline(building, idRisolto){
+  eseguiConUnioneSuServer(()=>{
+    const bFresco = getActiveBuilding() || building;
+    const aFresca = bFresco ? getAssembleaContestualizzataCondomino(bFresco) : null;
+    if(!aFresca) return;
+    const rec = (aFresca.appello.online||[]).find(r=>r.condominoId===idRisolto);
+    if(!rec) aFresca.appello.online.push({condominoId: idRisolto, entrata: oraAdesso(), uscita: null});
+    else{ delete rec.uscita; delete rec.usciteAutomatica; }
+  });
+}
 function rientraInAssemblea(){
   if(!currentCondomino) return;
   const b = getActiveBuilding();
@@ -6261,7 +6292,13 @@ function rientraInAssemblea(){
   try{
     const bCorrente = getActiveBuilding();
     const idRisoltoPerPing = bCorrente ? risolviIdentificativoPing(bCorrente, idCondominoToken) : idCondominoToken;
-    avviaRispostaPing(idRisoltoPerPing);
+    // "Rientra in assemblea" è un tocco esplicito e deliberato: rimettiamo online subito,
+    // senza aspettare il prossimo giro di controllo di Adunanza — che, di proposito, non
+    // rimette online da solo chi era uscito volontariamente (per non annullare un'uscita
+    // voluta a causa di un battito residuo in arrivo in ritardo). Qui invece la persona ha
+    // appena chiesto esplicitamente di rientrare: va fatto subito.
+    segnaSubitoOnline(bCorrente, idRisoltoPerPing);
+    avviaRispostaPing(idCondominoToken);
   }catch(e){
     console.error('[Adunanza] Rientro in assemblea fallito:', e);
   }
