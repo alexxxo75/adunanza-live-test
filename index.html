@@ -548,7 +548,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 16/08/2026 alle 01:48">LT-130</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 16/08/2026 alle 10:18">LT-133</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1807,11 +1807,53 @@ function mostraStatoPingCondomino(testo){
   if(el) el.textContent = testo;
 }
 let __timerBattitoPing = null;
+// I browser rallentano deliberatamente i timer normali (setInterval) quando una scheda è in
+// secondo piano — dopo pochi minuti nascosta, un timer impostato ogni 15 secondi può arrivare a
+// scattare anche solo una volta al minuto, facendo sembrare qualcuno disconnesso quando in
+// realtà la pagina è semplicemente in background (es. si è passati a un'altra scheda/app, o il
+// telefono si è bloccato in tasca). Un Web Worker gira invece su un binario a parte, non
+// soggetto a questo stesso rallentamento: lo usiamo per scandire il tempo in modo affidabile —
+// funzione generica, usata sia per il battito del condòmino sia per il giro di controllo
+// dell'amministratore, così nessuno dei due lati risente del rallentamento in background.
+function creaWorkerIntervalloAffidabile(callback, intervalloMs, etichettaErrore){
+  try{
+    const codiceWorker = `
+      let intervalId = null;
+      self.onmessage = function(e){
+        if(e.data && e.data.tipo === 'avvia'){
+          if(intervalId) clearInterval(intervalId);
+          intervalId = setInterval(function(){ self.postMessage('tick'); }, e.data.intervalloMs);
+        }else if(e.data && e.data.tipo === 'ferma'){
+          if(intervalId){ clearInterval(intervalId); intervalId = null; }
+        }
+      };
+    `;
+    const blob = new Blob([codiceWorker], {type: 'application/javascript'});
+    const worker = new Worker(URL.createObjectURL(blob));
+    worker.onmessage = (e)=>{ if(e.data==='tick') callback(); };
+    worker.onerror = (e)=>{ console.error('[Adunanza]['+etichettaErrore+'] Errore nel Web Worker:', e); };
+    worker.postMessage({tipo:'avvia', intervalloMs});
+    return worker;
+  }catch(e){
+    // Se il browser non supporta i Web Worker (raro), chi chiama resta comunque coperto dal
+    // normale setInterval già presente altrove: meno affidabile in background, ma funzionante
+    // in primo piano.
+    console.error('[Adunanza]['+etichettaErrore+'] Web Worker non disponibile, uso solo il timer normale:', e);
+    return null;
+  }
+}
+let __pingWorker = null;
+function creaPingWorkerSeServe(){
+  if(!__pingWorker) __pingWorker = creaWorkerIntervalloAffidabile(mandaBattitoPing, INTERVALLO_PING_MS, 'battito');
+  else __pingWorker.postMessage({tipo:'avvia', intervalloMs: INTERVALLO_PING_MS}); // già esistente: lo riavviamo comunque, non fa danno se era già acceso
+  return __pingWorker;
+}
 function avviaRispostaPing(condominoId){
   __condominoInAscoltoPing = condominoId;
   mandaBattitoPing(); // il primo, subito — non aspettiamo il prossimo giro
-  if(__timerBattitoPing) clearInterval(__timerBattitoPing);
-  __timerBattitoPing = setInterval(mandaBattitoPing, INTERVALLO_PING_MS);
+  if(__timerBattitoPing){ clearInterval(__timerBattitoPing); __timerBattitoPing = null; }
+  const worker = creaPingWorkerSeServe();
+  if(!worker) __timerBattitoPing = setInterval(mandaBattitoPing, INTERVALLO_PING_MS); // rete di sicurezza, solo se il worker non è disponibile
 }
 // Manda un battito: un numero che cresce sempre, scritto sotto il proprio id. Ad Adunanza
 // basta accorgersi che il numero è cambiato rispetto all'ultimo giro per sapere che il
@@ -1841,6 +1883,7 @@ function mandaBattitoPing(){
 function fermaRispostaPing(){
   __condominoInAscoltoPing = null;
   if(__timerBattitoPing){ clearInterval(__timerBattitoPing); __timerBattitoPing = null; }
+  if(__pingWorker) __pingWorker.postMessage({tipo:'ferma'});
   mostraStatoPingCondomino('Fermato (uscito dall\u2019assemblea)');
 }
 
@@ -3845,11 +3888,21 @@ function renderAppello(){
     const rOnUscitoSem = assemblea.appello.online.find(r=>r.condominoId===c.id && r.uscita);
     const rPresUscitoSem = assemblea.appello.presenzeFisiche.find(r=>r.condominoId===c.id && r.uscita);
     const delegatoAttivo = delegatoId!=null ? recordAttivo(assemblea, delegatoId) : null;
+    // Se questa persona ha delegato, e il delegato risultava presente ma ora si è disconnesso
+    // (anche solo temporaneamente, es. rete debole o scheda in secondo piano), la delega non
+    // conta più per il quorum, ma il suo colore deve comunque riflettere "uscito" — non
+    // "semplicemente assente", che sarebbe fuorviante: era rappresentata, ora non più. Questa
+    // persona non ha mai una registrazione propria (online/presenza) essendo sempre passata dal
+    // delegato, quindi il controllo sopra (rOnUscitoSem/rPresUscitoSem) non la troverebbe mai.
+    const delegatoUscitoSem = delegatoId!=null && !delegatoAttivo
+      ? ((assemblea.appello.online||[]).find(r=>r.condominoId===delegatoId && r.uscita)
+         || (assemblea.appello.presenzeFisiche||[]).find(r=>r.condominoId===delegatoId && r.uscita))
+      : null;
     const semStato = (attivo && attivo.tipo==='online') ? 'verde'
       : (attivo && attivo.tipo==='presenza' && attivo.rec.online) ? 'rosa'
       : (attivo && attivo.tipo==='presenza') ? 'blu'
       : (delegatoId!=null && delegatoAttivo) ? 'arancio'
-      : (rOnUscitoSem||rPresUscitoSem) ? 'nero'
+      : (rOnUscitoSem||rPresUscitoSem||delegatoUscitoSem) ? 'nero'
       : collegatoIdAttivo ? 'arancio'
       : 'grigio';
 
@@ -3906,6 +3959,12 @@ function renderAppello(){
     if(uscito){
       const etichettaUscita = uscito.usciteAutomatica ? '🟡 offline dalle' : '🚪 uscito/a alle';
       tdStato.innerHTML += `<br><span class="muted" style="font-size:11px;">${etichettaUscita} ${uscito.uscita}</span>`;
+    }else if(delegatoUscitoSem){
+      // Ha delegato, e il delegato — che prima risultava presente — si è disconnesso: la
+      // delega non conta più per il quorum finché non torna, ma lo segnaliamo chiaramente
+      // invece di lasciare la riga come "semplicemente assente".
+      const etichettaUscitaDelegato = delegatoUscitoSem.usciteAutomatica ? '🟡 il delegato è offline dalle' : '🚪 il delegato è uscito alle';
+      tdStato.innerHTML += `<br><span class="muted" style="font-size:11px;">${etichettaUscitaDelegato} ${delegatoUscitoSem.uscita}</span>`;
     }
     tr.appendChild(tdStato);
 
@@ -6758,8 +6817,17 @@ function costruisciBloccoSondaggioAttivo(assembleaCorrente, b){
     const etichetta = optScelta ? optScelta.label : 'registrato';
     return `<div id="cv-conferma-voto-box" style="margin-bottom:18px;">${etichettaPunto}Hai votato: ${escapeHtml(etichetta)}<span class="sub">Voto registrato con i tuoi ${mieiMillesimi} millesimi (${escapeHtml(activePoll.tabella)}). In attesa che l'amministratore chiuda il sondaggio...</span></div>`;
   }
-  const attivo = recordAttivo(assembleaCorrente, currentCondomino.id);
+  const attivo = recordAttivoConSecondarie(b, assembleaCorrente, currentCondomino.id);
   if(!attivo){
+    const delegatoIdCv = assembleaCorrente.appello.deleghe[currentCondomino.id];
+    if(delegatoIdCv != null){
+      // Ha delegato: il messaggio "non risulti online" sarebbe fuorviante e sbagliato — il
+      // voto di questa persona segue quello del delegato, non serve che sia online lei stessa.
+      const nomeDelegatoCv = nomePersonaAppello(b, assembleaCorrente, delegatoIdCv);
+      const delegatoPresenteCv = recordAttivo(assembleaCorrente, delegatoIdCv);
+      return `<div class="assist-panel" style="border-left:4px solid var(--brass);margin-bottom:18px;"><h3>Votazione in corso</h3>${etichettaPunto}<p class="sub" style="margin-bottom:10px;">${escapeHtml(activePoll.question)}</p>
+        <div class="note" style="border-color:${delegatoPresenteCv?'#4C7A5D':'var(--brick)'};color:${delegatoPresenteCv?'#4C7A5D':'var(--brick)'};">Hai delegato il voto a ${escapeHtml(nomeDelegatoCv)}: ${delegatoPresenteCv ? 'sta votando lui/lei per conto tuo.' : 'al momento non risulta online — il tuo voto seguirà la sua scelta appena si collega.'}</div></div>`;
+    }
     return `<div class="assist-panel" style="border-left:4px solid var(--brass);margin-bottom:18px;"><h3>Votazione in corso</h3>${etichettaPunto}<p class="sub" style="margin-bottom:10px;">${escapeHtml(activePoll.question)}</p>
       <div class="note" style="border-color:var(--brick);color:var(--brick);">Non risulti online o presente in sala in questo momento: non puoi votare finché non rientri in assemblea.</div></div>`;
   }
@@ -7952,7 +8020,8 @@ function collegaAscoltoFirebase(){
   if(!__haTokenNelLink){
     const indicatorePingIniziale = document.getElementById('fb-ultimo-ping');
     if(indicatorePingIniziale) indicatorePingIniziale.textContent = '📡 Ping: avviato, primo giro tra ' + (INTERVALLO_PING_MS/1000) + 's...';
-    setInterval(eseguiCicloPing, INTERVALLO_PING_MS);
+    const workerAdmin = creaWorkerIntervalloAffidabile(eseguiCicloPing, INTERVALLO_PING_MS, 'ciclo-ping-admin');
+    if(!workerAdmin) setInterval(eseguiCicloPing, INTERVALLO_PING_MS); // rete di sicurezza, solo se il worker non è disponibile
   }
 }
 // Un giro di controllo: per ogni condòmino online in ogni assemblea in corso, verifica se ha
