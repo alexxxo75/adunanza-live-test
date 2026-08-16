@@ -548,7 +548,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 16/08/2026 alle 10:18">LT-133</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 16/08/2026 alle 10:45">LT-134</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1868,10 +1868,6 @@ function mandaBattitoPing(){
       if(!aCorrente) return;
       aCorrente.pingBattito = aCorrente.pingBattito || {};
       aCorrente.pingBattito[condominoId] = (aCorrente.pingBattito[condominoId]||0) + 1;
-      // Ogni battito è anche l'occasione per ri-confermare la propria presenza "online": se per
-      // qualunque motivo non risultasse più tale (es. l'amministratore ha corretto qualcosa),
-      // il prossimo battito la ripristina da solo, senza bisogno di alcuna azione manuale.
-      if(currentCondomino) segnaOnlinePerLinkPersonale(bCorrente, currentCondomino.id);
     });
     const ora = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
     mostraStatoPingCondomino('Online — ultimo segnale alle ' + ora);
@@ -1997,18 +1993,12 @@ function initFromUrlToken(){
         if(__giaSegnatoOnlineToken) return;
         __giaSegnatoOnlineToken = true;
         try{
-          let idRisoltoPerPing = idCondominoToken;
-          eseguiConUnioneSuServer(()=>{
-            const bCorrente = buildings.find(x=>x.id===idBuildingToken);
-            if(bCorrente) idRisoltoPerPing = segnaOnlinePerLinkPersonale(bCorrente, idCondominoToken);
-          });
-          // Registriamo la presenza di questo dispositivo: se la connessione si interrompe
-          // all'improvviso (chiusura del browser, telefono spento, rete persa), il sistema a
-          // ping se ne accorgerà da solo dopo qualche tentativo mancato.
-          // IMPORTANTE: ascoltiamo i numeri sull'identificativo DAVVERO segnato online (che può
-          // essere quello di un delegato, condòmino o esterno, se questo link ha una delega
-          // registrata sopra) — non su quello grezzo del link, altrimenti aspetteremmo numeri
-          // che Adunanza non manderebbe mai a quell'identificativo specifico.
+          const bCorrente = buildings.find(x=>x.id===idBuildingToken);
+          const idRisoltoPerPing = bCorrente ? risolviIdentificativoPing(bCorrente, idCondominoToken) : idCondominoToken;
+          // Avviamo l'invio del battito con l'identificativo giusto (che può essere quello di
+          // un delegato, condòmino o esterno, se questo link ha una delega registrata sopra):
+          // sarà poi il ciclo di controllo di Adunanza, guardando quel battito, a decidere se
+          // e quando segnare la persona online — non serve fare nulla qui oltre ad avviarlo.
           avviaRispostaPing(idRisoltoPerPing);
         }catch(e){
           console.error('[Adunanza] Segnalazione online fallita (il riconoscimento del condòmino prosegue comunque):', e);
@@ -3210,18 +3200,17 @@ function segnaOnlineSeAssente(building, condominoId, assembleaForzata){
   if(!rec) assemblea.appello.online.push({condominoId, entrata:oraAdesso(), uscita:null});
   else if(rec.uscita) rec.uscita=null; // era uscito ed è rientrato
 }
-// Quando si apre il link personale di un condòmino che ha già dato delega, chi lo sta usando
-// è presumibilmente il delegato (il condòmino glielo avrà inoltrato, come discusso): segniamo
-// online proprio lui — sulla sua riga, condòmino o persona esterna che sia — non il condòmino
-// che ha delegato, che a quel punto non risulta essere lui a partecipare.
-function segnaOnlinePerLinkPersonale(building, condominoId){
-  // Usiamo l'assemblea "contestualizzata" del link personale (quella indicata nel proprio
-  // collegamento), non getAssembleaInCorso: quest'ultima trova qualcosa solo se
-  // l'amministratore ha già premuto "Avvia assemblea" — se il condòmino si collega PRIMA di
-  // lui (capita spesso, arriva puntuale o in anticipo), la ricerca fallirebbe silenziosamente
-  // e la persona non risulterebbe mai online, pur avendo aperto correttamente la pagina giusta.
+// Capisce CON QUALE IDENTIFICATIVO questo dispositivo deve mandare il battito: se il
+// condòmino il cui link è stato usato ha già dato una delega attiva, è quasi certamente il
+// delegato a stare usando questo stesso link (il condòmino glielo avrà inoltrato) — mandiamo
+// quindi il battito sotto il SUO identificativo, condòmino o persona esterna che sia. Se in
+// futuro la delega viene revocata, il prossimo controllo restituirà di nuovo l'identificativo
+// del condòmino stesso: non scrive nulla qui, si limita a capire QUALE nome usare — è poi
+// SOLO il ciclo di controllo di Adunanza (eseguiCicloPing) a decidere, guardando il battito
+// così identificato, chi risulta davvero online.
+function risolviIdentificativoPing(building, condominoId){
   const assemblea = getAssembleaContestualizzataCondomino(building);
-  if(!assemblea){ segnaOnlineSeAssente(building, condominoId); return condominoId; }
+  if(!assemblea) return condominoId;
   // La delega, se c'è, è sempre registrata sul "primario" (l'unica riga con i comandi
   // nell'appello) — se il link usato era invece quello di una delle sue unità secondarie
   // (ogni proprietà ha comunque il proprio collegamento distinto), la delega non si troverebbe
@@ -3229,9 +3218,7 @@ function segnaOnlinePerLinkPersonale(building, condominoId){
   const c = building.condomini.find(x=>x.id===condominoId);
   const idPerDelega = (c && c.unificatoCon) ? c.unificatoCon : condominoId;
   const delegatoId = assemblea.appello.deleghe[idPerDelega];
-  const idRisolto = delegatoId!=null ? delegatoId : condominoId;
-  segnaOnlineSeAssente(building, idRisolto, assemblea);
-  return idRisolto;
+  return delegatoId!=null ? delegatoId : condominoId;
 }
 function recordAttivo(assemblea, condominoId){
   const rOn = assemblea.appello.online.find(r=>r.condominoId===condominoId && !r.uscita);
@@ -6272,11 +6259,8 @@ function rientraInAssemblea(){
   usciteVolontariamenteInAttesaDiRientro = false;
   const idCondominoToken = currentCondomino.id;
   try{
-    let idRisoltoPerPing = idCondominoToken;
-    eseguiConUnioneSuServer(()=>{
-      const bCorrente = getActiveBuilding();
-      if(bCorrente) idRisoltoPerPing = segnaOnlinePerLinkPersonale(bCorrente, idCondominoToken);
-    });
+    const bCorrente = getActiveBuilding();
+    const idRisoltoPerPing = bCorrente ? risolviIdentificativoPing(bCorrente, idCondominoToken) : idCondominoToken;
     avviaRispostaPing(idRisoltoPerPing);
   }catch(e){
     console.error('[Adunanza] Rientro in assemblea fallito:', e);
@@ -8034,53 +8018,75 @@ function collegaAscoltoFirebase(){
 // VOLTA guardando i dati come sono adesso, poi applicato identico sia in locale sia, un
 // istante dopo, sui dati veri del server: così il numero che genera per caso non risulta mai
 // diverso tra le due applicazioni.
+// L'UNICA funzione che decide chi è online in un'assemblea: guarda il battito di OGNI
+// convocato (condòmini ed eventuali persone esterne delegate), non solo chi risultava già
+// online prima — così anche il primissimo battito di qualcuno viene riconosciuto subito,
+// senza dover dipendere da nessun'altra funzione che lo marchi online in anticipo.
 function eseguiCicloPing(){
   try{
+  const daSegnareOnline = []; // [{buildingId, assembleaId, condominoId}] — primo battito mai visto, o rientro dopo un'uscita automatica
   const daSegnareUsciti = []; // [{buildingId, assembleaId, condominoId}]
-  const daRiconnettere = []; // [{buildingId, assembleaId, condominoId}] — chi torna a mandare battito dopo un'uscita automatica
   const battitiVisti = []; // [{buildingId, assembleaId, condominoId, ultimoVisto, mancate}]
   let quantiControllati = 0;
   buildings.forEach(bb=>{
-    // Consideriamo TUTTE le assemblee di questo condominio con qualcuno online, non solo
-    // quella "in corso" (bb.assembleaInCorsoId): quel campo si imposta solo quando
+    // Consideriamo TUTTE le assemblee di questo condominio con un ordine del giorno valido, non
+    // solo quella "in corso" (bb.assembleaInCorsoId): quel campo si imposta solo quando
     // l'amministratore la apre esplicitamente dal proprio dispositivo — se un condòmino si
-    // collega prima (o l'amministratore non ha ancora aperto la pagina), l'assemblea avrebbe
-    // comunque persone online, ma nessuno controllerebbe mai il loro battito.
+    // collega prima (o l'amministratore non ha ancora aperto la pagina), l'assemblea andrebbe
+    // comunque controllata.
     (bb.assemblee||[]).forEach(a=>{
-    if(!a.appello || !(a.appello.online||[]).length) return;
+    if(!a.appello || !a.convocati) return;
     const pingBattito = a.pingBattito || {};
-    const pingUltimoVisto = a.pingUltimoVisto || {}; // ultimo valore di pingBattito già controllato al giro precedente
+    const pingUltimoVisto = a.pingUltimoVisto || {};
     const pingMancate = a.pingMancate || {};
-    (a.appello.online||[]).forEach(rec=>{
-      // Uscita VOLONTARIA (ha premuto "Lascia l'assemblea"): non insistiamo più, il suo
-      // dispositivo ha già smesso di mandare battito di proposito — inutile continuare.
-      // Uscita AUTOMATICA (3 battiti mancati, es. galleria/segnale debole): continuiamo a
-      // controllare fino alla fine dell'assemblea — se torna a mandare battito, lo rimettiamo
-      // online da soli, senza bisogno di nessuna azione da parte sua o dell'amministratore.
-      if(rec.uscita && !rec.usciteAutomatica) return;
-      quantiControllati++;
-      const id = rec.condominoId;
+
+    // Ogni identificativo che può davvero mandare un battito: ciascun condòmino convocato, più
+    // ciascuna persona esterna che compare tra le deleghe di questa assemblea.
+    const idsDaControllare = new Set(a.convocati.selezionati||[]);
+    Object.values(a.appello.deleghe||{}).forEach(delegatoId=>{ if(typeof delegatoId==='string') idsDaControllare.add(delegatoId); });
+
+    idsDaControllare.forEach(id=>{
       const valoreAttuale = pingBattito[id];
+      if(valoreAttuale == null) return; // non ha mai mandato un battito: resta "mai collegato", non lo tocchiamo
+      quantiControllati++;
       const valorePrecedente = pingUltimoVisto[id];
-      let mancateAggiornate = pingMancate[id] || 0;
-      if(valoreAttuale != null && valoreAttuale !== valorePrecedente){
-        // Il battito è salito rispetto all'ultima volta controllata: il dispositivo è vivo.
-        mancateAggiornate = 0;
-        if(rec.uscita && rec.usciteAutomatica){
-          daRiconnettere.push({buildingId: bb.id, assembleaId: a.id, condominoId: id});
+      const recOnline = (a.appello.online||[]).find(r=>r.condominoId===id);
+      const eraOnlineAttivo = recOnline && !recOnline.uscita;
+      const eraUscitoAutomatico = recOnline && recOnline.uscita && recOnline.usciteAutomatica;
+      const eraUscitoVolontario = recOnline && recOnline.uscita && !recOnline.usciteAutomatica;
+
+      if(valoreAttuale !== valorePrecedente){
+        // Il battito è salito rispetto all'ultima volta controllata: il dispositivo è vivo ADESSO.
+        if(!eraOnlineAttivo && !eraUscitoVolontario){
+          // Non era online (mai stato, o era uscito in automatico): lo mettiamo online — anche
+          // se è il suo primissimo battito in assoluto.
+          daSegnareOnline.push({buildingId: bb.id, assembleaId: a.id, condominoId: id});
         }
-      }else if(!rec.uscita){
-        // Nessun nuovo battito da quando abbiamo controllato l'ultima volta.
-        mancateAggiornate++;
+        // Se era uscito VOLONTARIAMENTE (ha premuto "Lascia l'assemblea"), non lo rimettiamo
+        // online da soli nemmeno se un battito residuo dovesse ancora arrivare: serve un suo
+        // tocco esplicito su "Rientra in assemblea".
+        battitiVisti.push({buildingId: bb.id, assembleaId: a.id, condominoId: id, ultimoVisto: valoreAttuale, mancate: 0});
+      }else if(eraOnlineAttivo){
+        // Era online, ma nessun nuovo battito da quando abbiamo controllato l'ultima volta.
+        const mancateAggiornate = (pingMancate[id]||0) + 1;
         if(mancateAggiornate >= TENTATIVI_PING_PRIMA_DI_USCITA){
           daSegnareUsciti.push({buildingId: bb.id, assembleaId: a.id, condominoId: id});
         }
+        battitiVisti.push({buildingId: bb.id, assembleaId: a.id, condominoId: id, ultimoVisto: valoreAttuale, mancate: mancateAggiornate});
       }
-      battitiVisti.push({buildingId: bb.id, assembleaId: a.id, condominoId: id, ultimoVisto: valoreAttuale, mancate: mancateAggiornate});
+      // Se non era online e non ha mandato un nuovo battito, non c'è nulla da fare: resta come sta.
     });
     });
   });
   function applicaPiano(){
+    daSegnareOnline.forEach(({buildingId, assembleaId, condominoId})=>{
+      const bb = buildings.find(x=>x.id===buildingId);
+      const a = bb ? (bb.assemblee||[]).find(x=>x.id===assembleaId) : null;
+      if(!a) return;
+      const rec = (a.appello.online||[]).find(r=>r.condominoId===condominoId);
+      if(!rec) a.appello.online.push({condominoId, entrata:oraAdesso(), uscita:null});
+      else{ delete rec.uscita; delete rec.usciteAutomatica; }
+    });
     daSegnareUsciti.forEach(({buildingId, assembleaId, condominoId})=>{
       const bb = buildings.find(x=>x.id===buildingId);
       const a = bb ? (bb.assemblee||[]).find(x=>x.id===assembleaId) : null;
@@ -8088,13 +8094,6 @@ function eseguiCicloPing(){
       const oraStr = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
       const rec = (a.appello.online||[]).find(r=>r.condominoId===condominoId && !r.uscita);
       if(rec){ rec.uscita = oraStr; rec.usciteAutomatica = true; }
-    });
-    daRiconnettere.forEach(({buildingId, assembleaId, condominoId})=>{
-      const bb = buildings.find(x=>x.id===buildingId);
-      const a = bb ? (bb.assemblee||[]).find(x=>x.id===assembleaId) : null;
-      if(!a) return;
-      const rec = (a.appello.online||[]).find(r=>r.condominoId===condominoId && r.uscita && r.usciteAutomatica);
-      if(rec){ delete rec.uscita; delete rec.usciteAutomatica; }
     });
     battitiVisti.forEach(({buildingId, assembleaId, condominoId, ultimoVisto, mancate})=>{
       const bb = buildings.find(x=>x.id===buildingId);
@@ -8107,7 +8106,7 @@ function eseguiCicloPing(){
     });
   }
   eseguiConUnioneSuServer(applicaPiano);
-  if(daSegnareUsciti.length || daRiconnettere.length) renderAppello(); // aggiorniamo subito la tabella visibile, senza aspettare l'eco di Firebase
+  if(daSegnareOnline.length || daSegnareUsciti.length) renderAppello(); // aggiorniamo subito la tabella visibile, senza aspettare l'eco di Firebase
   const indicatorePing = document.getElementById('fb-ultimo-ping');
   if(indicatorePing) indicatorePing.textContent = '📡 Giro ' + new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) + ' — ' + quantiControllati + ' persone monitorate';
   }catch(e){
