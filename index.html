@@ -548,7 +548,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 16/08/2026 alle 15:23">LT-137</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 17/08/2026 alle 10:21">LT-139</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1867,6 +1867,15 @@ function mandaBattitoPing(){
   if(__condominoOriginaleIdPing == null) return;
   const bCorrente = getActiveBuilding();
   const condominoId = bCorrente ? risolviIdentificativoPing(bCorrente, __condominoOriginaleIdPing) : __condominoOriginaleIdPing;
+  if(condominoId==null){
+    // Link disattivato: un altro delegante ha già attivato questa stessa persona esterna, che
+    // risulta ancora online in questo momento — non mandiamo nessun battito sotto il suo id,
+    // altrimenti risulterebbe collegata "da più parti" insieme.
+    __condominoInAscoltoPing = null;
+    mostraStatoPingCondomino('Collegamento disattivato: il delegato che hai indicato è già collegato tramite un altro link.');
+    renderVistaCondomino();
+    return;
+  }
   __condominoInAscoltoPing = condominoId; // per riferimento: sotto quale nome sta battendo in questo momento
   try{
     eseguiConUnioneSuServer(()=>{
@@ -2005,8 +2014,11 @@ function initFromUrlToken(){
           const idRisoltoPerPing = bCorrente ? risolviIdentificativoPing(bCorrente, idCondominoToken) : idCondominoToken;
           // Il primo collegamento è un momento certo (la pagina si è appena caricata, o la
           // persona ha appena interagito davvero): segniamo online subito, senza aspettare
-          // fino a 15 secondi il prossimo giro di controllo di Adunanza.
-          segnaSubitoOnline(bCorrente, idRisoltoPerPing);
+          // fino a 15 secondi il prossimo giro di controllo di Adunanza — a meno che il link
+          // non risulti disattivato (un altro delegante ha già attivato la stessa persona
+          // esterna): in quel caso non segniamo nulla, sarà avviaRispostaPing/mandaBattitoPing,
+          // chiamato subito sotto, a mostrare il messaggio corretto.
+          if(idRisoltoPerPing!=null) segnaSubitoOnline(bCorrente, idRisoltoPerPing);
           avviaRispostaPing(idCondominoToken);
         }catch(e){
           console.error('[Adunanza] Segnalazione online fallita (il riconoscimento del condòmino prosegue comunque):', e);
@@ -3233,7 +3245,21 @@ function risolviIdentificativoPing(building, condominoId){
   // CONDÒMINO (id numerico), lui ha il proprio link personale a disposizione — chi apre il
   // link del delegante è quasi certamente il delegante stesso (magari solo per controllare,
   // o per errore), non il delegato, che userebbe il proprio collegamento.
-  return (typeof delegatoId === 'string') ? delegatoId : condominoId;
+  if(typeof delegatoId !== 'string') return condominoId;
+  // Se PIÙ deleganti hanno dato la delega alla STESSA persona esterna, solo il primo il cui
+  // link viene usato la "attiva": finché lei resta online, il link di ogni altro delegante
+  // resta disattivato (non si collega affatto) — evita che risulti collegata "da più parti"
+  // insieme. Quando lei esce dall'assemblea (per qualunque motivo — tutti i deleganti escono
+  // insieme a lei, dato che la loro presenza dipende dalla sua), il collegamento si libera: il
+  // prossimo delegante il cui link viene usato può attivarla di nuovo.
+  assemblea.esternoClaimatoDa = assemblea.esternoClaimatoDa || {};
+  const claimante = assemblea.esternoClaimatoDa[delegatoId];
+  const esternoAttivo = recordAttivo(assemblea, delegatoId);
+  if(esternoAttivo && claimante!=null && claimante!==idPerDelega){
+    return null; // link disattivato: un altro delegante ha già attivato questa persona esterna
+  }
+  assemblea.esternoClaimatoDa[delegatoId] = idPerDelega;
+  return delegatoId;
 }
 function recordAttivo(assemblea, condominoId){
   const rOn = assemblea.appello.online.find(r=>r.condominoId===condominoId && !r.uscita);
@@ -3481,6 +3507,17 @@ function renderPaginaDelegaCondomino(){
   // che si stava scrivendo.
   const paginaDelega = document.getElementById('page-delega-condomino');
   if(paginaDelega && paginaDelega.contains(document.activeElement) && document.activeElement.tagName!=='BODY'){
+    return;
+  }
+  // Stessa protezione, ma basata su COSA È VISIBILE in questo momento, non solo su dove si
+  // trova il cursore: se il modulo per scegliere un condòmino o una persona esterna è già
+  // aperto (es. si sta ancora scorrendo il menù a tendina, senza aver ancora scelto nessuno in
+  // particolare), il solo controllo sul fuoco non bastava sempre a evitare che una
+  // sincronizzazione in arrivo azzerasse tutto e facesse ripartire dalla schermata iniziale.
+  const formCondominoVisibile = !document.getElementById('delega-form-condomino').classList.contains('hidden');
+  const formEsternoVisibile = !document.getElementById('delega-form-esterno').classList.contains('hidden');
+  const confermaAppenaMostrata = !document.getElementById('delega-fatto').classList.contains('hidden');
+  if(formCondominoVisibile || formEsternoVisibile || confermaAppenaMostrata){
     return;
   }
   const ctx = trovaAssembleaDelegaCorrente();
@@ -3799,6 +3836,13 @@ function renderAppello(){
   const assemblea=getAssembleaInCorso(b);
   const tbody=document.getElementById('appello-tbody');
   if(!tbody) return;
+  // Se in questo momento il menù "Registra delega" di una riga è aperto (a fuoco), non
+  // ridisegniamo la tabella: il ciclo di controllo del battito la richiama molto spesso, e
+  // ricostruendo la riga sotto un menù nativo del browser ancora aperto lo si farebbe
+  // comportare in modo imprevedibile (si sposta, sfarfalla, si chiude da solo).
+  if(document.activeElement && tbody.contains(document.activeElement) && document.activeElement.tagName==='SELECT' && document.activeElement.id.startsWith('delega-select-')){
+    return;
+  }
   if(!assemblea){
     // Rete di sicurezza: se per un attimo i dati (condominio/assemblea) non sono ancora
     // arrivati dal database condiviso, meglio dirlo chiaramente che restare in silenzio —
@@ -5001,6 +5045,7 @@ function salvaSenzaInviare(){
       : 'Nessun convocato selezionato: scegli almeno un destinatario.');
     return;
   }
+  if(!validaOrarioSecondaConvocazione(workingAssembly)) return;
   salvaAssembleaInElenco();
   const salvataggioRiuscito = salvaStato();
   toast(salvataggioRiuscito ? 'Assemblea salvata. Invito non inviato.' : 'ATTENZIONE: l\'assemblea è stata creata ma il salvataggio permanente nel browser è FALLITO (spazio esaurito o altro errore). Potrebbe non essere qui alla prossima visita.');
@@ -5142,6 +5187,18 @@ function inviaEmailVeraTramiteEmailJS(c, oggetto, corpo){
     message: corpoFormattato
   });
 }
+// Se è stata inserita la data della seconda convocazione, l'ora diventa obbligatoria: una
+// convocazione con giorno ma senza orario non è utilizzabile davvero. Restituisce true se la
+// validazione passa, false (mostrando l'errore) altrimenti.
+function validaOrarioSecondaConvocazione(a){
+  if(a.dataSeconda && a.dataSeconda.trim() && (!a.oraSeconda || !a.oraSeconda.trim())){
+    toast('Hai indicato la data della seconda convocazione: inserisci anche l\'orario prima di salvare.');
+    const campoOra = document.getElementById('ca-ora-seconda');
+    if(campoOra) campoOra.focus();
+    return false;
+  }
+  return true;
+}
 async function salvaESpedisciAssemblea(){
   const b=getActiveBuilding();
   const a=workingAssembly;
@@ -5149,6 +5206,7 @@ async function salvaESpedisciAssemblea(){
     toast('Inserisci l\'oggetto dell\'assemblea prima di inviare la convocazione: aiuta a distinguerla dalle altre.');
     return;
   }
+  if(!validaOrarioSecondaConvocazione(a)) return;
   const tuttiIConvocati = a.convocati.selezionati.map(id=>b.condomini.find(c=>c.id===id)).filter(Boolean);
   if(tuttiIConvocati.length===0){
     toast(b.condomini.length===0
@@ -5399,16 +5457,35 @@ function renderOdgBlocks(){
       block.appendChild(preparatiEl);
     }
 
-    // Pulsante "Crea nuovo sondaggio", sempre disponibile per ogni punto — sia che ci sia già
-    // un sondaggio pianificato, sia che non ce ne sia previsto nessuno.
-    const nuovoSondaggioWrap=document.createElement('div');
-    nuovoSondaggioWrap.style.cssText='margin-top:8px;';
-    const btnNuovo=document.createElement('button');
-    btnNuovo.className='btn small secondary';
-    btnNuovo.textContent = (__odgModuloNuovoSondaggioAperto===p.id) ? '✕ Chiudi' : '+ Crea nuovo sondaggio';
-    btnNuovo.onclick=()=>apriModuloNuovoSondaggio(p.id);
-    nuovoSondaggioWrap.appendChild(btnNuovo);
-    if(__odgModuloNuovoSondaggioAperto===p.id){
+    // I due pulsanti principali (Avvia sondaggio / Crea nuovo sondaggio) stanno sulla stessa
+    // riga: calcoliamo prima se "Avvia sondaggio" comparirà, e con quale etichetta, perché
+    // quando è nella forma "+ Nuovo sondaggio per questo punto" il pulsante "Crea nuovo
+    // sondaggio" sarebbe ridondante (stesso identico scopo) e va nascosto.
+    const mostraAvvia = !(activePollOdgId===p.id) && (!p.storicoSondaggi || p.storicoSondaggi.length===0);
+    const avviaEUnNuovoSondaggio = mostraAvvia && !p.sondaggioAbilitato;
+
+    const actions=document.createElement('div');
+    actions.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;align-items:center;';
+    if(mostraAvvia){
+      const btnAvvia=document.createElement('button');
+      btnAvvia.className='btn small brass';
+      const svgPlay = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="vertical-align:-2px;margin-right:4px;"><circle cx="12" cy="12" r="10"/><path d="M10 8.3v7.4l6-3.7z" fill="currentColor" stroke="none"/></svg>';
+      btnAvvia.innerHTML = p.sondaggioAbilitato ? svgPlay+'Avvia sondaggio' : '+ Nuovo sondaggio per questo punto';
+      btnAvvia.onclick=()=>avviaSondaggioPerPunto(p.id);
+      actions.appendChild(btnAvvia);
+    }
+    // Pulsante "Crea nuovo sondaggio", disponibile per ogni punto — sia che ci sia già un
+    // sondaggio pianificato, sia che non ce ne sia previsto nessuno — TRANNE quando è già
+    // presente "+ Nuovo sondaggio per questo punto" qui sopra, che farebbe la stessa cosa.
+    if(!avviaEUnNuovoSondaggio){
+      const btnNuovo=document.createElement('button');
+      btnNuovo.className='btn small secondary';
+      btnNuovo.textContent = (__odgModuloNuovoSondaggioAperto===p.id) ? '✕ Chiudi' : '+ Crea nuovo sondaggio';
+      btnNuovo.onclick=()=>apriModuloNuovoSondaggio(p.id);
+      actions.appendChild(btnNuovo);
+    }
+    block.appendChild(actions);
+    if(__odgModuloNuovoSondaggioAperto===p.id && !avviaEUnNuovoSondaggio){
       const tabelleVotoLive = tabelleDisponibiliPerVoto(assemblea, b);
       const form=document.createElement('div');
       form.style.cssText='background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:14px 16px;margin-top:8px;';
@@ -5417,21 +5494,8 @@ function renderOdgBlocks(){
         <div class="field"><label>Opzioni di voto (una per riga)</label><textarea id="nuovo-sondaggio-opzioni-${p.id}" rows="3">Favorevole\nContrario\nAstenuto</textarea></div>
         <div class="field"><label>Tabella millesimale da usare per il voto</label><select id="nuovo-sondaggio-tabella-${p.id}">${tabelleVotoLive.map(t=>`<option value="${escapeHtml(t)}" ${t===p.tabella?'selected':''}>${escapeHtml(t)}</option>`).join('')}</select></div>
         <button class="btn small brass" style="margin-top:6px;" onclick="confermaCreazioneSondaggioPreparato(${p.id})">Crea (resterà in attesa, si apre a parte)</button>`;
-      nuovoSondaggioWrap.appendChild(form);
+      block.appendChild(form);
     }
-    block.appendChild(nuovoSondaggioWrap);
-
-    const actions=document.createElement('div');
-    actions.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;';
-    if(!(activePollOdgId===p.id) && (!p.storicoSondaggi || p.storicoSondaggi.length===0)){
-      const btnAvvia=document.createElement('button');
-      btnAvvia.className='btn small brass';
-      const svgPlay = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="vertical-align:-2px;margin-right:4px;"><circle cx="12" cy="12" r="10"/><path d="M10 8.3v7.4l6-3.7z" fill="currentColor" stroke="none"/></svg>';
-      btnAvvia.innerHTML = p.sondaggioAbilitato ? svgPlay+'Avvia sondaggio' : '+ Nuovo sondaggio per questo punto';
-      btnAvvia.onclick=()=>avviaSondaggioPerPunto(p.id);
-      actions.appendChild(btnAvvia);
-    }
-    block.appendChild(actions);
 
     container.appendChild(block);
   });
@@ -5887,10 +5951,14 @@ function calcolaRisultatiSondaggio(){
   const totals={};
   activePoll.options.forEach(o=>totals[o.id]=0);
   Object.keys(activePoll.scelte).forEach(condIdStr=>{
-    const condId=parseInt(condIdStr);
-    const optId=activePoll.scelte[condId];
-    const c=b.condomini.find(x=>x.id===condId);
-    if(c && totals.hasOwnProperty(optId)) totals[optId] += pesoVoto(c,b,assemblea);
+    const optId=activePoll.scelte[condIdStr];
+    if(!totals.hasOwnProperty(optId)) return;
+    // Gli identificativi delle persone esterne sono testuali (es. "ext-1"): la loro riga in
+    // scelte serve solo a sapere che hanno votato, il peso vero viene già contato tramite la
+    // riga di ciascun delegante (impostaVoto copia automaticamente il voto su ognuno di loro,
+    // con il proprio peso individuale) — sommarla anche qui conterebbe lo stesso peso due volte.
+    const c = b.condomini.find(x=>String(x.id)===String(condIdStr));
+    if(c) totals[optId] += pesoVoto(c,b,assemblea);
   });
   Object.keys(totals).forEach(k=>{ totals[k]=arrotondaMillesimi(totals[k]); });
   return totals;
@@ -6219,7 +6287,11 @@ function chiudiModalEsciAssemblea(){
 function confermaEsciAssemblea(){
   document.getElementById('modal-esci-assemblea').classList.add('hidden');
   if(!currentCondomino) return;
-  const idCondomino = currentCondomino.id;
+  // Usiamo l'identificativo DAVVERO in uso in questo momento (che può essere il delegato
+  // esterno, se questo link ha una delega registrata sopra), non quello grezzo del link:
+  // altrimenti segneremmo l'uscita sul condòmino, che magari non ha mai avuto una propria
+  // registrazione diretta, lasciando la persona esterna ancora online per errore.
+  const idCondomino = __condominoInAscoltoPing!=null ? __condominoInAscoltoPing : currentCondomino.id;
   const oraOra = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
   const b = getActiveBuilding();
   const assembleaCorrentePerRicordo = b ? getAssembleaContestualizzataCondomino(b) : null;
@@ -6234,6 +6306,10 @@ function confermaEsciAssemblea(){
       if(recOn) recOn.uscita = oraOra;
       const recPres = (assembleaVera.appello.presenzeFisiche||[]).find(r=>r.condominoId===idCondomino && !r.uscita);
       if(recPres) recPres.uscita = oraOra;
+      // Se chi esce è una persona esterna con un collegamento "attivato" da un delegante
+      // specifico, lo liberiamo: il prossimo delegante il cui link viene usato potrà attivarla
+      // di nuovo, invece di restare bloccato sul primo per sempre.
+      if(typeof idCondomino==='string' && assembleaVera.esternoClaimatoDa) delete assembleaVera.esternoClaimatoDa[idCondomino];
     }
   }
   try{
@@ -6296,8 +6372,9 @@ function rientraInAssemblea(){
     // senza aspettare il prossimo giro di controllo di Adunanza — che, di proposito, non
     // rimette online da solo chi era uscito volontariamente (per non annullare un'uscita
     // voluta a causa di un battito residuo in arrivo in ritardo). Qui invece la persona ha
-    // appena chiesto esplicitamente di rientrare: va fatto subito.
-    segnaSubitoOnline(bCorrente, idRisoltoPerPing);
+    // appena chiesto esplicitamente di rientrare: va fatto subito — a meno che il link non
+    // risulti disattivato (un altro delegante ha già attivato la stessa persona esterna).
+    if(idRisoltoPerPing!=null) segnaSubitoOnline(bCorrente, idRisoltoPerPing);
     avviaRispostaPing(idCondominoToken);
   }catch(e){
     console.error('[Adunanza] Rientro in assemblea fallito:', e);
@@ -6725,10 +6802,40 @@ function costruisciSezionePresenti(assemblea, b){
       <div class="cv-presente-info">${infoTesto}</div>
     </div>`;
   }).join('');
+  // Le persone esterne che hanno ricevuto almeno una delega non compaiono tra i condòmini
+  // (non lo sono): le aggiungiamo qui, in ordine alfabetico, con lo stesso tipo di indicazione
+  // di stato, e un'etichetta che chiarisce che si tratta di un delegato esterno, non di un
+  // condòmino.
+  const idsEsterniConDelega = new Set(Object.values(assemblea.appello.deleghe||{}).filter(v=>typeof v==='string'));
+  const esterniOrdinati = (assemblea.deleghiEsterni||[])
+    .filter(est=>idsEsterniConDelega.has(est.id))
+    .slice()
+    .sort((x,y)=>(x.nome||'').localeCompare(y.nome||'','it'));
+  const righeEsterniHtml = esterniOrdinati.map(est=>{
+    const attivoEst = recordAttivo(assemblea, est.id);
+    const recOnlineUscitoEst = (assemblea.appello.online||[]).find(r=>r.condominoId===est.id && r.uscita);
+    const recPresenzaUscitoEst = (assemblea.appello.presenzeFisiche||[]).find(r=>r.condominoId===est.id && r.uscita);
+    let pallinoEst, infoTestoEst;
+    if(attivoEst){
+      pallinoEst = attivoEst.tipo==='online' ? '🟢' : '🔵';
+      infoTestoEst = attivoEst.tipo==='online' ? `Online dalle ${attivoEst.rec.entrata}` : `In presenza dalle ${attivoEst.rec.entrata}`;
+    }else if(recOnlineUscitoEst || recPresenzaUscitoEst){
+      const rec = recOnlineUscitoEst || recPresenzaUscitoEst;
+      pallinoEst = rec.usciteAutomatica ? '🟡' : '⚫';
+      infoTestoEst = rec.usciteAutomatica ? `Offline dalle ${rec.uscita} (entrato alle ${rec.entrata})` : `Uscito alle ${rec.uscita} (entrato alle ${rec.entrata})`;
+    }else{
+      pallinoEst = '⚪';
+      infoTestoEst = 'Non ancora collegato';
+    }
+    return `<div class="cv-presente-riga">
+      <div class="cv-presente-riga-top"><span class="cv-presente-pallino">${pallinoEst}</span><span class="cv-presente-nome">${escapeHtml(est.nome)}</span></div>
+      <div class="cv-presente-info">${infoTestoEst} <span class="muted">(delegato esterno)</span></div>
+    </div>`;
+  }).join('');
   return `<div class="assist-panel" id="cv-sezione-presenti">
     <h3>👥 Partecipanti</h3>
     <div class="cv-presenti-conteggio"><b>${testePresenti}</b> teste / ${totaleTeste} convocati &nbsp;·&nbsp; <b>${millPresenti}</b> / ${totMillConvocati}\u2030 millesimi (tabella "${escapeHtml(tq)}")</div>
-    <div class="cv-presenti-elenco">${righeHtml}</div>
+    <div class="cv-presenti-elenco">${righeHtml}${righeEsterniHtml}</div>
   </div>`;
 }
 // Nei primi 10 secondi dopo l'avvio dell'assemblea, mostriamo SOLO questa sezione a schermo
@@ -6819,6 +6926,35 @@ function costruisciRisultatoSondaggioPerPunto(s, condomino){
   return `<div class="cv-risultato-sotto-punto"><p class="sub" style="margin:8px 0 6px;font-weight:600;">${escapeHtml(s.question||'')}</p>${barreHtml}</div>`;
 }
 // Il sondaggio ATTIVO in questo momento: sempre "in primo piano", sopra l'ordine del giorno.
+// Determina CHI sta davvero votando in questo momento su questo dispositivo: normalmente il
+// condòmino stesso, ma se ha delegato il voto a una persona ESTERNA ed è proprio lei a usare
+// questo stesso link (il condòmino glielo avrà inoltrato, come già succede per la presenza
+// online), deve poter votare lei — con il peso di tutti quelli che l'hanno delegata — invece
+// di restare bloccata dal messaggio "hai delegato", che in quel caso sarebbe sbagliato: è
+// proprio lei, in questo momento, la persona che sta usando la pagina.
+// Somma i millesimi di tutti i condòmini che hanno delegato QUESTA specifica persona esterna:
+// usata SOLO per mostrare a lei stessa, in pag cell, con quanto peso sta per votare — il
+// conteggio vero dei risultati avviene già correttamente tramite la cascata sui singoli
+// deleganti (vedi impostaVoto), qui serve solo il numero da mostrare in anteprima.
+function pesoVotoPersonaEsterna(idEsterno, b, assemblea){
+  let somma = 0;
+  Object.keys(assemblea.appello.deleghe||{}).forEach(deleganteIdStr=>{
+    if(String(assemblea.appello.deleghe[deleganteIdStr]) !== String(idEsterno)) return;
+    const delegante = b.condomini.find(x=>String(x.id)===String(deleganteIdStr));
+    if(delegante) somma += pesoVoto(delegante, b, assemblea);
+  });
+  return somma;
+}
+function identitaVotanteCv(assemblea, b){
+  if(!currentCondomino) return null;
+  const idRisolto = risolviIdentificativoPing(b, currentCondomino.id);
+  if(idRisolto==null) return { id:null, nome:null, peso:0, estera:true, disattivato:true };
+  if(idRisolto === currentCondomino.id){
+    return { id: currentCondomino.id, nome: nomeCompletoCondomino(currentCondomino), peso: pesoVoto(currentCondomino, b, assemblea), estera:false };
+  }
+  const est = (assemblea.deleghiEsterni||[]).find(e=>e.id===idRisolto);
+  return { id: idRisolto, nome: est ? est.nome : 'Delegato', peso: pesoVotoPersonaEsterna(idRisolto, b, assemblea), estera:true };
+}
 function costruisciBloccoSondaggioAttivo(assembleaCorrente, b){
   // "Punto X — [testo del punto]", mostrato sopra la domanda del sondaggio, per dare sempre
   // contesto su quale voce dell'ordine del giorno si sta votando in questo momento.
@@ -6830,13 +6966,30 @@ function costruisciBloccoSondaggioAttivo(assembleaCorrente, b){
   if(!currentCondomino){
     return `<div class="assist-panel" style="border-left:4px solid var(--brass);margin-bottom:18px;"><h3>Votazione in corso</h3>${etichettaPunto}<p class="sub">${escapeHtml(activePoll.question)}</p><p class="muted" style="color:#A39C88;">Non riconosco chi sei in questa anteprima: non posso farti votare senza sapere quali millesimi usare.</p></div>`;
   }
-  const giaVotato = activePoll.voted.has(currentCondomino.id);
-  const mieiMillesimi = pesoVoto(currentCondomino, b, assembleaCorrente);
+  const votante = identitaVotanteCv(assembleaCorrente, b);
+  if(votante.disattivato){
+    return `<div class="assist-panel" style="border-left:4px solid var(--brass);margin-bottom:18px;"><h3>Votazione in corso</h3>${etichettaPunto}<p class="sub" style="margin-bottom:10px;">${escapeHtml(activePoll.question)}</p>
+      <div class="note" style="border-color:var(--brick);color:var(--brick);">Il delegato che hai indicato è già collegato tramite un altro link: questo collegamento resta disattivato finché lui non esce dall'assemblea.</div></div>`;
+  }
+  const giaVotato = activePoll.voted.has(votante.id);
+  const mieiMillesimi = votante.peso;
   if(giaVotato){
-    const idScelto = activePoll.scelte ? activePoll.scelte[currentCondomino.id] : null;
+    const idScelto = activePoll.scelte ? activePoll.scelte[votante.id] : null;
     const optScelta = activePoll.options.find(o=>o.id===idScelto);
     const etichetta = optScelta ? optScelta.label : 'registrato';
-    return `<div id="cv-conferma-voto-box" style="margin-bottom:18px;">${etichettaPunto}Hai votato: ${escapeHtml(etichetta)}<span class="sub">Voto registrato con i tuoi ${mieiMillesimi} millesimi (${escapeHtml(activePoll.tabella)}). In attesa che l'amministratore chiuda il sondaggio...</span></div>`;
+    return `<div id="cv-conferma-voto-box" style="margin-bottom:18px;">${etichettaPunto}Hai votato: ${escapeHtml(etichetta)}<span class="sub">Voto registrato con ${votante.estera?'i millesimi di chi ti ha delegato':'i tuoi'} ${mieiMillesimi} millesimi (${escapeHtml(activePoll.tabella)}). In attesa che l'amministratore chiuda il sondaggio...</span></div>`;
+  }
+  // Se questo dispositivo sta votando come persona ESTERNA (delegata da uno o più condòmini,
+  // ed è lei stessa a usare il link che le è stato inoltrato), il voto vale già di per sé:
+  // non ha senso mostrarle "hai delegato a...", non è lei ad aver delegato nessuno.
+  if(votante.estera){
+    return `<div class="assist-panel" id="cv-sondaggio-attivo-blocco" style="border-left:4px solid var(--brass);margin-bottom:18px;">
+      ${etichettaPunto}
+      <p class="sub" style="margin-bottom:4px;font-weight:700;font-size:16px;color:#F2F0EC;">${escapeHtml(activePoll.question)}</p>
+      <p class="muted" style="color:#A39C88;margin-bottom:12px;">Stai votando come delegato/a: userai i ${mieiMillesimi} millesimi di chi ti ha delegato (tabella: ${escapeHtml(activePoll.tabella)})</p>
+      <div id="cv-lista-opzioni"></div>
+      <button id="cv-btn-conferma-voto" onclick="confermaVotoCondomino()" disabled>Conferma il voto</button>
+    </div>`;
   }
   const attivo = recordAttivoConSecondarie(b, assembleaCorrente, currentCondomino.id);
   if(!attivo){
@@ -7029,11 +7182,15 @@ function selezionaOpzioneCondomino(optionId){
 }
 function confermaVotoCondomino(){
   if(sceltaVotoCorrente==null || !activePoll || !currentCondomino) return;
-  if(activePoll.voted.has(currentCondomino.id)){ toast('Hai già votato: non puoi votare di nuovo.'); return; }
+  const b0 = getActiveBuilding();
+  const a0 = b0 ? getAssembleaContestualizzataCondomino(b0) : null;
+  const votante0 = a0 ? identitaVotanteCv(a0, b0) : null;
+  if(!votante0) return;
+  if(activePoll.voted.has(votante0.id)){ toast('Hai già votato: non puoi votare di nuovo.'); return; }
   const btnConferma = document.getElementById('cv-btn-conferma-voto');
   if(btnConferma){ btnConferma.disabled=true; btnConferma.textContent='Invio in corso...'; }
   try{
-    const idCondominoVotante = currentCondomino.id, opzioneScelta = sceltaVotoCorrente;
+    const idCondominoVotante = votante0.id, opzioneScelta = sceltaVotoCorrente;
     eseguiConUnioneSuServer(()=>{ impostaVoto(idCondominoVotante, opzioneScelta, false); });
     // Fondamentale: azzeriamo la selezione ORA, subito dopo che il voto è stato registrato —
     // altrimenti la protezione che evita di perdere una selezione in corso durante una
@@ -8131,6 +8288,10 @@ function eseguiCicloPing(){
       const oraStr = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
       const rec = (a.appello.online||[]).find(r=>r.condominoId===condominoId && !r.uscita);
       if(rec){ rec.uscita = oraStr; rec.usciteAutomatica = true; }
+      // Se chi è appena uscito è una persona esterna (id testuale) con un collegamento
+      // "attivato" da un delegante specifico, lo liberiamo: il prossimo delegante il cui link
+      // viene usato potrà attivarla di nuovo, invece di restare bloccato sul primo per sempre.
+      if(typeof condominoId==='string' && a.esternoClaimatoDa) delete a.esternoClaimatoDa[condominoId];
     });
     battitiVisti.forEach(({buildingId, assembleaId, condominoId, ultimoVisto, mancate})=>{
       const bb = buildings.find(x=>x.id===buildingId);
