@@ -548,7 +548,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 18/08/2026 alle 00:23">LT-151</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 18/08/2026 alle 00:43">LT-152</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1084,7 +1084,6 @@
           </span>
         </div>
         <div class="muted" id="appello-summary" style="margin:8px 0 14px;"></div>
-        <div id="appello-avviso-deleghe-invalide" class="hidden" style="background:#FBE9E7;border:1px solid var(--brick);border-radius:4px;padding:12px 16px;margin-bottom:14px;"></div>
         <div id="appello-body">
           <div class="table-wrap">
             <table>
@@ -4094,6 +4093,13 @@ function renderAppello(){
   if(document.activeElement && tbody.contains(document.activeElement) && document.activeElement.tagName==='SELECT' && document.activeElement.id.startsWith('delega-select-')){
     return;
   }
+  if(assemblea){
+    // Corregge silenziosamente eventuali riferimenti di delega rimasti su un'unità secondaria
+    // invece che sul primario (può capitare da un salvataggio precedente): senza questo, un
+    // controllo come "questa persona ha già delegato?" cercherebbe sotto l'id sbagliato.
+    const eraDaCorreggere = normalizzaDelegheVersoIPrimari(b, assemblea);
+    if(eraDaCorreggere) salvaStato();
+  }
   if(!assemblea){
     // Rete di sicurezza: se per un attimo i dati (condominio/assemblea) non sono ancora
     // arrivati dal database condiviso, meglio dirlo chiaramente che restare in silenzio —
@@ -4111,26 +4117,6 @@ function renderAppello(){
   const millPresenti = arrotondaMillesimi(rappresentati.reduce((s,c)=>s+(pesoConvocato(c,assemblea,b)),0));
   document.getElementById('appello-summary').textContent =
     `${assemblea.appello.online.filter(r=>!r.uscita).length} online · ${assemblea.appello.presenzeFisiche.filter(r=>!r.uscita).length} in presenza · ${Object.keys(assemblea.appello.deleghe).length} deleghe registrate — totale rappresentati: ${testePresenti} (${millPresenti}/${totMillConvocati}‰ su tabella "${tq}")`;
-
-  // Controlliamo se restano situazioni "impossibili" già salvate in precedenza (chi ha
-  // delegato E sta anche ricevendo una delega insieme — non può più CREARSI con le regole
-  // attuali, ma può essere rimasto da prima che venissero applicate correttamente).
-  const avvisoDelegheEl = document.getElementById('appello-avviso-deleghe-invalide');
-  if(avvisoDelegheEl){
-    const problemiDeleghe = trovaCatenheDelegheInvalide(assemblea);
-    if(problemiDeleghe.length>0){
-      avvisoDelegheEl.classList.remove('hidden');
-      const nomi = problemiDeleghe.map(p=>{
-        const persona = b.condomini.find(x=>x.id===p.deleganteProblematico);
-        return persona ? nomeCompletoCondomino(persona) : ('#'+p.deleganteProblematico);
-      });
-      avvisoDelegheEl.innerHTML = `<b>⚠️ Trovata una situazione anomala nelle deleghe salvate</b>
-        <p style="margin:6px 0;">${escapeHtml(nomi.join(', '))} risulta${nomi.length===1?'':'no'} aver delegato qualcuno pur avendo ricevuto a sua volta una delega — non dovrebbe poter succedere, probabilmente è rimasto da un salvataggio precedente. La delega ricevuta verrà rimossa (quella data resta), lasciando chi l'aveva data libero di sceglierne un'altra.</p>
-        <button class="btn small brass" onclick="document.getElementById('appello-avviso-deleghe-invalide').classList.add('hidden'); riparaCatenheDelegheInvalide(getActiveBuilding(), getAssembleaInCorso(getActiveBuilding())); renderAppello();">Ripara ora</button>`;
-    }else{
-      avvisoDelegheEl.classList.add('hidden');
-    }
-  }
 
   const validazioneEl = document.getElementById('appello-validazione-corpo');
   if(validazioneEl){
@@ -4490,42 +4476,46 @@ function renderAppello(){
 // odierni impediscono che si CREINO nuovi casi così, ma non riparano da soli quelli già
 // esistenti nei dati salvati in precedenza). Restituisce un elenco di {deleganteProblematico,
 // riceveDa}: chi ha dato una delega pur ricevendone già una da "riceveDa".
-function trovaCatenheDelegheInvalide(assemblea){
-  const problemi = [];
-  const deleghe = assemblea.appello.deleghe || {};
+// Se il delegato scelto per qualcuno è un'unità SECONDARIA (proprietà unita a un'altra con lo
+// stesso proprietario) invece che il suo PRIMARIO, la corregge in automatico e silenziosamente:
+// tutte le tendine attuali escludono già le unità secondarie dalla scelta, ma un riferimento
+// del genere può essere rimasto da un salvataggio precedente. Senza questa correzione, un
+// controllo come "questa persona ha già delegato?" cercherebbe sotto l'id sbagliato (quello
+// dell'unità secondaria, dove la delega non è mai registrata) invece che sotto il primario
+// (dove lo è davvero), lasciando così passare delle deleghe che dovrebbero invece essere
+// bloccate. Gira automaticamente a ogni ridisegno dell'appello: nessun avviso, nessun pulsante,
+// si corregge e basta.
+function normalizzaDelegheVersoIPrimari(building, assemblea){
+  if(!assemblea || !assemblea.appello || !assemblea.appello.deleghe) return false;
+  const deleghe = assemblea.appello.deleghe;
+  let qualcosaCorretto = false;
+  Object.keys(deleghe).forEach(deleganteIdStr=>{
+    const delegatoId = deleghe[deleganteIdStr];
+    if(typeof delegatoId === 'string') return; // persona esterna: nessun primario da risolvere
+    const delegatoCondomino = building.condomini.find(x=>x.id===delegatoId);
+    if(delegatoCondomino && delegatoCondomino.unificatoCon){
+      deleghe[deleganteIdStr] = delegatoCondomino.unificatoCon;
+      qualcosaCorretto = true;
+    }
+  });
+  // Una volta corretti i riferimenti, la stessa persona potrebbe ora risultare sia delegante
+  // sia delegato insieme (es. un riferimento sbagliato nascondeva questo conflitto, che ora
+  // emerge chiaramente) — applichiamo subito la stessa cascata automatica già in uso ovunque
+  // nell'app: la delega RICEVUTA decade, quella DATA resta, senza bisogno di nessuna azione
+  // manuale da parte dell'amministratore.
   const normalizzaId = (idStr) => /^-?\d+$/.test(idStr) ? parseInt(idStr) : idStr;
   Object.keys(deleghe).forEach(deleganteIdStr=>{
     const deleganteId = normalizzaId(deleganteIdStr);
-    // deleganteId ha dato una delega (è una chiave in deleghe): controlliamo se sta ANCHE
-    // ricevendo una delega da qualcun altro, cioè se compare come VALORE altrove.
     const daChiRiceve = Object.keys(deleghe).find(altroIdStr=>{
       const altroId = normalizzaId(altroIdStr);
       return altroId !== deleganteId && deleghe[altroIdStr] === deleganteId;
     });
     if(daChiRiceve){
-      problemi.push({deleganteProblematico: deleganteId, riceveDa: normalizzaId(daChiRiceve)});
+      delete deleghe[daChiRiceve];
+      qualcosaCorretto = true;
     }
   });
-  return problemi;
-}
-// Ripara le situazioni trovate: rimuove la delega RICEVUTA da chi, nello stesso momento, ha
-// anche delegato qualcun altro — quella che ha DATO lui stesso resta, quella che ha RICEVUTO
-// decade, esattamente come farebbe oggi la cascata automatica se l'azione fosse stata fatta con
-// il codice attuale fin dall'inizio.
-function riparaCatenheDelegheInvalide(building, assemblea){
-  let quanteRiparate = 0;
-  eseguiConUnioneSuServer(()=>{
-    const bFresco = getActiveBuilding ? (getActiveBuilding()||building) : building;
-    const assembleaFresca = (bFresco.assemblee||[]).find(x=>x.id===assemblea.id) || assemblea;
-    const problemi = trovaCatenheDelegheInvalide(assembleaFresca);
-    problemi.forEach(({riceveDa})=>{
-      if(assembleaFresca.appello.deleghe[riceveDa] !== undefined){
-        delete assembleaFresca.appello.deleghe[riceveDa];
-        quanteRiparate++;
-      }
-    });
-  });
-  return quanteRiparate;
+  return qualcosaCorretto;
 }
 function renderSchemaDelegheAppello(assemblea, b){
   const wrap = document.getElementById('appello-schema-deleghe-wrap');
@@ -6321,6 +6311,7 @@ function renderTabellaVotiSondaggio(){
   const assemblea=getAssembleaInCorso(b);
   const tbody=document.getElementById('poll-voti-tbody');
   if(!tbody || !assemblea) return;
+  normalizzaDelegheVersoIPrimari(b, assemblea);
   tbody.innerHTML='';
   // Riga di voto di una persona esterna che ha ricevuto una delega: indentata, mostrata subito
   // sotto chi l'ha delegata — coerente con come già facciamo nell'appello.
@@ -7086,6 +7077,7 @@ function renderChatCondomino(){
 // ---------- SEZIONE "CHI C'È" (teste/millesimi/nominativi) — stessi calcoli usati per
 // l'amministratore, per essere sempre coerenti con i suoi numeri ----------
 function costruisciSezionePresenti(assemblea, b){
+  normalizzaDelegheVersoIPrimari(b, assemblea);
   const tq = tabellaQuorum(assemblea, b);
   const convocatiList = b.condomini.filter(c=>assemblea.convocati.selezionati.includes(c.id));
   const rappresentati = convocatiList.filter(c=>convocatoRappresentato(c, assemblea, b));
