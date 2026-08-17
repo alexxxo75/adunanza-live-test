@@ -548,7 +548,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 18/08/2026 alle 01:01">LT-153</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 18/08/2026 alle 01:10">LT-154</span></div>
   </div>
 
   <!-- MAIN -->
@@ -3767,20 +3767,38 @@ function tornaSceltaInizialeDelega(){
 let __ultimaInterazioneDelega = 0;
 let __delegaCatenaCvInSospeso = null; // {b, catena, assembleeScelte?}
 function segnaInterazioneDelega(){ __ultimaInterazioneDelega = Date.now(); }
+// Costruisce l'elenco di chi può essere scelto come delegato, partendo da TUTTI i convocati di
+// un'assemblea: raggruppa per "primario" (chi ha più proprietà unite conta una sola volta,
+// indipendentemente da chi sta guardando la pagina — prima capitava che dipendesse anche da
+// questo, per errore), esclude chi ha già dato la propria delega (l'intero gruppo, non solo la
+// riga specifica), ed esclude anche chi sta concedendo la delega in questo momento — l'intero
+// suo gruppo di proprietà, non solo quella con cui è entrato: non ci si può delegare da soli,
+// nemmeno passando per un'altra proprietà propria. Restituisce un elenco con UN SOLO
+// rappresentante per gruppo (il primario).
+function costruisciCandidatiDelegabili(building, assemblea, idDelegante){
+  const tuttiIConvocati = assemblea.convocati.selezionati.map(id=>building.condomini.find(c=>c.id===id)).filter(Boolean);
+  const deleganteCondomino = building.condomini.find(c=>c.id===idDelegante);
+  const idPrimarioDelegante = (deleganteCondomino && deleganteCondomino.unificatoCon) ? deleganteCondomino.unificatoCon : idDelegante;
+  const risolviPrimario = (c) => c.unificatoCon || c.id;
+  const gruppiVisti = new Set();
+  const risultato = [];
+  tuttiIConvocati.forEach(c=>{
+    const idPrimarioQuesto = risolviPrimario(c);
+    if(idPrimarioQuesto === idPrimarioDelegante) return; // è lui stesso, o un'altra sua proprietà: mai delegabile a se stessi
+    if(gruppiVisti.has(idPrimarioQuesto)) return; // già rappresentato nell'elenco da un'altra sua proprietà
+    if(assemblea.appello.deleghe[idPrimarioQuesto] != null) return; // questo gruppo ha già dato la propria delega
+    gruppiVisti.add(idPrimarioQuesto);
+    const rappresentante = building.condomini.find(x=>x.id===idPrimarioQuesto) || c;
+    risultato.push(rappresentante);
+  });
+  return risultato;
+}
 function mostraDelegaCondomino(){
   segnaInterazioneDelega();
   const {b,a} = trovaAssembleaDelegaCorrente();
   document.getElementById('delega-scelta-iniziale').classList.add('hidden');
   const lista = document.getElementById('delega-lista-condomini');
-  const candidati = a.convocati.selezionati.map(id=>b.condomini.find(c=>c.id===id)).filter(c=>c && c.id!==currentCondomino.id);
-  const idsCandidati = new Set(candidati.map(c=>c.id));
-  // Riconosciamo le unità secondarie usando l'elenco COMPLETO dei convocati (comprese quelle
-  // il cui primario ha già delegato): se lo facessimo dopo aver già tolto chi ha delegato, una
-  // sua unità secondaria "sfuggirebbe" — il suo primario non sarebbe più nell'elenco di
-  // riferimento, e lei risulterebbe erroneamente "indipendente" e ancora selezionabile, con un
-  // identificativo su cui però nessuna delega verrebbe mai davvero cercata.
-  const candidatiSenzaSecondarie = candidati.filter(c=>!(c.unificatoCon && idsCandidati.has(c.unificatoCon)));
-  const candidatiUnici = candidatiSenzaSecondarie.filter(c=>a.appello.deleghe[c.id]==null);
+  const candidatiUnici = costruisciCandidatiDelegabili(b, a, currentCondomino.id);
   lista.innerHTML = candidatiUnici.length
     ? candidatiUnici.map(c=>`<button class="btn secondary" style="display:block;width:100%;text-align:left;margin-bottom:8px;" onclick="sceltaCondominoDelega(${c.id})">${escapeHtml(nomeCompletoCondomino(c))}</button>`).join('')
     : '<p class="muted">Non risultano altri condòmini convocati per questa assemblea.</p>';
@@ -4328,7 +4346,7 @@ function renderAppello(){
       // Il menù per assegnare una delega è sempre disponibile — sia che il condòmino risulti
       // ancora online/in presenza, sia che sia già uscito, sia che non ci siano ancora altri
       // candidati (l'opzione "+ Aggiungi persona esterna..." resta comunque sempre valida).
-      const candidatiDelega = convocatiList.filter(x=>x.id!==c.id && !(x.unificatoCon && convocatiIds.includes(x.unificatoCon)) && assemblea.appello.deleghe[x.id]==null);
+      const candidatiDelega = costruisciCandidatiDelegabili(b, assemblea, c.id);
       const esterni = assemblea.deleghiEsterni||[];
       slot3=document.createElement('select'); slot3.id='delega-select-'+c.id; slot3.className='btn-appello-azione';
       slot3.innerHTML = '<option value="">Registra delega</option>' +
