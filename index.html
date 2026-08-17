@@ -548,7 +548,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 17/08/2026 alle 20:17">LT-150</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 18/08/2026 alle 00:23">LT-151</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1084,6 +1084,7 @@
           </span>
         </div>
         <div class="muted" id="appello-summary" style="margin:8px 0 14px;"></div>
+        <div id="appello-avviso-deleghe-invalide" class="hidden" style="background:#FBE9E7;border:1px solid var(--brick);border-radius:4px;padding:12px 16px;margin-bottom:14px;"></div>
         <div id="appello-body">
           <div class="table-wrap">
             <table>
@@ -4111,6 +4112,26 @@ function renderAppello(){
   document.getElementById('appello-summary').textContent =
     `${assemblea.appello.online.filter(r=>!r.uscita).length} online · ${assemblea.appello.presenzeFisiche.filter(r=>!r.uscita).length} in presenza · ${Object.keys(assemblea.appello.deleghe).length} deleghe registrate — totale rappresentati: ${testePresenti} (${millPresenti}/${totMillConvocati}‰ su tabella "${tq}")`;
 
+  // Controlliamo se restano situazioni "impossibili" già salvate in precedenza (chi ha
+  // delegato E sta anche ricevendo una delega insieme — non può più CREARSI con le regole
+  // attuali, ma può essere rimasto da prima che venissero applicate correttamente).
+  const avvisoDelegheEl = document.getElementById('appello-avviso-deleghe-invalide');
+  if(avvisoDelegheEl){
+    const problemiDeleghe = trovaCatenheDelegheInvalide(assemblea);
+    if(problemiDeleghe.length>0){
+      avvisoDelegheEl.classList.remove('hidden');
+      const nomi = problemiDeleghe.map(p=>{
+        const persona = b.condomini.find(x=>x.id===p.deleganteProblematico);
+        return persona ? nomeCompletoCondomino(persona) : ('#'+p.deleganteProblematico);
+      });
+      avvisoDelegheEl.innerHTML = `<b>⚠️ Trovata una situazione anomala nelle deleghe salvate</b>
+        <p style="margin:6px 0;">${escapeHtml(nomi.join(', '))} risulta${nomi.length===1?'':'no'} aver delegato qualcuno pur avendo ricevuto a sua volta una delega — non dovrebbe poter succedere, probabilmente è rimasto da un salvataggio precedente. La delega ricevuta verrà rimossa (quella data resta), lasciando chi l'aveva data libero di sceglierne un'altra.</p>
+        <button class="btn small brass" onclick="document.getElementById('appello-avviso-deleghe-invalide').classList.add('hidden'); riparaCatenheDelegheInvalide(getActiveBuilding(), getAssembleaInCorso(getActiveBuilding())); renderAppello();">Ripara ora</button>`;
+    }else{
+      avvisoDelegheEl.classList.add('hidden');
+    }
+  }
+
   const validazioneEl = document.getElementById('appello-validazione-corpo');
   if(validazioneEl){
     const percMill = totMillConvocati>0 ? Math.round((millPresenti/totMillConvocati)*1000)/10 : 0;
@@ -4463,6 +4484,49 @@ function renderAppello(){
 // fini del conteggio), quante persone l'hanno delegata, il totale dei millesimi che
 // rappresenta (i propri esclusi — solo quelli ricevuti in delega), e sotto, rientrati, i
 // nominativi di chi gliel'ha data, con i rispettivi millesimi.
+// Trova situazioni "impossibili" già salvate nei dati: qualcuno che ha delegato E sta anche
+// ricevendo una delega, nello stesso momento — non dovrebbe mai poter succedere con le regole
+// attuali, ma può essere rimasto da PRIMA che venissero applicate correttamente (i controlli
+// odierni impediscono che si CREINO nuovi casi così, ma non riparano da soli quelli già
+// esistenti nei dati salvati in precedenza). Restituisce un elenco di {deleganteProblematico,
+// riceveDa}: chi ha dato una delega pur ricevendone già una da "riceveDa".
+function trovaCatenheDelegheInvalide(assemblea){
+  const problemi = [];
+  const deleghe = assemblea.appello.deleghe || {};
+  const normalizzaId = (idStr) => /^-?\d+$/.test(idStr) ? parseInt(idStr) : idStr;
+  Object.keys(deleghe).forEach(deleganteIdStr=>{
+    const deleganteId = normalizzaId(deleganteIdStr);
+    // deleganteId ha dato una delega (è una chiave in deleghe): controlliamo se sta ANCHE
+    // ricevendo una delega da qualcun altro, cioè se compare come VALORE altrove.
+    const daChiRiceve = Object.keys(deleghe).find(altroIdStr=>{
+      const altroId = normalizzaId(altroIdStr);
+      return altroId !== deleganteId && deleghe[altroIdStr] === deleganteId;
+    });
+    if(daChiRiceve){
+      problemi.push({deleganteProblematico: deleganteId, riceveDa: normalizzaId(daChiRiceve)});
+    }
+  });
+  return problemi;
+}
+// Ripara le situazioni trovate: rimuove la delega RICEVUTA da chi, nello stesso momento, ha
+// anche delegato qualcun altro — quella che ha DATO lui stesso resta, quella che ha RICEVUTO
+// decade, esattamente come farebbe oggi la cascata automatica se l'azione fosse stata fatta con
+// il codice attuale fin dall'inizio.
+function riparaCatenheDelegheInvalide(building, assemblea){
+  let quanteRiparate = 0;
+  eseguiConUnioneSuServer(()=>{
+    const bFresco = getActiveBuilding ? (getActiveBuilding()||building) : building;
+    const assembleaFresca = (bFresco.assemblee||[]).find(x=>x.id===assemblea.id) || assemblea;
+    const problemi = trovaCatenheDelegheInvalide(assembleaFresca);
+    problemi.forEach(({riceveDa})=>{
+      if(assembleaFresca.appello.deleghe[riceveDa] !== undefined){
+        delete assembleaFresca.appello.deleghe[riceveDa];
+        quanteRiparate++;
+      }
+    });
+  });
+  return quanteRiparate;
+}
 function renderSchemaDelegheAppello(assemblea, b){
   const wrap = document.getElementById('appello-schema-deleghe-wrap');
   const tbody = document.getElementById('appello-schema-deleghe-tbody');
