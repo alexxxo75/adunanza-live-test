@@ -548,7 +548,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 17/08/2026 alle 10:41">LT-141</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 17/08/2026 alle 11:11">LT-142</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1210,7 +1210,7 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
 
       <div id="delega-form-esterno" class="card hidden" style="margin-bottom:18px;">
         <h3 style="margin-bottom:10px;">Dati della persona delegata</h3>
-        <div class="field"><label>Nome e cognome</label><input type="text" id="delega-esterno-nome" placeholder="Es. Avv. Giulia Bianchi"></div>
+        <div class="field"><label>Nome e cognome</label><input type="text" id="delega-esterno-nome" placeholder="Es. Avv. Giulia Bianchi" oninput="segnaInterazioneDelega()"></div>
         <button class="btn brass" style="display:block;width:100%;box-sizing:border-box;margin-bottom:10px;" onclick="confermaDelegaEsterno()">Continua</button>
         <button class="btn secondary" style="display:block;width:100%;box-sizing:border-box;" onclick="tornaSceltaInizialeDelega()">← Torna indietro</button>
       </div>
@@ -3415,19 +3415,20 @@ function assegnaDelega(deleganteId, delegatoId){
     toast(`Non è possibile: ${nomeDelegatoScelto} ha già delegato il proprio voto a qualcun altro — chi ha delegato non può a sua volta ricevere una delega.`);
     return false;
   }
-  // Stesso controllo, dalla direzione opposta: chi sta già RICEVENDO una o più deleghe da
-  // altri non può a sua volta delegare qualcun altro — creerebbe la stessa identica catena
-  // vista dal lato opposto, lasciando chi lo ha già delegato senza nessuno che voti davvero
-  // per suo conto.
-  const staGiaRicevendoDeleghe = Object.keys(assemblea.appello.deleghe).some(idStr=>{
+  // Chi sta già RICEVENDO una o più deleghe da altri, e a sua volta ne dà una nuova (diventa
+  // lui stesso un delegante), fa decadere automaticamente la delega — o le deleghe, se più di
+  // uno gli aveva dato la propria — che aveva ricevuto: non può più "portarle", dato che il
+  // suo voto ora segue qualcun altro. Chi si ritrova così senza delega torna libero, da questo
+  // momento, di ricevere una nuova delega in futuro (non è più "qualcuno che ha già delegato").
+  const deleganteIdOriginale = deleganteId;
+  let quanteDeleghesDecadute = 0;
+  Object.keys(assemblea.appello.deleghe).forEach(idStr=>{
     const idNum = /^-?\d+$/.test(idStr) ? parseInt(idStr) : idStr;
-    return idNum !== deleganteId && assemblea.appello.deleghe[idStr] === deleganteId;
+    if(idNum !== deleganteIdOriginale && assemblea.appello.deleghe[idStr] === deleganteIdOriginale){
+      delete assemblea.appello.deleghe[idStr];
+      quanteDeleghesDecadute++;
+    }
   });
-  if(staGiaRicevendoDeleghe){
-    const nomeDelegante = nomeCompletoCondomino(b.condomini.find(x=>x.id===deleganteId) || {nome:'',cognome:''});
-    toast(`Non è possibile: ${nomeDelegante} sta già ricevendo una delega da qualcun altro — chi riceve una delega non può a sua volta delegare qualcuno.`);
-    return false;
-  }
   const avviso = verificaLimiteQuintoDelega(b, assemblea, delegatoId, deleganteId);
   if(avviso && !confirm(avviso+'\n\nVuoi registrarla comunque? (dovrà essere valutata a verbale)')) return false;
   assemblea.appello.deleghe[deleganteId]=delegatoId;
@@ -3436,6 +3437,9 @@ function assegnaDelega(deleganteId, delegatoId){
   if(attivo){
     attivo.rec.uscita = oraAdesso();
     messaggioUscita = ' e uscita anticipata registrata automaticamente';
+  }
+  if(quanteDeleghesDecadute>0){
+    messaggioUscita += ` — attenzione: ${quanteDeleghesDecadute===1?'la delega che aveva ricevuto è decaduta':'le '+quanteDeleghesDecadute+' deleghe che aveva ricevuto sono decadute'}, dato che ora ha delegato a sua volta`;
   }
   renderAppello();
   salvaStato();
@@ -3544,6 +3548,13 @@ function renderPaginaDelegaCondomino(){
   if(formCondominoVisibile || formEsternoVisibile || confermaAppenaMostrata){
     return;
   }
+  // Terza rete di sicurezza: se è passato solo un istante da un'interazione (un tocco, una
+  // scelta, l'apertura di un modulo), non ridisegniamo comunque — anche se le due protezioni
+  // sopra, per qualche corsa temporale imprevista, non dovessero bastare da sole a intercettare
+  // il momento esatto giusto.
+  if(Date.now() - __ultimaInterazioneDelega < 2000){
+    return;
+  }
   const ctx = trovaAssembleaDelegaCorrente();
   ['delega-stato-attuale','delega-form-condomino','delega-form-esterno','delega-conferma-email','delega-catena-wrap','delega-fatto','delega-avviso-limite'].forEach(id=>document.getElementById(id).classList.add('hidden'));
   document.getElementById('delega-scelta-iniziale').classList.remove('hidden');
@@ -3589,11 +3600,14 @@ function tornaSceltaInizialeDelega(){
   document.getElementById('delega-scelta-iniziale').classList.remove('hidden');
   delegaScelta = null;
 }
+let __ultimaInterazioneDelega = 0;
+function segnaInterazioneDelega(){ __ultimaInterazioneDelega = Date.now(); }
 function mostraDelegaCondomino(){
+  segnaInterazioneDelega();
   const {b,a} = trovaAssembleaDelegaCorrente();
   document.getElementById('delega-scelta-iniziale').classList.add('hidden');
   const lista = document.getElementById('delega-lista-condomini');
-  const candidati = a.convocati.selezionati.map(id=>b.condomini.find(c=>c.id===id)).filter(c=>c && c.id!==currentCondomino.id);
+  const candidati = a.convocati.selezionati.map(id=>b.condomini.find(c=>c.id===id)).filter(c=>c && c.id!==currentCondomino.id && a.appello.deleghe[c.id]==null);
   const idsCandidati = new Set(candidati.map(c=>c.id));
   const candidatiUnici = candidati.filter(c=>!(c.unificatoCon && idsCandidati.has(c.unificatoCon)));
   lista.innerHTML = candidatiUnici.length
@@ -3602,6 +3616,7 @@ function mostraDelegaCondomino(){
   document.getElementById('delega-form-condomino').classList.remove('hidden');
 }
 function sceltaCondominoDelega(id){
+  segnaInterazioneDelega();
   const {b,a} = trovaAssembleaDelegaCorrente();
   const c = b.condomini.find(x=>x.id===id);
   delegaScelta = {tipo:'condomino', id, nomeVisualizzato: nomeCompletoCondomino(c)};
@@ -3609,6 +3624,7 @@ function sceltaCondominoDelega(id){
   mostraConfermaDelega();
 }
 function mostraDelegaEsterno(){
+  segnaInterazioneDelega();
   document.getElementById('delega-scelta-iniziale').classList.add('hidden');
   document.getElementById('delega-esterno-nome').value='';
   document.getElementById('delega-form-esterno').classList.remove('hidden');
@@ -3665,17 +3681,18 @@ function invaDelegaAdAmministratore(){
     box.innerHTML = `<h3 style="margin-bottom:8px;">⚠️ Delega non registrata</h3><p>${escapeHtml(nomeDelegatoScelto)} ha già delegato il proprio voto a qualcun altro: chi ha delegato non può a sua volta ricevere una delega.</p><button class="btn small secondary" style="margin-top:10px;" onclick="tornaSceltaInizialeDelega()">← Torna indietro</button>`;
     return;
   }
-  const staGiaRicevendoDeleghe = Object.keys(a.appello.deleghe).some(idStr=>{
+  // Chi sta già RICEVENDO una o più deleghe da altri, e a sua volta ne dà una nuova, fa
+  // decadere automaticamente la delega — o le deleghe — che aveva ricevuto: non può più
+  // "portarle", dato che il suo voto ora segue qualcun altro. Chi si ritrova così senza delega
+  // torna libero, da questo momento, di ricevere una nuova delega in futuro.
+  let quanteDeleghesDecaduteCv = 0;
+  Object.keys(a.appello.deleghe).forEach(idStr=>{
     const idNum = /^-?\d+$/.test(idStr) ? parseInt(idStr) : idStr;
-    return idNum !== currentCondomino.id && a.appello.deleghe[idStr] === currentCondomino.id;
+    if(idNum !== currentCondomino.id && a.appello.deleghe[idStr] === currentCondomino.id){
+      delete a.appello.deleghe[idStr];
+      quanteDeleghesDecaduteCv++;
+    }
   });
-  if(staGiaRicevendoDeleghe){
-    document.getElementById('delega-conferma-email').classList.add('hidden');
-    const box = document.getElementById('delega-avviso-limite');
-    box.classList.remove('hidden');
-    box.innerHTML = `<h3 style="margin-bottom:8px;">⚠️ Delega non registrata</h3><p>Stai già ricevendo una delega da qualcun altro: chi riceve una delega non può a sua volta delegare qualcuno.</p><button class="btn small secondary" style="margin-top:10px;" onclick="tornaSceltaInizialeDelega()">← Torna indietro</button>`;
-    return;
-  }
   const avviso = verificaLimiteQuintoDelega(b, a, delegatoId, currentCondomino.id);
   if(avviso){
     document.getElementById('delega-conferma-email').classList.add('hidden');
@@ -3698,6 +3715,7 @@ function invaDelegaAdAmministratore(){
   fatto.classList.remove('hidden');
   fatto.innerHTML = `<h3 style="margin-bottom:6px;">✅ Delega registrata e inviata</h3>
     <p class="muted" style="margin-bottom:12px;">Una copia del messaggio è stata inviata anche a te, come conferma, all'indirizzo che ci risulta per te.</p>
+    ${quanteDeleghesDecaduteCv>0 ? `<p style="margin-bottom:12px;color:var(--brick);">⚠️ ${quanteDeleghesDecaduteCv===1?'La delega che avevi ricevuto è decaduta':'Le '+quanteDeleghesDecaduteCv+' deleghe che avevi ricevuto sono decadute'}, dato che ora hai delegato a tua volta: chi te l'aveva data dovrà eventualmente sceglierne un\\'altra.</p>` : ''}
     <button class="btn small secondary" onclick="cambiaSceltaDelega()">Cambia la mia scelta</button>`;
 
   // Se questa assemblea fa parte di una catena, e questo condòmino è convocato anche nella
@@ -4123,7 +4141,7 @@ function renderAppello(){
       // Il menù per assegnare una delega è sempre disponibile — sia che il condòmino risulti
       // ancora online/in presenza, sia che sia già uscito, sia che non ci siano ancora altri
       // candidati (l'opzione "+ Aggiungi persona esterna..." resta comunque sempre valida).
-      const candidatiDelega = convocatiList.filter(x=>x.id!==c.id && !(x.unificatoCon && convocatiIds.includes(x.unificatoCon)));
+      const candidatiDelega = convocatiList.filter(x=>x.id!==c.id && !(x.unificatoCon && convocatiIds.includes(x.unificatoCon)) && assemblea.appello.deleghe[x.id]==null);
       const esterni = assemblea.deleghiEsterni||[];
       slot3=document.createElement('select'); slot3.id='delega-select-'+c.id; slot3.className='btn-appello-azione';
       slot3.innerHTML = '<option value="">Registra delega</option>' +
