@@ -548,7 +548,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 17/08/2026 alle 11:23">LT-143</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 17/08/2026 alle 11:32">LT-144</span></div>
   </div>
 
   <!-- MAIN -->
@@ -3415,34 +3415,39 @@ function assegnaDelega(deleganteId, delegatoId){
     toast(`Non è possibile: ${nomeDelegatoScelto} ha già delegato il proprio voto a qualcun altro — chi ha delegato non può a sua volta ricevere una delega.`);
     return false;
   }
-  // Chi sta già RICEVENDO una o più deleghe da altri, e a sua volta ne dà una nuova (diventa
-  // lui stesso un delegante), fa decadere automaticamente la delega — o le deleghe, se più di
-  // uno gli aveva dato la propria — che aveva ricevuto: non può più "portarle", dato che il
-  // suo voto ora segue qualcun altro. Chi si ritrova così senza delega torna libero, da questo
-  // momento, di ricevere una nuova delega in futuro (non è più "qualcuno che ha già delegato").
-  const deleganteIdOriginale = deleganteId;
-  let quanteDeleghesDecadute = 0;
-  Object.keys(assemblea.appello.deleghe).forEach(idStr=>{
-    const idNum = /^-?\d+$/.test(idStr) ? parseInt(idStr) : idStr;
-    if(idNum !== deleganteIdOriginale && assemblea.appello.deleghe[idStr] === deleganteIdOriginale){
-      delete assemblea.appello.deleghe[idStr];
-      quanteDeleghesDecadute++;
-    }
-  });
   const avviso = verificaLimiteQuintoDelega(b, assemblea, delegatoId, deleganteId);
   if(avviso && !confirm(avviso+'\n\nVuoi registrarla comunque? (dovrà essere valutata a verbale)')) return false;
-  assemblea.appello.deleghe[deleganteId]=delegatoId;
-  const attivo = recordAttivo(assemblea, deleganteId);
-  let messaggioUscita = '';
-  if(attivo){
-    attivo.rec.uscita = oraAdesso();
-    messaggioUscita = ' e uscita anticipata registrata automaticamente';
+  // La scrittura vera e propria (cascata + assegnazione) passa dalla stessa transazione
+  // sicura già usata per il battito: applica subito in locale (risposta immediata), poi si
+  // riapplica di nuovo sui dati più freschi del server appena la transazione si conferma —
+  // così un cambiamento arrivato quasi in contemporanea da un altro dispositivo/scheda (es.
+  // un'altra delega appena registrata altrove) non rischia di essere perso da una semplice
+  // sovrascrittura diretta, come capitava prima.
+  let quanteDeleghesDecadute = 0;
+  let usciaSegnata = false;
+  function applicaDelegaOra(){
+    const bFresco = getActiveBuilding();
+    const assembleaFresca = bFresco ? getAssembleaInCorso(bFresco) : null;
+    if(!assembleaFresca || !assembleaFresca.appello) return;
+    if(!assembleaFresca.appello.deleghe) assembleaFresca.appello.deleghe = {};
+    quanteDeleghesDecadute = 0;
+    Object.keys(assembleaFresca.appello.deleghe).forEach(idStr=>{
+      const idNum = /^-?\d+$/.test(idStr) ? parseInt(idStr) : idStr;
+      if(idNum !== deleganteId && assembleaFresca.appello.deleghe[idStr] === deleganteId){
+        delete assembleaFresca.appello.deleghe[idStr];
+        quanteDeleghesDecadute++;
+      }
+    });
+    assembleaFresca.appello.deleghe[deleganteId]=delegatoId;
+    const attivo = recordAttivo(assembleaFresca, deleganteId);
+    if(attivo){ attivo.rec.uscita = oraAdesso(); usciaSegnata = true; }
   }
+  eseguiConUnioneSuServer(applicaDelegaOra);
+  let messaggioUscita = usciaSegnata ? ' e uscita anticipata registrata automaticamente' : '';
   if(quanteDeleghesDecadute>0){
     messaggioUscita += ` — attenzione: ${quanteDeleghesDecadute===1?'la delega che aveva ricevuto è decaduta':'le '+quanteDeleghesDecadute+' deleghe che aveva ricevuto sono decadute'}, dato che ora ha delegato a sua volta`;
   }
   renderAppello();
-  salvaStato();
   toast('Delega registrata'+messaggioUscita+'.');
   return true;
 }
@@ -3467,11 +3472,15 @@ function aggiungiPersonaEsternaEDelega(deleganteId){
   assegnaDelega(deleganteId, nuovoId);
 }
 function annullaDelega(deleganteId){
-  const assemblea=getAssembleaInCorso(getActiveBuilding());
+  const b = getActiveBuilding();
+  const assemblea=getAssembleaInCorso(b);
   if(!assemblea) return;
-  delete assemblea.appello.deleghe[deleganteId];
+  eseguiConUnioneSuServer(()=>{
+    const bFresco = getActiveBuilding();
+    const assembleaFresca = bFresco ? getAssembleaInCorso(bFresco) : null;
+    if(assembleaFresca && assembleaFresca.appello && assembleaFresca.appello.deleghe) delete assembleaFresca.appello.deleghe[deleganteId];
+  });
   renderAppello();
-  salvaStato();
 }
 // Sostituzione di un partecipante SOLO per questa assemblea (es. cambio di proprietà tra
 // convocazione e assemblea, scoperto solo in aula): non tocca l'anagrafica permanente, usa
@@ -3685,14 +3694,6 @@ function invaDelegaAdAmministratore(){
   // decadere automaticamente la delega — o le deleghe — che aveva ricevuto: non può più
   // "portarle", dato che il suo voto ora segue qualcun altro. Chi si ritrova così senza delega
   // torna libero, da questo momento, di ricevere una nuova delega in futuro.
-  let quanteDeleghesDecaduteCv = 0;
-  Object.keys(a.appello.deleghe).forEach(idStr=>{
-    const idNum = /^-?\d+$/.test(idStr) ? parseInt(idStr) : idStr;
-    if(idNum !== currentCondomino.id && a.appello.deleghe[idStr] === currentCondomino.id){
-      delete a.appello.deleghe[idStr];
-      quanteDeleghesDecaduteCv++;
-    }
-  });
   const avviso = verificaLimiteQuintoDelega(b, a, delegatoId, currentCondomino.id);
   if(avviso){
     document.getElementById('delega-conferma-email').classList.add('hidden');
@@ -3701,9 +3702,27 @@ function invaDelegaAdAmministratore(){
     box.innerHTML = `<h3 style="margin-bottom:8px;">⚠️ Delega non registrata</h3><p>${escapeHtml(avviso)}</p><p class="muted" style="margin-top:10px;">Contatta direttamente l'amministratore per questa delega: dovrà valutarla a mano.</p><button class="btn small secondary" style="margin-top:10px;" onclick="tornaSceltaInizialeDelega()">← Torna indietro</button>`;
     return;
   }
-  a.appello.deleghe[currentCondomino.id] = delegatoId;
-  salvaStato();
-
+  // La scrittura vera e propria (cascata + assegnazione) passa dalla stessa transazione
+  // sicura già usata per il battito, coerente con il lato amministratore: un cambiamento
+  // arrivato quasi in contemporanea da un altro dispositivo (es. l'amministratore che registra
+  // un'altra delega nello stesso istante) non rischia più di essere perso da una semplice
+  // sovrascrittura diretta.
+  let quanteDeleghesDecaduteCv = 0;
+  eseguiConUnioneSuServer(()=>{
+    const bFresco = getActiveBuilding();
+    const aFresca = bFresco ? getAssembleaContestualizzataCondomino(bFresco) : null;
+    if(!aFresca || !aFresca.appello) return;
+    if(!aFresca.appello.deleghe) aFresca.appello.deleghe = {};
+    quanteDeleghesDecaduteCv = 0;
+    Object.keys(aFresca.appello.deleghe).forEach(idStr=>{
+      const idNum = /^-?\d+$/.test(idStr) ? parseInt(idStr) : idStr;
+      if(idNum !== currentCondomino.id && aFresca.appello.deleghe[idStr] === currentCondomino.id){
+        delete aFresca.appello.deleghe[idStr];
+        quanteDeleghesDecaduteCv++;
+      }
+    });
+    aFresca.appello.deleghe[currentCondomino.id] = delegatoId;
+  });
   // Nascondiamo TUTTE le altre schede possibili, non solo quella dell'email di conferma: se
   // arriviamo qui dopo aver già avuto una delega precedente ("Hai già delegato..."), quella
   // scheda va comunque nascosta, altrimenti resterebbe visibile insieme alla nuova conferma.
