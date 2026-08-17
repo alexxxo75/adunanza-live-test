@@ -548,7 +548,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 17/08/2026 alle 11:32">LT-144</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 17/08/2026 alle 20:07">LT-147</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1404,6 +1404,18 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
       <button class="btn secondary" onclick="chiudiModalUscitaCreazione()">Torna alla creazione</button>
       <button class="btn" onclick="confermaUscitaSenzaSalvare()">Esci senza salvare</button>
       <button class="btn brass" onclick="confermaECreaDaModal()">✓ Conferma e crea il condominio</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="modal-catena-delega-admin">
+  <div class="modal-box">
+    <h3 style="margin-bottom:4px;">Su quali assemblee vale questa delega?</h3>
+    <p class="muted" style="font-size:13px;margin-bottom:14px;">Questa assemblea fa parte di una catena di più assemblee concatenate. Ogni assemblea ha la propria delega indipendente: scegli su quali farla valere.</p>
+    <div id="catena-delega-admin-lista" style="margin-bottom:16px;"></div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="chiudiModaleCatenaDelegaAdmin()">Annulla</button>
+      <button class="btn brass" onclick="confermaModaleCatenaDelegaAdmin()">Registra la delega</button>
     </div>
   </div>
 </div>
@@ -3400,63 +3412,88 @@ function verificaLimiteQuintoDelega(building, assemblea, delegatoId, deleganteId
 // Logica condivisa per assegnare una delega (limite di legge, uscita anticipata automatica):
 // usata sia scegliendo qualcuno già presente nel menù, sia creando al volo una nuova persona
 // esterna direttamente da lì.
-function assegnaDelega(deleganteId, delegatoId){
-  const b = getActiveBuilding();
-  const assemblea=getAssembleaInCorso(b);
-  if(!assemblea) return false;
-  // Un condòmino non può delegare un altro condòmino che ha GIÀ dato la propria delega a
-  // qualcun altro (sia un altro condòmino sia una persona esterna): chi ha delegato non vota
-  // per conto proprio, quindi non avrebbe senso ricevere a sua volta una delega da qualcun
-  // altro — creerebbe una catena senza che nessuno voti davvero. Il controllo si applica solo
-  // quando il delegato scelto è un CONDÒMINO: una persona esterna, per definizione, non può
-  // avere a sua volta dato una delega.
+// Percorre in avanti tutta la catena di assemblee concatenate a partire da quella indicata
+// (inclusa), seguendo assembleaSuccessivaId finché ce n'è una. Una guardia contro eventuali
+// cicli (non dovrebbero mai capitare, ma preferiamo non restare bloccati in un ciclo infinito
+// se per errore due assemblee si puntassero a vicenda) interrompe comunque dopo 50 passi.
+function trovaCatenaAssemblee(building, assembleaIniziale){
+  const catena = [];
+  const idsGiaVisti = new Set();
+  let corrente = assembleaIniziale;
+  let passi = 0;
+  while(corrente && !idsGiaVisti.has(corrente.id) && passi<50){
+    catena.push(corrente);
+    idsGiaVisti.add(corrente.id);
+    corrente = corrente.assembleaSuccessivaId ? (building.assemblee||[]).find(x=>x.id===corrente.assembleaSuccessivaId) : null;
+    passi++;
+  }
+  return catena;
+}
+// Applica (o rifiuta) una delega su UNA SPECIFICA assemblea, con tutti i controlli e la
+// cascata già in uso ovunque nell'app: ogni assemblea ha il proprio "gettone" indipendente,
+// quindi tutto — chi ha già delegato, chi riceve deleghe che decadono — si valuta assemblea
+// per assemblea, mai genericamente. Restituisce {ok:true, quanteDecadute} se registrata,
+// oppure {ok:false, motivo} se rifiutata (senza scrivere nulla).
+function applicaDelegaSuAssemblea(building, assemblea, deleganteId, delegatoId){
+  if(!assemblea || !assemblea.appello) return {ok:false, motivo:'Assemblea non valida.'};
+  if(!assemblea.appello.deleghe) assemblea.appello.deleghe = {};
   if(typeof delegatoId !== 'string' && assemblea.appello.deleghe[delegatoId] != null){
-    const nomeDelegatoScelto = nomeCompletoCondomino(b.condomini.find(x=>x.id===delegatoId) || {nome:'',cognome:''});
-    toast(`Non è possibile: ${nomeDelegatoScelto} ha già delegato il proprio voto a qualcun altro — chi ha delegato non può a sua volta ricevere una delega.`);
-    return false;
+    const nomeDelegatoScelto = nomeCompletoCondomino(building.condomini.find(x=>x.id===delegatoId) || {nome:'',cognome:''});
+    return {ok:false, motivo:`${nomeDelegatoScelto} ha già delegato il proprio voto a qualcun altro, per questa assemblea — chi ha delegato non può a sua volta ricevere una delega.`};
   }
-  const avviso = verificaLimiteQuintoDelega(b, assemblea, delegatoId, deleganteId);
-  if(avviso && !confirm(avviso+'\n\nVuoi registrarla comunque? (dovrà essere valutata a verbale)')) return false;
-  // La scrittura vera e propria (cascata + assegnazione) passa dalla stessa transazione
-  // sicura già usata per il battito: applica subito in locale (risposta immediata), poi si
-  // riapplica di nuovo sui dati più freschi del server appena la transazione si conferma —
-  // così un cambiamento arrivato quasi in contemporanea da un altro dispositivo/scheda (es.
-  // un'altra delega appena registrata altrove) non rischia di essere perso da una semplice
-  // sovrascrittura diretta, come capitava prima.
-  let quanteDeleghesDecadute = 0;
-  let usciaSegnata = false;
-  function applicaDelegaOra(){
-    const bFresco = getActiveBuilding();
-    const assembleaFresca = bFresco ? getAssembleaInCorso(bFresco) : null;
-    if(!assembleaFresca || !assembleaFresca.appello) return;
-    if(!assembleaFresca.appello.deleghe) assembleaFresca.appello.deleghe = {};
-    quanteDeleghesDecadute = 0;
-    Object.keys(assembleaFresca.appello.deleghe).forEach(idStr=>{
-      const idNum = /^-?\d+$/.test(idStr) ? parseInt(idStr) : idStr;
-      if(idNum !== deleganteId && assembleaFresca.appello.deleghe[idStr] === deleganteId){
-        delete assembleaFresca.appello.deleghe[idStr];
-        quanteDeleghesDecadute++;
+  // Il limite del quinto (un vincolo di legge sulla rappresentanza, per condomìni sopra le 20
+  // unità) è solo un AVVISO, non un blocco: lo riportiamo nel risultato, non impediamo la
+  // registrazione da soli — è compito di chi chiama decidere se e come chiedere conferma.
+  const avvisoLimite = verificaLimiteQuintoDelega(building, assemblea, delegatoId, deleganteId);
+  let quanteDecadute = 0;
+  Object.keys(assemblea.appello.deleghe).forEach(idStr=>{
+    const idNum = /^-?\d+$/.test(idStr) ? parseInt(idStr) : idStr;
+    if(idNum !== deleganteId && assemblea.appello.deleghe[idStr] === deleganteId){
+      delete assemblea.appello.deleghe[idStr];
+      quanteDecadute++;
+    }
+  });
+  assemblea.appello.deleghe[deleganteId] = delegatoId;
+  const attivo = recordAttivo(assemblea, deleganteId);
+  if(attivo) attivo.rec.uscita = oraAdesso();
+  return {ok:true, quanteDecadute, avvisoLimite};
+}
+// Applica una delega su PIÙ assemblee di una catena in un colpo solo (quelle scelte
+// dall'utente), passando dalla stessa transazione sicura già usata per il battito — così una
+// scrittura concorrente da un altro dispositivo non rischia di far perdere la cascata appena
+// calcolata. Restituisce un riepilogo per assemblea: quali sono state registrate, quali
+// rifiutate (e perché), quante deleghe sono decadute in ciascuna.
+function applicaDelegaSuCatenaScelta(building, listaAssembleeScelte, deleganteId, delegatoId){
+  const risultati = {}; // assembleaId -> {ok, motivo?, quanteDecadute?}
+  eseguiConUnioneSuServer(()=>{
+    const bFresco = getActiveBuilding ? (getActiveBuilding() || building) : building;
+    // Se il delegato è una persona ESTERNA, il suo nominativo (non solo l'id) deve esistere
+    // nell'elenco deleghiEsterni di OGNI assemblea coinvolta: senza, un'assemblea che non
+    // l'avesse mai vista prima non saprebbe come chiamarla, pur avendo la delega registrata.
+    let nomeEsternoDaCopiare = null;
+    if(typeof delegatoId === 'string'){
+      listaAssembleeScelte.forEach(ass=>{
+        const trovato = (ass.deleghiEsterni||[]).find(e=>e.id===delegatoId);
+        if(trovato) nomeEsternoDaCopiare = trovato.nome;
+      });
+    }
+    listaAssembleeScelte.forEach(assembleaOriginale=>{
+      const assembleaFresca = (bFresco.assemblee||[]).find(x=>x.id===assembleaOriginale.id) || assembleaOriginale;
+      if(nomeEsternoDaCopiare && !(assembleaFresca.deleghiEsterni||[]).find(e=>e.id===delegatoId)){
+        assembleaFresca.deleghiEsterni = assembleaFresca.deleghiEsterni||[];
+        assembleaFresca.deleghiEsterni.push({id:delegatoId, nome:nomeEsternoDaCopiare});
       }
+      risultati[assembleaOriginale.id] = applicaDelegaSuAssemblea(bFresco, assembleaFresca, deleganteId, delegatoId);
     });
-    assembleaFresca.appello.deleghe[deleganteId]=delegatoId;
-    const attivo = recordAttivo(assembleaFresca, deleganteId);
-    if(attivo){ attivo.rec.uscita = oraAdesso(); usciaSegnata = true; }
-  }
-  eseguiConUnioneSuServer(applicaDelegaOra);
-  let messaggioUscita = usciaSegnata ? ' e uscita anticipata registrata automaticamente' : '';
-  if(quanteDeleghesDecadute>0){
-    messaggioUscita += ` — attenzione: ${quanteDeleghesDecadute===1?'la delega che aveva ricevuto è decaduta':'le '+quanteDeleghesDecadute+' deleghe che aveva ricevuto sono decadute'}, dato che ora ha delegato a sua volta`;
-  }
-  renderAppello();
-  toast('Delega registrata'+messaggioUscita+'.');
-  return true;
+  });
+  return risultati;
 }
 function registraDelega(deleganteId){
   const sel=document.getElementById('delega-select-'+deleganteId);
   const raw=sel.value;
   if(!raw){ toast('Scegli a chi delegare.'); return; }
   const delegatoId = raw.startsWith('ext-') ? raw : parseInt(raw);
-  assegnaDelega(deleganteId, delegatoId);
+  avviaFlussoDelegaAmministratore(deleganteId, delegatoId);
 }
 // Crea al volo una nuova persona esterna e le assegna subito la delega, senza dover passare
 // dal vecchio pulsante separato "+ Delega terzi" (che è stato tolto): tutto il percorso della
@@ -3469,7 +3506,74 @@ function aggiungiPersonaEsternaEDelega(deleganteId){
   if(!assemblea.deleghiEsterni) assemblea.deleghiEsterni=[];
   const nuovoId = 'ext-'+(esternoIdCounter++);
   assemblea.deleghiEsterni.push({id:nuovoId, nome:nome.trim()});
-  assegnaDelega(deleganteId, nuovoId);
+  avviaFlussoDelegaAmministratore(deleganteId, nuovoId);
+}
+// Punto d'ingresso unico per registrare una delega dal vivo (sia verso un condòmino esistente
+// sia verso una persona esterna appena creata): se l'assemblea fa parte di una catena di due o
+// più assemblee concatenate, mostra il modulo per scegliere su quali farla valere — ciascuna
+// assemblea ha il proprio "gettone"/delega indipendente. Se non c'è nessuna catena (il caso più
+// comune), applica direttamente, senza moduli aggiuntivi, come sempre.
+let __catenaDelegaAdminInSospeso = null; // {building, catena, deleganteId, delegatoId}
+function avviaFlussoDelegaAmministratore(deleganteId, delegatoId){
+  const b = getActiveBuilding();
+  const assemblea = getAssembleaInCorso(b);
+  if(!assemblea) return;
+  const catena = trovaCatenaAssemblee(b, assemblea);
+  if(catena.length<=1){
+    // Nessuna catena: come sempre, se scatta l'avviso del limite del quinto chiediamo conferma
+    // esplicita PRIMA di scrivere qualunque cosa (comportamento invariato rispetto a prima).
+    const avvisoPreventivo = verificaLimiteQuintoDelega(b, assemblea, delegatoId, deleganteId);
+    if(avvisoPreventivo && !confirm(avvisoPreventivo+'\n\nVuoi registrarla comunque? (dovrà essere valutata a verbale)')) return;
+    const risultati = applicaDelegaSuCatenaScelta(b, [assemblea], deleganteId, delegatoId);
+    mostraEsitoDelegaAmministratore(risultati, [assemblea]);
+    renderAppello();
+    return;
+  }
+  __catenaDelegaAdminInSospeso = {building:b, catena, deleganteId, delegatoId, assembleaCorrenteId: assemblea.id};
+  const lista = document.getElementById('catena-delega-admin-lista');
+  lista.innerHTML = catena.map(a=>`
+    <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer;">
+      <input type="checkbox" class="catena-delega-admin-checkbox" value="${a.id}" ${a.id===assemblea.id?'checked':''} style="width:18px;height:18px;flex-shrink:0;">
+      <span>${escapeHtml(a.oggetto||'Assemblea')} <span class="muted" style="font-size:12px;">— ${escapeHtml(a.dataSeconda||'')} ${a.id===assemblea.id?'(questa, in corso ora)':''}</span></span>
+    </label>`).join('');
+  document.getElementById('modal-catena-delega-admin').classList.remove('hidden');
+}
+function chiudiModaleCatenaDelegaAdmin(){
+  document.getElementById('modal-catena-delega-admin').classList.add('hidden');
+  __catenaDelegaAdminInSospeso = null;
+}
+function confermaModaleCatenaDelegaAdmin(){
+  if(!__catenaDelegaAdminInSospeso) return;
+  const {building, catena, deleganteId, delegatoId} = __catenaDelegaAdminInSospeso;
+  const idsScelti = Array.from(document.querySelectorAll('.catena-delega-admin-checkbox:checked')).map(el=>parseInt(el.value));
+  document.getElementById('modal-catena-delega-admin').classList.add('hidden');
+  if(idsScelti.length===0){ toast('Nessuna assemblea selezionata: la delega non è stata registrata da nessuna parte.'); __catenaDelegaAdminInSospeso = null; return; }
+  const assembleeScelte = catena.filter(a=>idsScelti.includes(a.id));
+  const risultati = applicaDelegaSuCatenaScelta(building, assembleeScelte, deleganteId, delegatoId);
+  mostraEsitoDelegaAmministratore(risultati, assembleeScelte);
+  __catenaDelegaAdminInSospeso = null;
+  renderAppello();
+}
+// Costruisce un messaggio chiaro a partire dal riepilogo per assemblea: quante sono state
+// registrate correttamente, quante rifiutate (e perché) — così l'amministratore capisce subito
+// l'esito anche quando riguarda più assemblee insieme.
+function mostraEsitoDelegaAmministratore(risultati, assembleeCoinvolte){
+  const registrate = assembleeCoinvolte.filter(a=>risultati[a.id] && risultati[a.id].ok);
+  const rifiutate = assembleeCoinvolte.filter(a=>risultati[a.id] && !risultati[a.id].ok);
+  const decaduteTotali = registrate.reduce((s,a)=>s+(risultati[a.id].quanteDecadute||0),0);
+  const avvisiLimite = registrate.filter(a=>risultati[a.id].avvisoLimite).map(a=>risultati[a.id].avvisoLimite);
+  let msg;
+  if(registrate.length===0){
+    msg = 'Delega NON registrata: ' + (rifiutate[0] ? risultati[rifiutate[0].id].motivo : 'motivo sconosciuto');
+  }else if(assembleeCoinvolte.length===1){
+    msg = 'Delega registrata.' + (decaduteTotali>0 ? (decaduteTotali===1?' Attenzione: la delega che aveva ricevuto è decaduta.':' Attenzione: le '+decaduteTotali+' deleghe che aveva ricevuto sono decadute.') : '');
+  }else{
+    msg = `Delega registrata su ${registrate.length}/${assembleeCoinvolte.length} assemblee scelte (${registrate.map(a=>a.oggetto||'Assemblea').join(', ')}).`;
+    if(rifiutate.length>0) msg += ` Non registrata su: ${rifiutate.map(a=>a.oggetto||'Assemblea').join(', ')} — ${risultati[rifiutate[0].id].motivo}`;
+    if(decaduteTotali>0) msg += ` Attenzione: ${decaduteTotali} delega/he ricevuta/e in precedenza sono decadute.`;
+  }
+  if(avvisiLimite.length>0) msg += ' ⚠️ ' + avvisiLimite[0] + ' (dovrà essere valutata a verbale)';
+  toast(msg);
 }
 function annullaDelega(deleganteId){
   const b = getActiveBuilding();
@@ -3663,6 +3767,7 @@ ${currentCondomino.nome} ${currentCondomino.cognome||''}`;
   document.getElementById('delega-testo-email').textContent = testo;
   document.getElementById('delega-conferma-email').classList.remove('hidden');
 }
+let __delegaCatenaCvInSospeso = null; // {b, catena, delegatoId}
 function invaDelegaAdAmministratore(){
   const {b,a} = trovaAssembleaDelegaCorrente();
   let delegatoId;
@@ -3677,125 +3782,80 @@ function invaDelegaAdAmministratore(){
       a.deleghiEsterni.push({id:delegatoId, nome:delegaScelta.nomeVisualizzato});
     }
   }
-  // Un condòmino non può delegare un altro condòmino che ha GIÀ dato la propria delega a
-  // qualcun altro, né può delegare qualcuno se sta lui stesso già ricevendo una delega da
-  // altri: in entrambi i casi si creerebbe una catena, lasciando qualcuno senza nessuno che
-  // voti davvero per suo conto. Il primo controllo si applica solo se il delegato scelto è un
-  // condòmino (una persona esterna non può per definizione aver già delegato).
-  if(typeof delegatoId !== 'string' && a.appello.deleghe[delegatoId] != null){
-    const nomeDelegatoScelto = nomeCompletoCondomino(b.condomini.find(x=>x.id===delegatoId) || {nome:'',cognome:''});
-    document.getElementById('delega-conferma-email').classList.add('hidden');
-    const box = document.getElementById('delega-avviso-limite');
-    box.classList.remove('hidden');
-    box.innerHTML = `<h3 style="margin-bottom:8px;">⚠️ Delega non registrata</h3><p>${escapeHtml(nomeDelegatoScelto)} ha già delegato il proprio voto a qualcun altro: chi ha delegato non può a sua volta ricevere una delega.</p><button class="btn small secondary" style="margin-top:10px;" onclick="tornaSceltaInizialeDelega()">← Torna indietro</button>`;
+  const catena = trovaCatenaAssemblee(b, a);
+  if(catena.length<=1){
+    // Nessuna catena: comportamento semplice e diretto, come sempre — un solo controllo del
+    // limite del quinto con avviso bloccante, poi si scrive subito.
+    const avvisoPreventivo = verificaLimiteQuintoDelega(b, a, delegatoId, currentCondomino.id);
+    if(avvisoPreventivo){
+      document.getElementById('delega-conferma-email').classList.add('hidden');
+      const box = document.getElementById('delega-avviso-limite');
+      box.classList.remove('hidden');
+      box.innerHTML = `<h3 style="margin-bottom:8px;">⚠️ Delega non registrata</h3><p>${escapeHtml(avvisoPreventivo)}</p><p class="muted" style="margin-top:10px;">Contatta direttamente l'amministratore per questa delega: dovrà valutarla a mano.</p><button class="btn small secondary" style="margin-top:10px;" onclick="tornaSceltaInizialeDelega()">← Torna indietro</button>`;
+      return;
+    }
+    const risultati = applicaDelegaSuCatenaScelta(b, [a], currentCondomino.id, delegatoId);
+    mostraEsitoDelegaCv(risultati, [a]);
     return;
   }
-  // Chi sta già RICEVENDO una o più deleghe da altri, e a sua volta ne dà una nuova, fa
-  // decadere automaticamente la delega — o le deleghe — che aveva ricevuto: non può più
-  // "portarle", dato che il suo voto ora segue qualcun altro. Chi si ritrova così senza delega
-  // torna libero, da questo momento, di ricevere una nuova delega in futuro.
-  const avviso = verificaLimiteQuintoDelega(b, a, delegatoId, currentCondomino.id);
-  if(avviso){
-    document.getElementById('delega-conferma-email').classList.add('hidden');
-    const box = document.getElementById('delega-avviso-limite');
-    box.classList.remove('hidden');
-    box.innerHTML = `<h3 style="margin-bottom:8px;">⚠️ Delega non registrata</h3><p>${escapeHtml(avviso)}</p><p class="muted" style="margin-top:10px;">Contatta direttamente l'amministratore per questa delega: dovrà valutarla a mano.</p><button class="btn small secondary" style="margin-top:10px;" onclick="tornaSceltaInizialeDelega()">← Torna indietro</button>`;
-    return;
-  }
-  // La scrittura vera e propria (cascata + assegnazione) passa dalla stessa transazione
-  // sicura già usata per il battito, coerente con il lato amministratore: un cambiamento
-  // arrivato quasi in contemporanea da un altro dispositivo (es. l'amministratore che registra
-  // un'altra delega nello stesso istante) non rischia più di essere perso da una semplice
-  // sovrascrittura diretta.
-  let quanteDeleghesDecaduteCv = 0;
-  eseguiConUnioneSuServer(()=>{
-    const bFresco = getActiveBuilding();
-    const aFresca = bFresco ? getAssembleaContestualizzataCondomino(bFresco) : null;
-    if(!aFresca || !aFresca.appello) return;
-    if(!aFresca.appello.deleghe) aFresca.appello.deleghe = {};
-    quanteDeleghesDecaduteCv = 0;
-    Object.keys(aFresca.appello.deleghe).forEach(idStr=>{
-      const idNum = /^-?\d+$/.test(idStr) ? parseInt(idStr) : idStr;
-      if(idNum !== currentCondomino.id && aFresca.appello.deleghe[idStr] === currentCondomino.id){
-        delete aFresca.appello.deleghe[idStr];
-        quanteDeleghesDecaduteCv++;
-      }
-    });
-    aFresca.appello.deleghe[currentCondomino.id] = delegatoId;
-  });
-  // Nascondiamo TUTTE le altre schede possibili, non solo quella dell'email di conferma: se
-  // arriviamo qui dopo aver già avuto una delega precedente ("Hai già delegato..."), quella
-  // scheda va comunque nascosta, altrimenti resterebbe visibile insieme alla nuova conferma.
-  ['delega-scelta-iniziale','delega-form-condomino','delega-form-esterno','delega-conferma-email','delega-stato-attuale','delega-avviso-limite'].forEach(id=>{
+  // C'è una catena di più assemblee: mostriamo l'elenco per scegliere su quali farla valere,
+  // invece di scrivere subito — ogni assemblea ha la propria delega indipendente.
+  segnaInterazioneDelega();
+  __delegaCatenaCvInSospeso = {b, catena, delegatoId};
+  document.getElementById('delega-conferma-email').classList.add('hidden');
+  const catenaBox = document.getElementById('delega-catena-wrap');
+  catenaBox.classList.remove('hidden');
+  catenaBox.innerHTML = `<h3 style="margin-bottom:6px;">Su quali assemblee vale questa delega?</h3>
+    <p class="muted" style="margin-bottom:14px;">Sei convocato/a per più assemblee concatenate. Ogni assemblea ha la propria delega indipendente: scegli su quali farla valere.</p>
+    <div id="delega-catena-cv-lista" style="margin-bottom:14px;">${catena.map(ass=>`
+      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer;">
+        <input type="checkbox" class="delega-catena-cv-checkbox" value="${ass.id}" ${ass.id===a.id?'checked':''} onchange="segnaInterazioneDelega()" style="width:18px;height:18px;flex-shrink:0;">
+        <span>${escapeHtml(ass.oggetto||'Assemblea')} <span class="muted" style="font-size:12px;">— ${escapeHtml(formattaData(ass.dataPrima)||ass.dataSeconda||'')} ${ass.id===a.id?'(questa)':''}</span></span>
+      </label>`).join('')}</div>
+    <button class="btn brass" style="display:block;width:100%;box-sizing:border-box;margin-bottom:10px;" onclick="confermaDelegaCatenaCv()">✉ Registra la delega e invia all'amministratore</button>
+    <button class="btn secondary" style="display:block;width:100%;box-sizing:border-box;" onclick="tornaSceltaInizialeDelega()">← Annulla</button>`;
+}
+function confermaDelegaCatenaCv(){
+  if(!__delegaCatenaCvInSospeso) return;
+  segnaInterazioneDelega();
+  const {b, catena, delegatoId} = __delegaCatenaCvInSospeso;
+  const idsScelti = Array.from(document.querySelectorAll('.delega-catena-cv-checkbox:checked')).map(el=>parseInt(el.value));
+  if(idsScelti.length===0){ toast('Scegli almeno un\'assemblea, altrimenti la delega non verrebbe registrata da nessuna parte.'); return; }
+  const assembleeScelte = catena.filter(ass=>idsScelti.includes(ass.id));
+  const risultati = applicaDelegaSuCatenaScelta(b, assembleeScelte, currentCondomino.id, delegatoId);
+  document.getElementById('delega-catena-wrap').classList.add('hidden');
+  __delegaCatenaCvInSospeso = null;
+  mostraEsitoDelegaCv(risultati, assembleeScelte);
+}
+// Mostra l'esito finale al condòmino, dopo aver scritto (o rifiutato) la delega su una o più
+// assemblee: nasconde tutte le altre schede possibili e mostra la conferma, coerente col
+// comportamento già in uso.
+function mostraEsitoDelegaCv(risultati, assembleeCoinvolte){
+  ['delega-scelta-iniziale','delega-form-condomino','delega-form-esterno','delega-conferma-email','delega-stato-attuale','delega-avviso-limite','delega-catena-wrap'].forEach(id=>{
     const el = document.getElementById(id);
     if(el) el.classList.add('hidden');
   });
+  const registrate = assembleeCoinvolte.filter(ass=>risultati[ass.id] && risultati[ass.id].ok);
+  const rifiutate = assembleeCoinvolte.filter(ass=>risultati[ass.id] && !risultati[ass.id].ok);
+  const decaduteTotali = registrate.reduce((s,ass)=>s+(risultati[ass.id].quanteDecadute||0),0);
   const fatto = document.getElementById('delega-fatto');
+  if(registrate.length===0){
+    fatto.classList.remove('hidden');
+    fatto.style.borderColor = 'var(--brick)';
+    fatto.innerHTML = `<h3 style="margin-bottom:6px;color:var(--brick);">⚠️ Delega non registrata</h3>
+      <p class="muted" style="margin-bottom:12px;">${escapeHtml(rifiutate[0] ? risultati[rifiutate[0].id].motivo : 'Motivo sconosciuto.')}</p>
+      <button class="btn small secondary" onclick="cambiaSceltaDelega()">Riprova</button>`;
+    return;
+  }
   fatto.classList.remove('hidden');
+  fatto.style.borderColor = '#2E6B44';
+  const elencoAssemblee = registrate.length>1 ? `<p class="muted" style="margin-bottom:8px;">Vale per: ${registrate.map(ass=>escapeHtml(ass.oggetto||'Assemblea')).join(', ')}.</p>` : '';
+  const elencoRifiutate = rifiutate.length>0 ? `<p style="margin-bottom:8px;color:var(--brick);">⚠️ Non registrata per: ${rifiutate.map(ass=>escapeHtml(ass.oggetto||'Assemblea')).join(', ')} — ${escapeHtml(risultati[rifiutate[0].id].motivo)}</p>` : '';
   fatto.innerHTML = `<h3 style="margin-bottom:6px;">✅ Delega registrata e inviata</h3>
     <p class="muted" style="margin-bottom:12px;">Una copia del messaggio è stata inviata anche a te, come conferma, all'indirizzo che ci risulta per te.</p>
-    ${quanteDeleghesDecaduteCv>0 ? `<p style="margin-bottom:12px;color:var(--brick);">⚠️ ${quanteDeleghesDecaduteCv===1?'La delega che avevi ricevuto è decaduta':'Le '+quanteDeleghesDecaduteCv+' deleghe che avevi ricevuto sono decadute'}, dato che ora hai delegato a tua volta: chi te l'aveva data dovrà eventualmente sceglierne un\\'altra.</p>` : ''}
+    ${elencoAssemblee}${elencoRifiutate}
+    ${decaduteTotali>0 ? `<p style="margin-bottom:12px;color:var(--brick);">⚠️ ${decaduteTotali===1?'La delega che avevi ricevuto è decaduta':'Le '+decaduteTotali+' deleghe che avevi ricevuto sono decadute'}, dato che ora hai delegato a tua volta: chi te l'aveva data dovrà eventualmente sceglierne un'altra.</p>` : ''}
     <button class="btn small secondary" onclick="cambiaSceltaDelega()">Cambia la mia scelta</button>`;
-
-  // Se questa assemblea fa parte di una catena, e questo condòmino è convocato anche nella
-  // prossima, proponiamo di estendere la stessa scelta (o una diversa) anche a quella.
-  if(a.assembleaSuccessivaId){
-    const prossima = (b.assemblee||[]).find(x=>x.id===a.assembleaSuccessivaId);
-    if(prossima && prossima.convocati.selezionati.includes(currentCondomino.id)){
-      const catenaBox = document.getElementById('delega-catena-wrap');
-      catenaBox.classList.remove('hidden');
-      catenaBox.innerHTML = `<h3 style="margin-bottom:6px;">C'è anche un'altra assemblea in coda</h3>
-        <p class="muted" style="margin-bottom:12px;">Sei convocato/a anche per "${escapeHtml(prossima.oggetto||'')}", subito dopo questa. Vuoi che valga la stessa delega anche lì?</p>
-        <button class="btn small brass" style="margin-bottom:8px;display:block;width:100%;" onclick="applicaDelegaCatenaSuccessiva(${prossima.id}, true)">Sì, stesso delegato anche per la seconda</button>
-        <button class="btn small secondary" style="margin-bottom:8px;display:block;width:100%;" onclick="applicaDelegaCatenaSuccessiva(${prossima.id}, false)">No, scelgo un delegato diverso per la seconda</button>
-        <button class="btn small secondary" style="display:block;width:100%;" onclick="document.getElementById('delega-catena-wrap').classList.add('hidden')">No, parteciperò di persona alla seconda</button>`;
-    }
-  }
-}
-function applicaDelegaCatenaSuccessiva(assembleaSuccessivaId, stessoDelegato){
-  const {b,a} = trovaAssembleaDelegaCorrente();
-  const prossima = (b.assemblee||[]).find(x=>x.id===assembleaSuccessivaId);
-  if(!prossima) return;
-  if(stessoDelegato){
-    const delegatoId = a.appello.deleghe[currentCondomino.id];
-    // Stessi controlli usati ovunque si registra una delega: non si può copiare la delega
-    // verso qualcuno che, nella PROSSIMA assemblea, ha già a sua volta delegato qualcun
-    // altro — e se qualcuno stava già ricevendo una delega da terzi nella prossima assemblea,
-    // quella decade automaticamente, dato che ora ha delegato a sua volta.
-    if(!prossima.appello) prossima.appello = {online:[], presenzeFisiche:[], deleghe:{}};
-    if(!prossima.appello.deleghe) prossima.appello.deleghe = {};
-    if(typeof delegatoId !== 'string' && prossima.appello.deleghe[delegatoId] != null){
-      toast('Non registrata per la seconda assemblea: il delegato scelto ha già dato la propria delega a qualcun altro, per quella data.');
-      return;
-    }
-    const avviso = verificaLimiteQuintoDelega(b, prossima, delegatoId, currentCondomino.id);
-    if(avviso){ toast('Non registrata per la seconda assemblea: '+avviso); return; }
-    Object.keys(prossima.appello.deleghe).forEach(idStr=>{
-      const idNum = /^-?\d+$/.test(idStr) ? parseInt(idStr) : idStr;
-      if(idNum !== currentCondomino.id && prossima.appello.deleghe[idStr] === currentCondomino.id){
-        delete prossima.appello.deleghe[idStr];
-      }
-    });
-    prossima.appello.deleghe[currentCondomino.id] = delegatoId;
-    if(a.deleghiEsterni && typeof delegatoId==='string' && delegatoId.startsWith('ext-')){
-      const est = a.deleghiEsterni.find(e=>e.id===delegatoId);
-      if(est && !(prossima.deleghiEsterni||[]).find(e=>e.id===delegatoId)){
-        prossima.deleghiEsterni = prossima.deleghiEsterni||[];
-        prossima.deleghiEsterni.push({...est});
-      }
-    }
-    salvaStato();
-    toast('Stessa delega registrata anche per la seconda assemblea.');
-    document.getElementById('delega-catena-wrap').innerHTML = '<p>✅ Fatto — stessa delega registrata anche per la seconda assemblea.</p>';
-  }else{
-    // Riapriamo il flusso di scelta, ma questa volta puntato sulla prossima assemblea
-    contestoDelegaAssembleaId = assembleaSuccessivaId;
-    delegaScelta = null;
-    document.getElementById('delega-fatto').classList.add('hidden');
-    document.getElementById('delega-catena-wrap').classList.add('hidden');
-    renderPaginaDelegaCondomino();
-    window.scrollTo({top:0, behavior:'smooth'});
-  }
 }
 function segnalaNonRiconosciuto(){
   const assemblea=getAssembleaInCorso(getActiveBuilding());
@@ -4184,8 +4244,15 @@ function renderAppello(){
         (esterni.length ? `<optgroup label="Persone esterne">${esterni.map(e=>`<option value="${e.id}">${e.nome}</option>`).join('')}</optgroup>` : '') +
         (candidatiDelega.length ? `<optgroup label="Condòmini">${candidatiDelega.map(p=>`<option value="${p.id}">${nomeCompletoCondomino(p)}</option>`).join('')}</optgroup>` : '');
       slot3.onchange=()=>{
-        if(slot3.value==='__nuovo_esterno__'){ aggiungiPersonaEsternaEDelega(c.id); }
-        else if(slot3.value){ registraDelega(c.id); }
+        const valoreScelto = slot3.value;
+        // Una scelta è stata appena CONFERMATA (non si sta più "considerando", come durante lo
+        // scorrimento delle opzioni): togliamo subito il fuoco, altrimenti la protezione contro
+        // lo sfarfallio (pensata per mentre il menù è ancora aperto) bloccherebbe anche il
+        // ridisegno necessario per mostrare la delega appena registrata — lasciando la riga
+        // ferma sul vecchio stato "Assente" nonostante il dato sia stato salvato correttamente.
+        slot3.blur();
+        if(valoreScelto==='__nuovo_esterno__'){ aggiungiPersonaEsternaEDelega(c.id); }
+        else if(valoreScelto){ registraDelega(c.id); }
       };
     }
     azioniRow.appendChild(slot1||slotVuotoAppello());
