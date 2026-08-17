@@ -548,7 +548,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 17/08/2026 alle 10:21">LT-139</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 17/08/2026 alle 10:41">LT-141</span></div>
   </div>
 
   <!-- MAIN -->
@@ -3404,6 +3404,30 @@ function assegnaDelega(deleganteId, delegatoId){
   const b = getActiveBuilding();
   const assemblea=getAssembleaInCorso(b);
   if(!assemblea) return false;
+  // Un condòmino non può delegare un altro condòmino che ha GIÀ dato la propria delega a
+  // qualcun altro (sia un altro condòmino sia una persona esterna): chi ha delegato non vota
+  // per conto proprio, quindi non avrebbe senso ricevere a sua volta una delega da qualcun
+  // altro — creerebbe una catena senza che nessuno voti davvero. Il controllo si applica solo
+  // quando il delegato scelto è un CONDÒMINO: una persona esterna, per definizione, non può
+  // avere a sua volta dato una delega.
+  if(typeof delegatoId !== 'string' && assemblea.appello.deleghe[delegatoId] != null){
+    const nomeDelegatoScelto = nomeCompletoCondomino(b.condomini.find(x=>x.id===delegatoId) || {nome:'',cognome:''});
+    toast(`Non è possibile: ${nomeDelegatoScelto} ha già delegato il proprio voto a qualcun altro — chi ha delegato non può a sua volta ricevere una delega.`);
+    return false;
+  }
+  // Stesso controllo, dalla direzione opposta: chi sta già RICEVENDO una o più deleghe da
+  // altri non può a sua volta delegare qualcun altro — creerebbe la stessa identica catena
+  // vista dal lato opposto, lasciando chi lo ha già delegato senza nessuno che voti davvero
+  // per suo conto.
+  const staGiaRicevendoDeleghe = Object.keys(assemblea.appello.deleghe).some(idStr=>{
+    const idNum = /^-?\d+$/.test(idStr) ? parseInt(idStr) : idStr;
+    return idNum !== deleganteId && assemblea.appello.deleghe[idStr] === deleganteId;
+  });
+  if(staGiaRicevendoDeleghe){
+    const nomeDelegante = nomeCompletoCondomino(b.condomini.find(x=>x.id===deleganteId) || {nome:'',cognome:''});
+    toast(`Non è possibile: ${nomeDelegante} sta già ricevendo una delega da qualcun altro — chi riceve una delega non può a sua volta delegare qualcuno.`);
+    return false;
+  }
   const avviso = verificaLimiteQuintoDelega(b, assemblea, delegatoId, deleganteId);
   if(avviso && !confirm(avviso+'\n\nVuoi registrarla comunque? (dovrà essere valutata a verbale)')) return false;
   assemblea.appello.deleghe[deleganteId]=delegatoId;
@@ -3628,6 +3652,30 @@ function invaDelegaAdAmministratore(){
       a.deleghiEsterni.push({id:delegatoId, nome:delegaScelta.nomeVisualizzato});
     }
   }
+  // Un condòmino non può delegare un altro condòmino che ha GIÀ dato la propria delega a
+  // qualcun altro, né può delegare qualcuno se sta lui stesso già ricevendo una delega da
+  // altri: in entrambi i casi si creerebbe una catena, lasciando qualcuno senza nessuno che
+  // voti davvero per suo conto. Il primo controllo si applica solo se il delegato scelto è un
+  // condòmino (una persona esterna non può per definizione aver già delegato).
+  if(typeof delegatoId !== 'string' && a.appello.deleghe[delegatoId] != null){
+    const nomeDelegatoScelto = nomeCompletoCondomino(b.condomini.find(x=>x.id===delegatoId) || {nome:'',cognome:''});
+    document.getElementById('delega-conferma-email').classList.add('hidden');
+    const box = document.getElementById('delega-avviso-limite');
+    box.classList.remove('hidden');
+    box.innerHTML = `<h3 style="margin-bottom:8px;">⚠️ Delega non registrata</h3><p>${escapeHtml(nomeDelegatoScelto)} ha già delegato il proprio voto a qualcun altro: chi ha delegato non può a sua volta ricevere una delega.</p><button class="btn small secondary" style="margin-top:10px;" onclick="tornaSceltaInizialeDelega()">← Torna indietro</button>`;
+    return;
+  }
+  const staGiaRicevendoDeleghe = Object.keys(a.appello.deleghe).some(idStr=>{
+    const idNum = /^-?\d+$/.test(idStr) ? parseInt(idStr) : idStr;
+    return idNum !== currentCondomino.id && a.appello.deleghe[idStr] === currentCondomino.id;
+  });
+  if(staGiaRicevendoDeleghe){
+    document.getElementById('delega-conferma-email').classList.add('hidden');
+    const box = document.getElementById('delega-avviso-limite');
+    box.classList.remove('hidden');
+    box.innerHTML = `<h3 style="margin-bottom:8px;">⚠️ Delega non registrata</h3><p>Stai già ricevendo una delega da qualcun altro: chi riceve una delega non può a sua volta delegare qualcuno.</p><button class="btn small secondary" style="margin-top:10px;" onclick="tornaSceltaInizialeDelega()">← Torna indietro</button>`;
+    return;
+  }
   const avviso = verificaLimiteQuintoDelega(b, a, delegatoId, currentCondomino.id);
   if(avviso){
     document.getElementById('delega-conferma-email').classList.add('hidden');
@@ -3787,18 +3835,43 @@ function nomePersonaAppello(building, assemblea, id){
   return est ? est.nome+' (esterno)' : '⚠️ persona non trovata — chiedi al condòmino di rifare la delega';
 }
 function personeCollegate(building, condominoId){
-  // Stesso proprietario di più unità: se una qualsiasi delle sue unità è presente, tutte contano rappresentate.
+  // Stesso proprietario di più unità con il VECCHIO collegamento manuale: se una qualsiasi
+  // delle sue unità è presente, tutte contano rappresentate. Il NUOVO meccanismo automatico
+  // (unificatoCon) è gestito a parte in convocatoRappresentato, perché lì serve un controllo
+  // più completo (anche la delega del primario, non solo la sua presenza diretta).
   const c = building.condomini.find(x=>x.id===condominoId);
   const collegate = [];
   if(c && c.gruppoCon) collegate.push(c.gruppoCon);
   building.condomini.forEach(x=>{ if(x.gruppoCon===condominoId) collegate.push(x.id); });
   return collegate;
 }
-function convocatoRappresentato(c, assemblea, building){
+// Vero e proprio per UN SINGOLO condòmino: è direttamente presente/online, oppure ha delegato
+// qualcuno che lo è. Non considera ancora le unità collegate (stesso proprietario) — quello lo
+// fa convocatoRappresentato, che usa questa funzione come base.
+function rappresentatoDirettamenteOTramiteDelega(c, assemblea){
   if(recordAttivo(assemblea, c.id)) return true;
   const delegatoId = assemblea.appello.deleghe[c.id];
-  if(delegatoId!=null && recordAttivo(assemblea, delegatoId)) return true;
+  return delegatoId!=null && !!recordAttivo(assemblea, delegatoId);
+}
+function convocatoRappresentato(c, assemblea, building){
+  if(rappresentatoDirettamenteOTramiteDelega(c, assemblea)) return true;
   if(building){
+    // Stesso proprietario, NUOVO meccanismo (unificatoCon): un'unità secondaria eredita lo
+    // stato "rappresentato" del suo primario in OGNI caso — sia che il primario sia
+    // direttamente presente/online, sia che abbia dato una delega e il delegato sia attivo —
+    // non solo quando il primario è presente di persona. Allo stesso modo, se per qualche
+    // motivo la presenza fosse stata segnata solo su un'unità secondaria (non dovrebbe
+    // capitare passando dall'interfaccia, che segna sempre tutte insieme, ma restiamo
+    // corretti comunque), controlliamo anche quello.
+    if(c.unificatoCon){
+      const primario = building.condomini.find(x=>x.id===c.unificatoCon);
+      if(primario && rappresentatoDirettamenteOTramiteDelega(primario, assemblea)) return true;
+    }
+    const secondarie = building.condomini.filter(x=>x.unificatoCon===c.id);
+    if(secondarie.some(u=>rappresentatoDirettamenteOTramiteDelega(u, assemblea))) return true;
+    // Stesso proprietario, VECCHIO collegamento manuale (gruppoCon): comportamento invariato,
+    // controlla solo la presenza diretta delle unità collegate (non la loro delega), come
+    // sempre — su richiesta esplicita di non cambiare questo meccanismo più vecchio.
     const collegate = personeCollegate(building, c.id);
     if(collegate.some(id=>recordAttivo(assemblea, id))) return true;
   }
