@@ -548,7 +548,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 18/08/2026 alle 00:43">LT-152</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 18/08/2026 alle 01:01">LT-153</span></div>
   </div>
 
   <!-- MAIN -->
@@ -3437,6 +3437,20 @@ function trovaCatenaAssemblee(building, assembleaIniziale){
 function applicaDelegaSuAssemblea(building, assemblea, deleganteId, delegatoId){
   if(!assemblea || !assemblea.appello) return {ok:false, motivo:'Assemblea non valida.'};
   if(!assemblea.appello.deleghe) assemblea.appello.deleghe = {};
+  // Rete di sicurezza definitiva: se deleganteId o delegatoId fossero l'id di una proprietà
+  // SECONDARIA (unita a un'altra con lo stesso proprietario) invece che del suo primario,
+  // risolviamo sempre verso il primario prima di qualunque controllo — le tendine oggi
+  // escludono già le secondarie dalla scelta, ma se per qualunque motivo (un altro punto
+  // dell'app, un link vecchio, un dato residuo) arrivasse comunque un id sbagliato, la
+  // scrittura andrebbe sotto un identificativo su cui nessun controllo troverebbe mai nulla.
+  if(typeof deleganteId !== 'string'){
+    const deleganteCondomino = building.condomini.find(x=>x.id===deleganteId);
+    if(deleganteCondomino && deleganteCondomino.unificatoCon) deleganteId = deleganteCondomino.unificatoCon;
+  }
+  if(typeof delegatoId !== 'string'){
+    const delegatoCondomino = building.condomini.find(x=>x.id===delegatoId);
+    if(delegatoCondomino && delegatoCondomino.unificatoCon) delegatoId = delegatoCondomino.unificatoCon;
+  }
   if(typeof delegatoId !== 'string' && assemblea.appello.deleghe[delegatoId] != null){
     const nomeDelegatoScelto = nomeCompletoCondomino(building.condomini.find(x=>x.id===delegatoId) || {nome:'',cognome:''});
     return {ok:false, motivo:`${nomeDelegatoScelto} ha già delegato il proprio voto a qualcun altro, per questa assemblea — chi ha delegato non può a sua volta ricevere una delega.`};
@@ -3638,6 +3652,7 @@ function trovaAssembleaDelegaCorrente(){
   const b = getActiveBuilding();
   if(!b || !currentCondomino || !contestoDelegaAssembleaId) return null;
   const a = (b.assemblee||[]).find(x=>x.id===contestoDelegaAssembleaId);
+  if(a) normalizzaDelegheVersoIPrimari(b, a);
   return a ? {b, a} : null;
 }
 function renderPaginaDelegaCondomino(){
@@ -3757,9 +3772,15 @@ function mostraDelegaCondomino(){
   const {b,a} = trovaAssembleaDelegaCorrente();
   document.getElementById('delega-scelta-iniziale').classList.add('hidden');
   const lista = document.getElementById('delega-lista-condomini');
-  const candidati = a.convocati.selezionati.map(id=>b.condomini.find(c=>c.id===id)).filter(c=>c && c.id!==currentCondomino.id && a.appello.deleghe[c.id]==null);
+  const candidati = a.convocati.selezionati.map(id=>b.condomini.find(c=>c.id===id)).filter(c=>c && c.id!==currentCondomino.id);
   const idsCandidati = new Set(candidati.map(c=>c.id));
-  const candidatiUnici = candidati.filter(c=>!(c.unificatoCon && idsCandidati.has(c.unificatoCon)));
+  // Riconosciamo le unità secondarie usando l'elenco COMPLETO dei convocati (comprese quelle
+  // il cui primario ha già delegato): se lo facessimo dopo aver già tolto chi ha delegato, una
+  // sua unità secondaria "sfuggirebbe" — il suo primario non sarebbe più nell'elenco di
+  // riferimento, e lei risulterebbe erroneamente "indipendente" e ancora selezionabile, con un
+  // identificativo su cui però nessuna delega verrebbe mai davvero cercata.
+  const candidatiSenzaSecondarie = candidati.filter(c=>!(c.unificatoCon && idsCandidati.has(c.unificatoCon)));
+  const candidatiUnici = candidatiSenzaSecondarie.filter(c=>a.appello.deleghe[c.id]==null);
   lista.innerHTML = candidatiUnici.length
     ? candidatiUnici.map(c=>`<button class="btn secondary" style="display:block;width:100%;text-align:left;margin-bottom:8px;" onclick="sceltaCondominoDelega(${c.id})">${escapeHtml(nomeCompletoCondomino(c))}</button>`).join('')
     : '<p class="muted">Non risultano altri condòmini convocati per questa assemblea.</p>';
