@@ -548,7 +548,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 17/08/2026 alle 11:11">LT-142</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 17/08/2026 alle 11:23">LT-143</span></div>
   </div>
 
   <!-- MAIN -->
@@ -3739,8 +3739,24 @@ function applicaDelegaCatenaSuccessiva(assembleaSuccessivaId, stessoDelegato){
   if(!prossima) return;
   if(stessoDelegato){
     const delegatoId = a.appello.deleghe[currentCondomino.id];
+    // Stessi controlli usati ovunque si registra una delega: non si può copiare la delega
+    // verso qualcuno che, nella PROSSIMA assemblea, ha già a sua volta delegato qualcun
+    // altro — e se qualcuno stava già ricevendo una delega da terzi nella prossima assemblea,
+    // quella decade automaticamente, dato che ora ha delegato a sua volta.
+    if(!prossima.appello) prossima.appello = {online:[], presenzeFisiche:[], deleghe:{}};
+    if(!prossima.appello.deleghe) prossima.appello.deleghe = {};
+    if(typeof delegatoId !== 'string' && prossima.appello.deleghe[delegatoId] != null){
+      toast('Non registrata per la seconda assemblea: il delegato scelto ha già dato la propria delega a qualcun altro, per quella data.');
+      return;
+    }
     const avviso = verificaLimiteQuintoDelega(b, prossima, delegatoId, currentCondomino.id);
     if(avviso){ toast('Non registrata per la seconda assemblea: '+avviso); return; }
+    Object.keys(prossima.appello.deleghe).forEach(idStr=>{
+      const idNum = /^-?\d+$/.test(idStr) ? parseInt(idStr) : idStr;
+      if(idNum !== currentCondomino.id && prossima.appello.deleghe[idStr] === currentCondomino.id){
+        delete prossima.appello.deleghe[idStr];
+      }
+    });
     prossima.appello.deleghe[currentCondomino.id] = delegatoId;
     if(a.deleghiEsterni && typeof delegatoId==='string' && delegatoId.startsWith('ext-')){
       const est = a.deleghiEsterni.find(e=>e.id===delegatoId);
