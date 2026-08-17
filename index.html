@@ -548,7 +548,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 17/08/2026 alle 20:07">LT-147</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 17/08/2026 alle 20:12">LT-149</span></div>
   </div>
 
   <!-- MAIN -->
@@ -3683,19 +3683,53 @@ function renderPaginaDelegaCondomino(){
   document.getElementById('delega-data-assemblea').textContent = `Assemblea ${etichettaTipo} del ${a.dataPrima||'—'} prima convocazione - ${a.dataSeconda||'—'} seconda convocazione`;
   document.getElementById('delega-oggetto-assemblea').textContent = `OGGETTO: ${a.oggetto || '(oggetto non indicato)'}`;
 
-  const delegatoIdAttuale = a.appello.deleghe[currentCondomino.id];
-  if(delegatoIdAttuale!=null){
-    // C'è già una delega registrata: mostriamo SOLO lo stato attuale, non anche le opzioni di
-    // scelta insieme — altrimenti sembra che si stia "aggiungendo" una delega invece che
-    // sostituire quella esistente. Le opzioni ricompaiono solo premendo "Cambia la mia scelta".
-    document.getElementById('delega-scelta-iniziale').classList.add('hidden');
-    const nomeAttuale = nomeDelegato(delegatoIdAttuale, b, a);
-    const stato = document.getElementById('delega-stato-attuale');
-    stato.classList.remove('hidden');
-    stato.innerHTML = `<h3 style="margin-bottom:6px;">✅ Hai già delegato: ${escapeHtml(nomeAttuale)}</h3>
-      <p class="muted" style="margin-bottom:12px;">Puoi cambiare la tua scelta in qualsiasi momento tornando su questo stesso link, finché l'assemblea non è iniziata.</p>
-      <button class="btn small secondary" onclick="cambiaSceltaDelega()">Cambia la mia scelta</button>`;
+  const catenaStato = trovaCatenaAssemblee(b, a);
+  if(catenaStato.length<=1){
+    // Nessuna catena: comportamento semplice di sempre, una sola assemblea da controllare.
+    const delegatoIdAttuale = a.appello.deleghe[currentCondomino.id];
+    if(delegatoIdAttuale!=null){
+      document.getElementById('delega-scelta-iniziale').classList.add('hidden');
+      const nomeAttuale = nomeDelegato(delegatoIdAttuale, b, a);
+      const stato = document.getElementById('delega-stato-attuale');
+      stato.classList.remove('hidden');
+      stato.innerHTML = `<h3 style="margin-bottom:6px;">✅ Hai già delegato: ${escapeHtml(nomeAttuale)}</h3>
+        <p class="muted" style="margin-bottom:12px;">Puoi cambiare la tua scelta in qualsiasi momento tornando su questo stesso link, finché l'assemblea non è iniziata.</p>
+        <button class="btn small secondary" onclick="cambiaSceltaDelega()">Cambia la mia scelta</button>`;
+    }
+    return;
   }
+  // C'è una catena: la delega può essere stata data solo per alcune assemblee, non
+  // necessariamente per tutte — mostriamo la situazione assemblea per assemblea, non solo
+  // quella corrente, altrimenti risulterebbe incompleta o fuorviante.
+  const conDelega = catenaStato.filter(ass=>ass.appello.deleghe[currentCondomino.id]!=null);
+  const senzaDelega = catenaStato.filter(ass=>ass.appello.deleghe[currentCondomino.id]==null);
+  if(conDelega.length===0){
+    // Nessuna delega ancora data per nessuna assemblea della catena: mostriamo la scelta
+    // iniziale come al primo accesso.
+    return;
+  }
+  document.getElementById('delega-scelta-iniziale').classList.add('hidden');
+  const stato = document.getElementById('delega-stato-attuale');
+  stato.classList.remove('hidden');
+  // Raggruppiamo per delegato, dato che la situazione potrebbe non essere uniforme (in teoria
+  // si potrebbe aver scelto un delegato diverso in due passaggi separati per assemblee diverse
+  // della stessa catena, anche se nella pratica capiterà quasi sempre lo stesso per tutte).
+  const gruppiPerDelegato = {};
+  conDelega.forEach(ass=>{
+    const idDel = ass.appello.deleghe[currentCondomino.id];
+    const nomeDel = nomeDelegato(idDel, b, ass);
+    if(!gruppiPerDelegato[nomeDel]) gruppiPerDelegato[nomeDel] = [];
+    gruppiPerDelegato[nomeDel].push(ass);
+  });
+  const righeGruppi = Object.keys(gruppiPerDelegato).map(nomeDel=>
+    `<p style="margin-bottom:6px;">✅ <b>${escapeHtml(nomeDel)}</b> — per: ${gruppiPerDelegato[nomeDel].map(ass=>escapeHtml(ass.oggetto||'Assemblea')).join(', ')}</p>`
+  ).join('');
+  const rigaMancanti = senzaDelega.length>0
+    ? `<p class="muted" style="margin-top:10px;margin-bottom:12px;">Non hai ancora delegato per: ${senzaDelega.map(ass=>escapeHtml(ass.oggetto||'Assemblea')).join(', ')}.</p>`
+    : `<p class="muted" style="margin-top:10px;margin-bottom:12px;">Vale per tutte le ${catenaStato.length} assemblee della catena.</p>`;
+  stato.innerHTML = `<h3 style="margin-bottom:10px;">✅ Situazione delle tue deleghe</h3>
+    ${righeGruppi}${rigaMancanti}
+    <button class="btn small secondary" onclick="cambiaSceltaDelega()">Cambia la mia scelta</button>`;
 }
 function cambiaSceltaDelega(){
   // Reset completo: nasconde lo stato attuale (o la conferma appena avvenuta) e riporta la
@@ -3706,14 +3740,17 @@ function cambiaSceltaDelega(){
   document.getElementById('delega-catena-wrap').classList.add('hidden');
   document.getElementById('delega-scelta-iniziale').classList.remove('hidden');
   delegaScelta = null;
+  __delegaCatenaCvInSospeso = null;
   window.scrollTo({top:0, behavior:'smooth'});
 }
 function tornaSceltaInizialeDelega(){
   ['delega-form-condomino','delega-form-esterno','delega-conferma-email','delega-catena-wrap','delega-avviso-limite'].forEach(id=>document.getElementById(id).classList.add('hidden'));
   document.getElementById('delega-scelta-iniziale').classList.remove('hidden');
   delegaScelta = null;
+  __delegaCatenaCvInSospeso = null;
 }
 let __ultimaInterazioneDelega = 0;
+let __delegaCatenaCvInSospeso = null; // {b, catena, assembleeScelte?}
 function segnaInterazioneDelega(){ __ultimaInterazioneDelega = Date.now(); }
 function mostraDelegaCondomino(){
   segnaInterazioneDelega();
@@ -3751,23 +3788,76 @@ function confermaDelegaEsterno(){
 }
 function mostraConfermaDelega(){
   const {b,a} = trovaAssembleaDelegaCorrente();
-  const etichetteModalita = {'in-presenza':'in presenza','mista':'mista (in presenza e online)','online':'online'};
-  const etichettaTipo = a.tipo==='straordinaria' ? 'straordinaria' : 'ordinaria';
-  const indirizzoStudioTxt = (amministratore.indirizzoStudio && amministratore.indirizzoStudio.trim()) ? amministratore.indirizzoStudio.trim() : '(indirizzo studio non impostato)';
-  const luogoTxt = a.luogo && a.luogo.trim() ? a.luogo.trim() : '(luogo da definire)';
-  // Un'assemblea solo online non ha una sede fisica: niente Studio dell'Amministratore né
-  // luogo della seconda convocazione, come già per il modulo di delega nell'email.
-  const rigaLuoghi = a.modalita==='online'
-    ? `in prima convocazione ed in seconda convocazione il giorno ${formattaData(a.dataSeconda)} alle ore ${a.oraSeconda||'da definire'}`
-    : `in prima convocazione presso lo Studio dell'Amministratore sito in ${indirizzoStudioTxt} ed in seconda convocazione il giorno ${formattaData(a.dataSeconda)} alle ore ${a.oraSeconda||'da definire'} presso ${luogoTxt}`;
-  const testo = `Io sottoscritto ${currentCondomino.nome} ${currentCondomino.cognome||''} delego a rappresentarmi all'assemblea condominiale ${etichettaTipo} del condominio ${b.nome}, ${b.comune||''} che si terrà in modalità ${etichetteModalita[a.modalita]||'mista (in presenza e online)'} il giorno ${formattaData(a.dataPrima)} alle ore ${a.oraPrima||'da definire'} ${rigaLuoghi}, il Sig. ${delegaScelta.nomeVisualizzato}
-
-Firma
-${currentCondomino.nome} ${currentCondomino.cognome||''}`;
-  document.getElementById('delega-testo-email').textContent = testo;
+  const catena = trovaCatenaAssemblee(b, a);
+  if(catena.length<=1){
+    __delegaCatenaCvInSospeso = null;
+    document.getElementById('delega-testo-email').textContent = costruisciTestoDichiarazioneDelega(b, [a]);
+    document.getElementById('delega-conferma-email').classList.remove('hidden');
+    return;
+  }
+  // C'è una catena: mostriamo PRIMA la scelta di quali assemblee, così il testo della
+  // dichiarazione (mostrato subito dopo) può elencarle correttamente fin da subito — invece di
+  // scriverne uno generico che poi risulterebbe sbagliato rispetto a quanto scelto davvero.
+  segnaInterazioneDelega();
+  __delegaCatenaCvInSospeso = {b, catena};
+  document.getElementById('delega-conferma-email').classList.add('hidden');
+  const catenaBox = document.getElementById('delega-catena-wrap');
+  catenaBox.classList.remove('hidden');
+  catenaBox.innerHTML = `<h3 style="margin-bottom:6px;">Su quali assemblee vale questa delega?</h3>
+    <p class="muted" style="margin-bottom:14px;">Sei convocato/a per più assemblee concatenate. Ogni assemblea ha la propria delega indipendente: scegli su quali farla valere.</p>
+    <div id="delega-catena-cv-lista" style="margin-bottom:14px;">${catena.map(ass=>`
+      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer;">
+        <input type="checkbox" class="delega-catena-cv-checkbox" value="${ass.id}" ${ass.id===a.id?'checked':''} onchange="segnaInterazioneDelega()" style="width:18px;height:18px;flex-shrink:0;">
+        <span>${escapeHtml(ass.oggetto||'Assemblea')} <span class="muted" style="font-size:12px;">— ${escapeHtml(formattaData(ass.dataPrima)||ass.dataSeconda||'')} ${ass.id===a.id?'(questa)':''}</span></span>
+      </label>`).join('')}</div>
+    <button class="btn brass" style="display:block;width:100%;box-sizing:border-box;margin-bottom:10px;" onclick="procediDopoSceltaCatenaCv()">Continua</button>
+    <button class="btn secondary" style="display:block;width:100%;box-sizing:border-box;" onclick="tornaSceltaInizialeDelega()">← Annulla</button>`;
+}
+// Dopo aver scelto su quali assemblee della catena far valere la delega, costruiamo ORA il
+// testo della dichiarazione (che le elenca correttamente) e lo mostriamo per la conferma finale.
+function procediDopoSceltaCatenaCv(){
+  if(!__delegaCatenaCvInSospeso) return;
+  segnaInterazioneDelega();
+  const {b, catena} = __delegaCatenaCvInSospeso;
+  const idsScelti = Array.from(document.querySelectorAll('.delega-catena-cv-checkbox:checked')).map(el=>parseInt(el.value));
+  if(idsScelti.length===0){ toast('Scegli almeno un\'assemblea, altrimenti la delega non varrebbe da nessuna parte.'); return; }
+  const assembleeScelte = catena.filter(ass=>idsScelti.includes(ass.id));
+  __delegaCatenaCvInSospeso.assembleeScelte = assembleeScelte;
+  document.getElementById('delega-catena-wrap').classList.add('hidden');
+  document.getElementById('delega-testo-email').textContent = costruisciTestoDichiarazioneDelega(b, assembleeScelte);
   document.getElementById('delega-conferma-email').classList.remove('hidden');
 }
-let __delegaCatenaCvInSospeso = null; // {b, catena, delegatoId}
+// Costruisce il testo della dichiarazione di delega. Con una sola assemblea, il testo formale
+// completo di sempre (luogo, orari, modalità). Con più assemblee della catena insieme, un
+// testo che le elenca tutte chiaramente — restare ugualmente formali su ciascuna appesantirebbe
+// troppo la lettura, quindi qui indichiamo oggetto e data di ciascuna, in modo comunque chiaro
+// e verificabile.
+function costruisciTestoDichiarazioneDelega(b, assembleeCoinvolte){
+  const etichetteModalita = {'in-presenza':'in presenza','mista':'mista (in presenza e online)','online':'online'};
+  const nomeCompleto = `${currentCondomino.nome} ${currentCondomino.cognome||''}`;
+  if(assembleeCoinvolte.length===1){
+    const a = assembleeCoinvolte[0];
+    const etichettaTipo = a.tipo==='straordinaria' ? 'straordinaria' : 'ordinaria';
+    const indirizzoStudioTxt = (amministratore.indirizzoStudio && amministratore.indirizzoStudio.trim()) ? amministratore.indirizzoStudio.trim() : '(indirizzo studio non impostato)';
+    const luogoTxt = a.luogo && a.luogo.trim() ? a.luogo.trim() : '(luogo da definire)';
+    const rigaLuoghi = a.modalita==='online'
+      ? `in prima convocazione ed in seconda convocazione il giorno ${formattaData(a.dataSeconda)} alle ore ${a.oraSeconda||'da definire'}`
+      : `in prima convocazione presso lo Studio dell'Amministratore sito in ${indirizzoStudioTxt} ed in seconda convocazione il giorno ${formattaData(a.dataSeconda)} alle ore ${a.oraSeconda||'da definire'} presso ${luogoTxt}`;
+    return `Io sottoscritto ${nomeCompleto} delego a rappresentarmi all'assemblea condominiale ${etichettaTipo} del condominio ${b.nome}, ${b.comune||''} che si terrà in modalità ${etichetteModalita[a.modalita]||'mista (in presenza e online)'} il giorno ${formattaData(a.dataPrima)} alle ore ${a.oraPrima||'da definire'} ${rigaLuoghi}, il Sig. ${delegaScelta.nomeVisualizzato}
+
+Firma
+${nomeCompleto}`;
+  }
+  const elencoAssemblee = assembleeCoinvolte.map(a=>
+    `- ${a.oggetto||'Assemblea'} (${a.tipo==='straordinaria'?'straordinaria':'ordinaria'}), modalità ${etichetteModalita[a.modalita]||'mista'}, prima convocazione il ${formattaData(a.dataPrima)} alle ${a.oraPrima||'da definire'}, seconda convocazione il ${formattaData(a.dataSeconda)} alle ${a.oraSeconda||'da definire'}`
+  ).join('\n');
+  return `Io sottoscritto ${nomeCompleto} delego a rappresentarmi il Sig. ${delegaScelta.nomeVisualizzato} per le seguenti assemblee condominiali del condominio ${b.nome}, ${b.comune||''}:
+
+${elencoAssemblee}
+
+Firma
+${nomeCompleto}`;
+}
 function invaDelegaAdAmministratore(){
   const {b,a} = trovaAssembleaDelegaCorrente();
   let delegatoId;
@@ -3782,11 +3872,13 @@ function invaDelegaAdAmministratore(){
       a.deleghiEsterni.push({id:delegatoId, nome:delegaScelta.nomeVisualizzato});
     }
   }
-  const catena = trovaCatenaAssemblee(b, a);
-  if(catena.length<=1){
-    // Nessuna catena: comportamento semplice e diretto, come sempre — un solo controllo del
-    // limite del quinto con avviso bloccante, poi si scrive subito.
-    const avvisoPreventivo = verificaLimiteQuintoDelega(b, a, delegatoId, currentCondomino.id);
+  // Le assemblee coinvolte sono già state scelte prima (mostraConfermaDelega, o
+  // procediDopoSceltaCatenaCv se c'era una catena): qui ci limitiamo a scriverle davvero.
+  const assembleeCoinvolte = (__delegaCatenaCvInSospeso && __delegaCatenaCvInSospeso.assembleeScelte) || [a];
+  if(assembleeCoinvolte.length===1){
+    // Nessuna catena (o comunque una sola assemblea coinvolta): un solo controllo del limite
+    // del quinto con avviso bloccante, come sempre, prima di scrivere.
+    const avvisoPreventivo = verificaLimiteQuintoDelega(b, assembleeCoinvolte[0], delegatoId, currentCondomino.id);
     if(avvisoPreventivo){
       document.getElementById('delega-conferma-email').classList.add('hidden');
       const box = document.getElementById('delega-avviso-limite');
@@ -3794,38 +3886,10 @@ function invaDelegaAdAmministratore(){
       box.innerHTML = `<h3 style="margin-bottom:8px;">⚠️ Delega non registrata</h3><p>${escapeHtml(avvisoPreventivo)}</p><p class="muted" style="margin-top:10px;">Contatta direttamente l'amministratore per questa delega: dovrà valutarla a mano.</p><button class="btn small secondary" style="margin-top:10px;" onclick="tornaSceltaInizialeDelega()">← Torna indietro</button>`;
       return;
     }
-    const risultati = applicaDelegaSuCatenaScelta(b, [a], currentCondomino.id, delegatoId);
-    mostraEsitoDelegaCv(risultati, [a]);
-    return;
   }
-  // C'è una catena di più assemblee: mostriamo l'elenco per scegliere su quali farla valere,
-  // invece di scrivere subito — ogni assemblea ha la propria delega indipendente.
-  segnaInterazioneDelega();
-  __delegaCatenaCvInSospeso = {b, catena, delegatoId};
-  document.getElementById('delega-conferma-email').classList.add('hidden');
-  const catenaBox = document.getElementById('delega-catena-wrap');
-  catenaBox.classList.remove('hidden');
-  catenaBox.innerHTML = `<h3 style="margin-bottom:6px;">Su quali assemblee vale questa delega?</h3>
-    <p class="muted" style="margin-bottom:14px;">Sei convocato/a per più assemblee concatenate. Ogni assemblea ha la propria delega indipendente: scegli su quali farla valere.</p>
-    <div id="delega-catena-cv-lista" style="margin-bottom:14px;">${catena.map(ass=>`
-      <label style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer;">
-        <input type="checkbox" class="delega-catena-cv-checkbox" value="${ass.id}" ${ass.id===a.id?'checked':''} onchange="segnaInterazioneDelega()" style="width:18px;height:18px;flex-shrink:0;">
-        <span>${escapeHtml(ass.oggetto||'Assemblea')} <span class="muted" style="font-size:12px;">— ${escapeHtml(formattaData(ass.dataPrima)||ass.dataSeconda||'')} ${ass.id===a.id?'(questa)':''}</span></span>
-      </label>`).join('')}</div>
-    <button class="btn brass" style="display:block;width:100%;box-sizing:border-box;margin-bottom:10px;" onclick="confermaDelegaCatenaCv()">✉ Registra la delega e invia all'amministratore</button>
-    <button class="btn secondary" style="display:block;width:100%;box-sizing:border-box;" onclick="tornaSceltaInizialeDelega()">← Annulla</button>`;
-}
-function confermaDelegaCatenaCv(){
-  if(!__delegaCatenaCvInSospeso) return;
-  segnaInterazioneDelega();
-  const {b, catena, delegatoId} = __delegaCatenaCvInSospeso;
-  const idsScelti = Array.from(document.querySelectorAll('.delega-catena-cv-checkbox:checked')).map(el=>parseInt(el.value));
-  if(idsScelti.length===0){ toast('Scegli almeno un\'assemblea, altrimenti la delega non verrebbe registrata da nessuna parte.'); return; }
-  const assembleeScelte = catena.filter(ass=>idsScelti.includes(ass.id));
-  const risultati = applicaDelegaSuCatenaScelta(b, assembleeScelte, currentCondomino.id, delegatoId);
-  document.getElementById('delega-catena-wrap').classList.add('hidden');
+  const risultati = applicaDelegaSuCatenaScelta(b, assembleeCoinvolte, currentCondomino.id, delegatoId);
   __delegaCatenaCvInSospeso = null;
-  mostraEsitoDelegaCv(risultati, assembleeScelte);
+  mostraEsitoDelegaCv(risultati, assembleeCoinvolte);
 }
 // Mostra l'esito finale al condòmino, dopo aver scritto (o rifiutato) la delega su una o più
 // assemblee: nasconde tutte le altre schede possibili e mostra la conferma, coerente col
