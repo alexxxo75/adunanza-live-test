@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-167 — creata il 18/08/2026 alle 18:15
+  Versione: LT-168 — creata il 18/08/2026 alle 18:25
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -599,7 +599,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 18/08/2026 alle 18:15">LT-167</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 18/08/2026 alle 18:25">LT-168</span></div>
   </div>
 
   <!-- MAIN -->
@@ -3225,13 +3225,17 @@ function mostraPopupDuplicatiNome(building, gruppi){
         <table style="width:100%;font-size:13.5px;border-collapse:collapse;">
           <thead><tr>
             <th style="width:44px;padding:6px 8px;text-align:left;"></th>
-            <th style="width:110px;padding:6px 12px;text-align:left;">Interno</th>
-            <th style="width:200px;padding:6px 12px;text-align:left;">Unità</th>
+            <th style="width:130px;padding:6px 12px;text-align:left;">Cognome</th>
+            <th style="width:130px;padding:6px 12px;text-align:left;">Nome</th>
+            <th style="width:90px;padding:6px 12px;text-align:left;">Interno</th>
+            <th style="width:160px;padding:6px 12px;text-align:left;">Unità</th>
             <th style="padding:6px 12px;text-align:left;">Email</th>
           </tr></thead>
           <tbody>
             ${g.map((c,j)=>`<tr>
             <td style="padding:9px 8px;vertical-align:middle;"><input type="checkbox" class="popup-dup-riga-${i}" id="popup-dup-flag-${i}-${j}" style="width:19px;height:19px;display:block;" checked></td>
+            <td style="padding:9px 12px;vertical-align:middle;">${escapeHtml(c.cognome||'—')}</td>
+            <td style="padding:9px 12px;vertical-align:middle;">${escapeHtml(c.nome||'—')}</td>
             <td style="padding:9px 12px;vertical-align:middle;">${escapeHtml(c.interno||'—')}</td>
             <td style="padding:9px 12px;vertical-align:middle;">${escapeHtml(c.unita||'—')}</td>
             <td style="padding:9px 12px;vertical-align:middle;">${escapeHtml(c.email||'—')}</td>
