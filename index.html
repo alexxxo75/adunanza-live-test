@@ -548,7 +548,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 18/08/2026 alle 01:10">LT-154</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 18/08/2026 alle 09:34">LT-156</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1422,8 +1422,8 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
 
 <div class="modal-overlay hidden" id="modal-sblocco-delega">
   <div class="modal-box">
-    <h3>Questa persona ha delegato il voto</h3>
-    <p class="muted">Il voto di questo condòmino segue normalmente il delegato. Sei sicuro di voler far votare direttamente questa persona, ignorando la delega?</p>
+    <h3 id="modal-sblocco-delega-titolo">Questa persona ha delegato il voto</h3>
+    <p class="muted" id="modal-sblocco-delega-testo">Il voto di questo condòmino segue normalmente il delegato. Sei sicuro di voler far votare direttamente questa persona, ignorando la delega?</p>
     <div class="modal-actions">
       <button class="btn secondary" onclick="chiudiModalSbloccoDelega()">Annulla</button>
       <button class="btn brass" onclick="confermaSbloccoVotoDelegante()">Sì, sblocca il voto (5 secondi)</button>
@@ -6182,7 +6182,7 @@ function renderUnanimeButtons(){
     const btn=document.createElement('button');
     btn.className='btn small secondary';
     btn.style.marginRight='6px'; btn.style.marginBottom='6px';
-    btn.textContent='Tutti i presenti: '+o.label;
+    btn.textContent='Tutti: '+o.label;
     btn.onclick=()=>votoUnanime(o.id);
     el.appendChild(btn);
   });
@@ -6194,28 +6194,26 @@ function votoUnanime(optId){
     function applicaVotoUnanime(){
       const bCorrente = getActiveBuilding();
       const assembleaCorrente = getAssembleaInCorso(bCorrente);
-      const presenti = presentiDiretti(bCorrente);
-      // "Tutti i presenti" si applica SOLO a chi è fisicamente in aula (o esterni delegati senza
-      // un proprio dispositivo): chi è collegato online può votare autonomamente dal proprio
-      // telefono, e non deve essere né sovrascritto né "bloccato" da questo pulsante — altrimenti,
-      // provando poi a votare da solo, si sentirebbe dire "hai già votato" per una scelta che non
-      // ha fatto lui. Se il suo voto individuale risulterà diverso, si applicherà normalmente
-      // (anche alle sue eventuali deleghe) tramite il normale meccanismo di voto.
-      const presentiDaVotareInBlocco = presenti.filter(c=>{
-        const attivo = recordAttivo(assembleaCorrente, c.id);
-        return attivo && attivo.tipo !== 'online';
+      const convocatiList = bCorrente.condomini.filter(c=>assembleaCorrente.convocati.selezionati.includes(c.id));
+      // "Tutti" si applica a chiunque risulti attivo in questo momento — online o in aula, non
+      // importa il mezzo — sovrascrivendo anche eventuali voti impostati in blocco in
+      // precedenza (di proposito: l'amministratore l'ha scelto apposta cliccando questo
+      // pulsante). FA ECCEZIONE chi è online e ha già votato DI PERSONA, individualmente, dal
+      // proprio dispositivo: quella è una scelta sua, deliberata, e non va toccata da un
+      // pulsante pensato per chi non ha ancora votato o segue il gruppo.
+      const daVotareInBlocco = convocatiList.filter(c=>{
+        const attivo = recordAttivoConSecondarie(bCorrente, assembleaCorrente, c.id);
+        if(!attivo) return false;
+        const haGiaVotatoDiPersona = attivo.tipo==='online' && activePoll.voted.has(c.id) && !activePoll.votatoInBlocco.has(c.id);
+        return !haGiaVotatoDiPersona;
       });
-      diagnostica = `Convocati: ${assembleaCorrente?assembleaCorrente.convocati.selezionati.length:'?'} — Online (votano da soli, esclusi da qui): ${assembleaCorrente?assembleaCorrente.appello.online.filter(r=>!r.uscita).length:'?'} — Presenti in aula: ${assembleaCorrente?assembleaCorrente.appello.presenzeFisiche.filter(r=>!r.uscita).length:'?'} — Votati in blocco: ${presentiDaVotareInBlocco.length}`;
-      // "Tutti i presenti" deve valere per chi è in aula: azzeriamo prima eventuali blocchi di
-      // "voto impostato manualmente" sui deleganti, altrimenti la propagazione automatica dal
-      // loro delegato (che sta per votare qui sotto) li salterebbe lasciando il vecchio voto.
+      diagnostica = `Convocati: ${assembleaCorrente?assembleaCorrente.convocati.selezionati.length:'?'} — Online: ${assembleaCorrente?assembleaCorrente.appello.online.filter(r=>!r.uscita).length:'?'} — Presenti in aula: ${assembleaCorrente?assembleaCorrente.appello.presenzeFisiche.filter(r=>!r.uscita).length:'?'} — Votati in blocco: ${daVotareInBlocco.length}`;
+      // Azzeriamo prima eventuali blocchi di "voto impostato manualmente" sui deleganti,
+      // altrimenti la propagazione automatica dal loro delegato (che sta per votare qui sotto)
+      // li salterebbe lasciando il vecchio voto.
       activePoll.overridden.clear();
       count=0;
-      presentiDaVotareInBlocco.forEach(c=>{
-        // Il pulsante "tutti i presenti" è un'azione amministrativa esplicita rivolta a chi è
-        // fisicamente in aula in questo momento: si applica quindi a loro, sovrascrivendo anche
-        // eventuali voti individuali già dati (di proposito: l'amministratore l'ha scelto apposta
-        // cliccando questo pulsante, non è un effetto collaterale automatico).
+      daVotareInBlocco.forEach(c=>{
         impostaVoto(c.id, optId, false, true);
         count++;
       });
@@ -6223,12 +6221,12 @@ function votoUnanime(optId){
     eseguiConUnioneSuServer(applicaVotoUnanime);
     renderPollResults(); renderTabellaVotiSondaggio(); renderCvPollArea();
     if(count>0){
-      toast(`Voto unanime assegnato a ${count} presenti in aula (e ai relativi deleganti) — chi è online vota autonomamente dal proprio dispositivo.`);
+      toast(`Voto "${activePoll.options.find(o=>o.id===optId).label}" assegnato a ${count} persone (online e in aula) — chiunque può ancora cambiare la propria scelta finché il sondaggio resta aperto.`);
     }else{
       // Nessuno trovato da votare: questo è probabilmente il "non succede niente" segnalato —
       // lo mostriamo in modo impossibile da non vedere, con i numeri esatti, invece di un
       // piccolo messaggio che passa inosservato.
-      alert('ATTENZIONE — Nessun presente IN AULA trovato da votare (chi è online è escluso di proposito, vota da solo).\n\n' + diagnostica + '\n\nSe questi numeri non corrispondono a quello che vedi nell\'Appello, segnalamelo con questo messaggio esatto.');
+      alert('ATTENZIONE — Nessun convocato attivo trovato da votare.\n\n' + diagnostica + '\n\nSe questi numeri non corrispondono a quello che vedi nell\'Appello, segnalamelo con questo messaggio esatto.');
     }
   }catch(e){
     console.error('[Adunanza] votoUnanime fallito:', e);
@@ -6321,8 +6319,16 @@ let delegantiSbloccatiFino = {}; // condominoId -> timestamp (ms) fino a cui res
 function votoDeleganteBloccato(condominoId){
   return !(delegantiSbloccatiFino[condominoId] && Date.now() < delegantiSbloccatiFino[condominoId]);
 }
-function richiediSbloccoVotoDelegante(condominoId){
+function richiediSbloccoVotoDelegante(condominoId, motivo){
   window.__condominoIdSbloccoDelega = condominoId;
+  const testi = {
+    delega: {titolo:'Questa persona ha delegato il voto', corpo:'Il voto di questo condòmino segue normalmente il delegato. Sei sicuro di voler far votare direttamente questa persona, ignorando la delega?'},
+    uscito: {titolo:'Questa persona è uscita dall\'assemblea', corpo:'Potrebbe aver comunicato la propria scelta a voce prima di uscire. Vuoi registrare comunque un voto per lei?'},
+    online: {titolo:'Questa persona è online', corpo:'Sta votando in autonomia dal proprio dispositivo. Sei sicuro di voler correggere il suo voto da qui?'}
+  };
+  const t = testi[motivo] || testi.delega;
+  document.getElementById('modal-sblocco-delega-titolo').textContent = t.titolo;
+  document.getElementById('modal-sblocco-delega-testo').textContent = t.corpo;
   document.getElementById('modal-sblocco-delega').classList.remove('hidden');
 }
 function chiudiModalSbloccoDelega(){
@@ -6399,7 +6405,8 @@ function renderTabellaVotiSondaggio(){
 
     const unitaUnificateVoto = b.condomini.filter(x=>x.unificatoCon===c.id && assemblea.convocati.selezionati.includes(x.id));
     const tdMillVoto=document.createElement('td');
-    tdMillVoto.innerHTML = unitaUnificateVoto.length>0 ? '<span class="muted">—</span>' : `<b>${pesoVoto(c,b,assemblea)}</b>`;
+    const millesimiTotaliVoto = unitaUnificateVoto.length>0 ? arrotondaMillesimi(pesoVoto(c,b,assemblea) + unitaUnificateVoto.reduce((s,u)=>s+pesoVoto(u,b,assemblea),0)) : pesoVoto(c,b,assemblea);
+    tdMillVoto.innerHTML = `<b>${millesimiTotaliVoto}</b>`;
     tr.appendChild(tdMillVoto);
 
     const tdStato=document.createElement('td');
@@ -6445,7 +6452,7 @@ function renderTabellaVotiSondaggio(){
         const overlay=document.createElement('span');
         overlay.style.cssText='position:absolute;inset:0;cursor:pointer;';
         overlay.title='Questa persona ha delegato il voto — clicca per sbloccare';
-        overlay.onclick=()=>richiediSbloccoVotoDelegante(c.id);
+        overlay.onclick=()=>richiediSbloccoVotoDelegante(c.id, 'delega');
         wrap.appendChild(overlay);
       }
       tdVoto.appendChild(wrap);
@@ -6467,7 +6474,30 @@ function renderTabellaVotiSondaggio(){
         const overlay=document.createElement('span');
         overlay.style.cssText='position:absolute;inset:0;cursor:pointer;';
         overlay.title='Questa persona è uscita — clicca per registrare un voto che ha comunicato a voce';
-        overlay.onclick=()=>richiediSbloccoVotoDelegante(c.id);
+        overlay.onclick=()=>richiediSbloccoVotoDelegante(c.id, 'uscito');
+        wrap.appendChild(overlay);
+      }
+      tdVoto.appendChild(wrap);
+      if(!bloccato){
+        const note=document.createElement('span'); note.className='muted'; note.style.marginLeft='6px'; note.textContent='(sbloccato per pochi secondi)';
+        tdVoto.appendChild(note);
+      }
+    }else if(attivo && attivo.tipo==='online'){
+      // Chi è online vota in autonomia dal proprio dispositivo: il select per correggerlo a
+      // mano dalla tabella dell'amministratore resta bloccato dietro lo stesso meccanismo già
+      // usato per chi ha delegato — un click chiede conferma, poi si sblocca per pochi secondi
+      // e si riblocca da solo. Stesso aspetto, stessa funzione: evita di correggere per sbaglio
+      // il voto di qualcuno che sta votando autonomamente in questo preciso momento.
+      const bloccato = votoDeleganteBloccato(c.id);
+      sel.disabled = bloccato;
+      if(bloccato) sel.style.opacity = '0.45';
+      const wrap=document.createElement('span'); wrap.style.cssText='position:relative;display:inline-block;';
+      wrap.appendChild(sel);
+      if(bloccato){
+        const overlay=document.createElement('span');
+        overlay.style.cssText='position:absolute;inset:0;cursor:pointer;';
+        overlay.title='Questa persona è online e vota in autonomia — clicca per correggere il suo voto';
+        overlay.onclick=()=>richiediSbloccoVotoDelegante(c.id, 'online');
         wrap.appendChild(overlay);
       }
       tdVoto.appendChild(wrap);
@@ -6476,7 +6506,8 @@ function renderTabellaVotiSondaggio(){
         tdVoto.appendChild(note);
       }
     }else{
-      // Presente (online o in aula): può votare direttamente, senza blocchi.
+      // In presenza fisica: può votare direttamente, senza blocchi — l'amministratore la ha
+      // davanti e registra il voto comunicato a voce.
       tdVoto.appendChild(sel);
     }
     if(delegatoId && activePoll.scelte[c.id]!=null && !activePoll.overridden.has(c.id)){
@@ -6486,30 +6517,9 @@ function renderTabellaVotiSondaggio(){
     tr.appendChild(tdVoto);
     tbody.appendChild(tr);
 
-    // Se questo condòmino ha una o più unità unificate a lui (stesso proprietario), mostriamo
-    // subito sotto TUTTE le proprietà coinvolte — compresa la sua — come righe rientrate, in
-    // grigio, non interattive: il voto è unico ed è già stato registrato sulla riga principale
-    // per tutte queste unità insieme, qui servono solo a mostrare quali proprietà sono comprese.
-    if(unitaUnificateVoto.length>0){
-      [c, ...unitaUnificateVoto].forEach(u=>{
-        const trUnita=document.createElement('tr');
-        trUnita.style.background='#EDEAE2';
-        trUnita.style.color='var(--text-soft)';
-        const tdUnitaNome=document.createElement('td');
-        tdUnitaNome.style.paddingLeft='34px';
-        tdUnitaNome.innerHTML = `- ${escapeHtml(nomeCompletoCondomino(u))} <span class="muted">(${escapeHtml(u.unita||u.interno||'unità')})</span>`;
-        trUnita.appendChild(tdUnitaNome);
-        const tdUnitaMill=document.createElement('td');
-        tdUnitaMill.textContent = pesoVoto(u,b,assemblea);
-        trUnita.appendChild(tdUnitaMill);
-        const tdUnitaStato=document.createElement('td');
-        tdUnitaStato.innerHTML = '<span class="muted">stessa proprietà</span>';
-        trUnita.appendChild(tdUnitaStato);
-        const tdUnitaVoto=document.createElement('td');
-        trUnita.appendChild(tdUnitaVoto);
-        tbody.appendChild(trUnita);
-      });
-    }
+    // Le proprietà unite allo stesso proprietario non hanno più una riga separata sotto: i
+    // loro millesimi sono già sommati in quella principale, qui basta un'unica riga per
+    // gruppo, come richiesto.
 
     // Se questo condòmino ha delegato una persona esterna, la sua riga di voto compare subito
     // sotto, indentata — non più in una sezione separata in fondo alla tabella.
@@ -7307,6 +7317,23 @@ function identitaVotanteCv(assemblea, b){
   const est = (assemblea.deleghiEsterni||[]).find(e=>e.id===idRisolto);
   return { id: idRisolto, nome: est ? est.nome : 'Delegato', peso: pesoVotoPersonaEsterna(idRisolto, b, assemblea), estera:true };
 }
+// Azzera il voto impostato in blocco dall'amministratore ("Tutti: X") per questa persona, e la
+// riporta alla schermata di scelta aperta — da lì può scegliere e confermare individualmente,
+// esattamente come chi non avesse ancora votato affatto. Funziona solo mentre il sondaggio
+// resta aperto (una volta chiuso, non c'è più nulla da modificare).
+function modificaSceltaVotoBloccoCv(){
+  if(!currentCondomino || !activePoll) return;
+  const b = getActiveBuilding();
+  const assemblea = b ? getAssembleaContestualizzataCondomino(b) : null;
+  if(!assemblea) return;
+  const votante = identitaVotanteCv(assemblea, b);
+  if(!votante || votante.id==null) return;
+  delete activePoll.scelte[votante.id];
+  activePoll.voted.delete(votante.id);
+  if(activePoll.votatoInBlocco) activePoll.votatoInBlocco.delete(votante.id);
+  sceltaVotoCorrente = null;
+  renderCvPollArea();
+}
 function costruisciBloccoSondaggioAttivo(assembleaCorrente, b){
   // "Punto X — [testo del punto]", mostrato sopra la domanda del sondaggio, per dare sempre
   // contesto su quale voce dell'ordine del giorno si sta votando in questo momento.
@@ -7325,6 +7352,24 @@ function costruisciBloccoSondaggioAttivo(assembleaCorrente, b){
   }
   const giaVotato = activePoll.voted.has(votante.id);
   const mieiMillesimi = votante.peso;
+  const votatoInBlocco = activePoll.votatoInBlocco && activePoll.votatoInBlocco.has(votante.id);
+  if(giaVotato && votatoInBlocco){
+    const idScelto = activePoll.scelte ? activePoll.scelte[votante.id] : null;
+    const optScelta = activePoll.options.find(o=>o.id===idScelto);
+    const etichetta = optScelta ? optScelta.label : 'registrato';
+    // L'amministratore ha impostato questo voto per tutti con il pulsante "Tutti: X": lo
+    // segnaliamo chiaramente, in primo piano, con la stessa impostazione visiva del sondaggio —
+    // resta così, senza sparire, finché il sondaggio non viene chiuso (a quel punto compare il
+    // messaggio consueto, come per ogni sondaggio concluso). Chi non fosse d'accordo può sempre
+    // cambiare la propria scelta con il tasto qui sotto.
+    return `<div class="assist-panel" id="cv-sondaggio-attivo-blocco" style="border-left:4px solid var(--brass);margin-bottom:18px;">
+      ${etichettaPunto}
+      <p class="sub" style="margin-bottom:4px;font-weight:700;font-size:16px;color:#F2F0EC;">${escapeHtml(activePoll.question)}</p>
+      <p style="font-size:20px;font-weight:700;color:#F2F0EC;margin-bottom:8px;">Tutti: ${escapeHtml(etichetta)}</p>
+      <p class="muted" style="color:#A39C88;margin-bottom:14px;">Voto impostato dall'amministratore per tutti — puoi cambiarlo in qualsiasi momento finché il sondaggio resta aperto.</p>
+      <button class="btn small secondary" onclick="modificaSceltaVotoBloccoCv()">Modifica scelta</button>
+    </div>`;
+  }
   if(giaVotato){
     const idScelto = activePoll.scelte ? activePoll.scelte[votante.id] : null;
     const optScelta = activePoll.options.find(o=>o.id===idScelto);
