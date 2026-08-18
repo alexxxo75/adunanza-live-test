@@ -485,8 +485,19 @@
   #cv-lista-opzioni.scelta-fatta .cv-voto-btn.scelto{ padding:20px 16px; font-size:18px; opacity:1; border-width:3px; box-shadow:0 6px 16px rgba(169,130,44,.25); }
   #cv-btn-conferma-voto{ display:block; width:100%; padding:16px 14px; margin-top:14px; font-size:17px; font-weight:700; border-radius:8px; border:none; background:#8C7D57; color:#C4BCA5; cursor:not-allowed; text-align:center; transition:.15s; }
   #cv-btn-conferma-voto.attivo{ background:var(--sage,#3E7A54); color:#fff; cursor:pointer; }
-  #cv-conferma-voto-box{ text-align:center; background:#2A2519; border:1px solid var(--sage,#3E7A54); border-radius:10px; padding:20px; font-size:17px; font-weight:700; color:var(--sage,#3E7A54); }
+  #cv-conferma-voto-box{ text-align:center; background:#2A2519; border:1px solid var(--sage,#3E7A54); border-radius:10px; padding:20px; font-size:17px; font-weight:700; color:var(--sage,#3E7A54); min-height:190px; display:flex; flex-direction:column; align-items:center; justify-content:center; box-sizing:border-box; }
   #cv-conferma-voto-box .sub{ display:block; font-size:13px; font-weight:400; color:#C4BCA5; margin-top:6px; }
+  /* Il riquadro del sondaggio attivo lato condòmino (sia in fase di scelta/conferma sia con il
+     voto già impostato in blocco dall'amministratore): ingrandito in altezza su richiesta
+     esplicita — circa il 50% in più rispetto a prima — e il contenuto viene centrato
+     verticalmente invece di restare "appiccicato" in cima al riquadro più alto. */
+  #cv-sondaggio-attivo-blocco{ min-height:480px; display:flex; flex-direction:column; justify-content:center; box-sizing:border-box; }
+  /* Pulsante "Modifica scelta": prima usava .btn.secondary (testo grigio scuro su sfondo scuro,
+     quasi invisibile) — ora colore brass ben visibile, coerente col resto del tema, e centrato
+     nella riga invece che allineato a sinistra. */
+  .cv-btn-modifica-scelta-wrap{ text-align:center; margin-top:10px; }
+  .cv-btn-modifica-scelta{ background:transparent; border:2px solid var(--brass); color:var(--brass); font-weight:700; }
+  .cv-btn-modifica-scelta:active{ background:var(--brass); color:#2C2417; }
   .cv-odg-punto{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:12px 14px; margin-bottom:8px; background:#000000; border:1px solid #8C7D57; border-radius:8px; font-size:13.5px; font-weight:600; color:#F2F0EC; }
   .cv-odg-punto-blocco{ margin-bottom:16px; }
   .cv-odg-punto-blocco .cv-odg-punto{ margin-bottom:0; }
@@ -548,7 +559,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 18/08/2026">LT-157</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 18/08/2026">LT-158</span></div>
   </div>
 
   <!-- MAIN -->
@@ -5696,19 +5707,32 @@ let activePoll=null;
 let pollOptIdCounter=1;
 let activePollOdgId = null;
 
+// Vero SOLO se l'amministratore sta scrivendo in questo preciso istante dentro un campo di
+// testo (input o textarea) che un ridisegno distruggerebbe o svuoterebbe — non per qualsiasi
+// tipo di focus (es. un <select> semplicemente cliccato non conta, altrimenti gli aggiornamenti
+// in arrivo dagli altri partecipanti resterebbero bloccati anche quando non si sta scrivendo
+// nulla, come succedeva prima). Copre sia i campi del sondaggio attivo (#active-poll) sia quelli
+// dei moduli "Crea/Modifica sondaggio" ancora in preparazione (dentro #odg-blocks-container).
+function staScrivendoInCampoProtetto(){
+  const el = document.activeElement;
+  if(!el || (el.tagName!=='INPUT' && el.tagName!=='TEXTAREA')) return false;
+  const container = document.getElementById('odg-blocks-container');
+  const activePollEl = document.getElementById('active-poll');
+  return (container && container.contains(el)) || (activePollEl && activePollEl.contains(el));
+}
 function renderOdgBlocks(){
   renderOdgPillsTopbar();
   const b=getActiveBuilding();
   const assemblea=getAssembleaInCorso(b);
   const container=document.getElementById('odg-blocks-container');
   if(!container) return;
-  // Se l'amministratore ha il cursore in questo momento dentro al riquadro del sondaggio
-  // attivo (domanda, opzioni, o altro campo lì dentro), non tocchiamo proprio nulla qui:
-  // persino lo spostamento "protettivo" del riquadro (fatto normalmente per evitare che venga
-  // distrutto insieme al resto) comporta comunque un riposizionamento nel documento, che può
-  // far perdere il focus al campo su cui si sta scrivendo in quel preciso istante.
-  const liveNodeInUso = document.getElementById('active-poll');
-  if(liveNodeInUso && liveNodeInUso.contains(document.activeElement) && document.activeElement.tagName!=='BODY'){
+  // Se l'amministratore sta scrivendo in questo momento in un campo di testo protetto (domanda
+  // o opzioni di un sondaggio, attivo o in preparazione), non tocchiamo proprio nulla qui:
+  // persino lo spostamento "protettivo" del riquadro comporta comunque un riposizionamento nel
+  // documento, che può far perdere il focus al campo su cui si sta scrivendo in quel preciso
+  // istante. Un semplice focus "di passaggio" (es. un menu a tendina cliccato) NON blocca più
+  // il ridisegno: bloccarlo sempre impediva agli aggiornamenti in tempo reale di comparire.
+  if(staScrivendoInCampoProtetto()){
     return;
   }
   if(!assemblea){ container.innerHTML=''; return; }
@@ -5843,7 +5867,7 @@ function renderOdgBlocks(){
         <div class="field"><label>Domanda del sondaggio</label><input type="text" id="nuovo-sondaggio-domanda-${p.id}" value="" placeholder="Es. Approvazione bilancio"></div>
         <div class="field"><label>Opzioni di voto (una per riga)</label><textarea id="nuovo-sondaggio-opzioni-${p.id}" rows="3">Favorevole\nContrario\nAstenuto</textarea></div>
         <div class="field"><label>Tabella millesimale da usare per il voto</label><select id="nuovo-sondaggio-tabella-${p.id}">${tabelleVotoLive.map(t=>`<option value="${escapeHtml(t)}" ${t===p.tabella?'selected':''}>${escapeHtml(t)}</option>`).join('')}</select></div>
-        <button class="btn small brass" style="margin-top:6px;" onclick="confermaCreazioneSondaggioPreparato(${p.id})">Crea (resterà in attesa, si apre a parte)</button>`;
+        <button class="btn small brass" style="margin-top:6px;" onclick="confermaCreazioneSondaggioPreparato(${p.id})">Crea il sondaggio (non verrà ancora aperto)</button>`;
       block.appendChild(form);
     }
 
@@ -6056,15 +6080,14 @@ function showActivePoll(){
   const eSondaggioAppenaAperto = (activePollOdgId !== __ultimoPollOdgIdMostratoAdmin);
   __ultimoPollOdgIdMostratoAdmin = activePollOdgId;
   const liveNode=document.getElementById('active-poll');
-  // Se l'amministratore ha il cursore in questo momento da qualche parte dentro al riquadro
-  // del sondaggio (domanda, opzioni, o qualsiasi altro campo lì dentro), fermiamoci SUBITO,
-  // prima di qualunque altra cosa — persino prima di spostare il riquadro nel suo "slot"
-  // giusto: anche solo riposizionare un elemento nel documento (per quanto innocuo sembri) può
-  // far perdere il focus al campo su cui si sta scrivendo in quel preciso istante. I dati
-  // restano comunque aggiornati (li scrivono direttamente i gestori oninput dei singoli
-  // campi): appena l'amministratore clicca altrove, la prossima sincronizzazione naturale
-  // rimette tutto al suo posto.
-  if(liveNode && liveNode.contains(document.activeElement) && document.activeElement.tagName!=='BODY'){
+  // Come in renderOdgBlocks: blocchiamo il ridisegno SOLO se l'amministratore sta scrivendo in
+  // questo istante in un campo di testo (domanda o opzioni) — non per qualsiasi focus generico
+  // (es. un menu a tendina della tabella voti semplicemente cliccato). Prima questo controllo
+  // era troppo largo: bastava aver cliccato UNA VOLTA su un menu a tendina per bloccare TUTTI
+  // gli aggiornamenti successivi (compresi i voti in arrivo dai condòmini online), finché non si
+  // cliccava altrove — questo era il motivo per cui un cambio di voto di un condòmino online non
+  // si vedeva comparire nella tabella dell'amministratore.
+  if(staScrivendoInCampoProtetto()){
     return;
   }
   const slot=document.getElementById('odg-live-slot-'+activePollOdgId);
@@ -7358,9 +7381,16 @@ function modificaSceltaVotoBloccoCv(){
   if(!assemblea) return;
   const votante = identitaVotanteCv(assemblea, b);
   if(!votante || votante.id==null) return;
-  delete activePoll.scelte[votante.id];
-  activePoll.voted.delete(votante.id);
-  if(activePoll.votatoInBlocco) activePoll.votatoInBlocco.delete(votante.id);
+  // BUG CORRETTO: qui sotto si modifica solo la copia locale di activePoll, ma senza salvarla
+  // sul database condiviso (mancava sia eseguiConUnioneSuServer sia salvaStato) la modifica non
+  // veniva mai davvero registrata — bastava una qualsiasi sincronizzazione in arrivo (anche solo
+  // il ping di un altro condòmino) per far tornare "Tutti: X" con il vecchio voto, dando
+  // l'impressione che il riquadro "si chiudesse da solo" e obbligando a ripremere il pulsante.
+  eseguiConUnioneSuServer(()=>{
+    delete activePoll.scelte[votante.id];
+    activePoll.voted.delete(votante.id);
+    if(activePoll.votatoInBlocco) activePoll.votatoInBlocco.delete(votante.id);
+  });
   sceltaVotoCorrente = null;
   renderCvPollArea();
 }
@@ -7397,7 +7427,7 @@ function costruisciBloccoSondaggioAttivo(assembleaCorrente, b){
       <p class="sub" style="margin-bottom:4px;font-weight:700;font-size:16px;color:#F2F0EC;">${escapeHtml(activePoll.question)}</p>
       <p style="font-size:20px;font-weight:700;color:#F2F0EC;margin-bottom:8px;">Tutti: ${escapeHtml(etichetta)}</p>
       <p class="muted" style="color:#A39C88;margin-bottom:14px;">Voto impostato dall'amministratore per tutti — puoi cambiarlo in qualsiasi momento finché il sondaggio resta aperto.</p>
-      <button class="btn small secondary" onclick="modificaSceltaVotoBloccoCv()">Modifica scelta</button>
+      <div class="cv-btn-modifica-scelta-wrap"><button class="btn small cv-btn-modifica-scelta" onclick="modificaSceltaVotoBloccoCv()">Modifica scelta</button></div>
     </div>`;
   }
   if(giaVotato){
