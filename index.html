@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-161 — creata il 18/08/2026 alle 11:00
+  Versione: LT-162 — creata il 18/08/2026 alle 12:42
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -415,8 +415,17 @@
      (a schermo pieno, con un formato corretto) e pulsanti a sinistra, in un proprio riquadro
      fisso; ordine del giorno e "chi c'è" a destra, in un secondo riquadro che scorre
      indipendentemente. */
-  #cv-col-sinistra{ flex:5 1 0; min-width:0; height:calc(100vh - 28px); display:flex; flex-direction:column; align-self:flex-start; position:sticky; top:14px; background:#1C1C1D; border:1px solid #3A3A3B; border-radius:10px; padding:8px; box-sizing:border-box; }
-  #cv-col-destra{ flex:3 1 0; min-width:0; height:calc(100vh - 28px); overflow-y:auto; background:#1C1C1D; border:1px solid #3A3A3B; border-radius:10px; padding:16px 20px; box-sizing:border-box; margin-left:20px; position:relative; scrollbar-color:#5E5439 #1C1C1D; }
+  /* BUG CORRETTO: prima la PAGINA INTERA poteva scorrere anche in layout orizzontale (il
+     pannello superiore, fuori dalle due colonne, aggiungeva altezza oltre ai 100vh delle
+     colonne) — la colonna sinistra, pur "sticky", risultava comunque trascinarsi un po' su e
+     giù durante lo scroll, specie su iPad/Safari dove la barra degli indirizzi che si
+     nasconde cambia il valore di 100vh durante lo scroll stesso. Ora, in orizzontale, la
+     pagina non scorre più affatto: l'UNICO elemento che scorre è la colonna destra (il suo
+     scroll interno, invariato) — la sinistra resta quindi sempre, letteralmente, ferma. */
+  body.cv-layout-orizzontale{ overflow:hidden; height:100%; }
+  body.cv-layout-orizzontale .condomino-shell{ height:100vh; height:100dvh; overflow:hidden; box-sizing:border-box; }
+  #cv-col-sinistra{ flex:5 1 0; min-width:0; height:calc(100vh - 28px); height:calc(100dvh - 28px); display:flex; flex-direction:column; align-self:flex-start; position:sticky; top:14px; background:#1C1C1D; border:1px solid #3A3A3B; border-radius:10px; padding:8px; box-sizing:border-box; }
+  #cv-col-destra{ flex:3 1 0; min-width:0; height:calc(100vh - 28px); height:calc(100dvh - 28px); overflow-y:auto; background:#1C1C1D; border:1px solid #3A3A3B; border-radius:10px; padding:16px 20px; box-sizing:border-box; margin-left:20px; position:relative; scrollbar-color:#5E5439 #1C1C1D; }
   #cv-col-destra::-webkit-scrollbar{ width:10px; }
   #cv-col-destra::-webkit-scrollbar-track{ background:#1C1C1D; }
   #cv-col-destra::-webkit-scrollbar-thumb{ background:#5E5439; border-radius:5px; }
@@ -439,6 +448,18 @@
      spinti in fondo al riquadro (il video, con flex:1 qui sopra, occupa tutto lo spazio che
      resta prima di loro). */
   body.cv-layout-orizzontale #cv-col-sinistra .big-action-btn{ padding:3px; font-size:0.8em; margin-top:5px; flex-shrink:0; }
+  /* SOLO TABLET (touch, non PC con mouse — stesso segnale hover:none/pointer:coarse già usato
+     altrove nel codice per distinguere i due casi): il video occupava troppo spazio verticale
+     lasciando il terzo pulsante ("Lascia l'assemblea") appena fuori dallo schermo. Qui
+     limitiamo l'ALTEZZA MASSIMA del solo riquadro del video (non della videochiamata vera e
+     propria, che comunque riempie sempre il riquadro che le viene dato — restringere il
+     riquadro restringe quindi anche la call che ci sta dentro, non è possibile separare le due
+     cose): questo lascia più spazio libero sotto per i tre pulsanti, che così restano sempre
+     visibili. Su PC (hover:hover, pointer:fine) questa regola non si applica: nulla cambia lì. */
+  @media (hover:none), (pointer:coarse){
+    body.cv-layout-orizzontale #cv-video-wrap{ flex:0 1 auto; max-height:62%; }
+    body.cv-layout-orizzontale #cv-video-box{ max-height:62vh; max-height:62dvh; }
+  }
   /* La chat, in orizzontale, compare dentro al riquadro destro (sempre per prima, sopra
      all'ordine del giorno): quando appare spinge in basso ordine del giorno e "chi c'è", che
      tornano a salire quando la chat scompare — non più una finestra fissa separata. */
@@ -571,7 +592,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 18/08/2026 alle 11:00">LT-161</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 18/08/2026 alle 12:42">LT-162</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1254,7 +1275,7 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
     </div>
 
     <!-- PAGE: VISTA CONDOMINO (anteprima, tema scuro) -->
-    <div class="page hidden" id="page-vista-condomino" style="margin:-30px -44px;">
+    <div class="page hidden" id="page-vista-condomino" style="margin:-30px -44px -44px -44px;">
       <div id="cv-pannello-superiore">
         <div id="cv-tipo-assemblea">—</div>
         <div id="cv-testata">
@@ -5881,8 +5902,16 @@ function renderOdgBlocks(){
       const btnAvvia=document.createElement('button');
       btnAvvia.className='btn small brass';
       const svgPlay = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="vertical-align:-2px;margin-right:4px;"><circle cx="12" cy="12" r="10"/><path d="M10 8.3v7.4l6-3.7z" fill="currentColor" stroke="none"/></svg>';
-      btnAvvia.innerHTML = p.sondaggioAbilitato ? svgPlay+'Avvia sondaggio' : '+ Nuovo sondaggio per questo punto';
-      btnAvvia.onclick=()=>avviaSondaggioPerPunto(p.id);
+      btnAvvia.innerHTML = p.sondaggioAbilitato
+        ? (svgPlay+'Avvia sondaggio')
+        : ((__odgModuloNuovoSondaggioAperto===p.id) ? '✕ Chiudi' : '+ Nuovo sondaggio per questo punto');
+      // Per un punto SENZA sondaggio già configurato (sondaggioAbilitato false), questo tasto
+      // deve comportarsi esattamente come "+ Crea nuovo sondaggio": apre il modulo per scrivere
+      // domanda/opzioni/tabella PRIMA di avviarlo, invece di partire subito con valori di
+      // default (il testo del punto come domanda, "Favorevole/Contrario/Astenuto" come opzioni).
+      // Per un punto che invece un sondaggio ce l'ha già (sondaggioAbilitato true), il
+      // comportamento resta quello di sempre: avvia subito.
+      btnAvvia.onclick = p.sondaggioAbilitato ? (()=>avviaSondaggioPerPunto(p.id)) : (()=>apriModuloNuovoSondaggio(p.id));
       actions.appendChild(btnAvvia);
     }
     // Pulsante "Crea nuovo sondaggio", disponibile per ogni punto — sia che ci sia già un
@@ -5896,7 +5925,7 @@ function renderOdgBlocks(){
       actions.appendChild(btnNuovo);
     }
     block.appendChild(actions);
-    if(__odgModuloNuovoSondaggioAperto===p.id && !avviaEUnNuovoSondaggio){
+    if(__odgModuloNuovoSondaggioAperto===p.id){
       const tabelleVotoLive = tabelleDisponibiliPerVoto(assemblea, b);
       const form=document.createElement('div');
       form.style.cssText='background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:14px 16px;margin-top:8px;';
@@ -6911,6 +6940,10 @@ function applicaLayoutOrizzontaleCondomino(){
   }
   __cvLayoutOrizzontaleAttivo = dovrebbeEssereOrizzontale;
   document.body.classList.toggle('cv-layout-orizzontale', dovrebbeEssereOrizzontale);
+  // Il CSS da solo non basta a bloccare lo scroll di <html>: il selettore "body.cv-layout-
+  // orizzontale html" non può funzionare (html non è mai discendente di body), quindi lo
+  // gestiamo qui direttamente sull'elemento.
+  document.documentElement.style.overflow = dovrebbeEssereOrizzontale ? 'hidden' : '';
 
   const pannelloSuperiore = document.getElementById('cv-pannello-superiore');
   const videoWrap = document.getElementById('cv-video-wrap');
@@ -7364,7 +7397,15 @@ let __forzaVistaNormaleCondomino = false;
 function tornaAllaVistaNormaleCondomino(){
   __forzaVistaNormaleCondomino = true;
   renderCvPollArea();
-  window.scrollTo({top:0, behavior:'smooth'});
+  // BUG CORRETTO: in layout ORIZZONTALE a scorrere è la colonna destra (#cv-col-destra, che ha
+  // il proprio scroll interno), non la pagina — chiamare sempre window.scrollTo() non aveva
+  // alcun effetto visibile lì, il pulsante sembrava non fare nulla.
+  if(document.body.classList.contains('cv-layout-orizzontale')){
+    const colDestra = document.getElementById('cv-col-destra');
+    if(colDestra) colDestra.scrollTo({top:0, behavior:'smooth'});
+  }else{
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
 }
 let __cvUltimoPuntoRenderizzato = null;
 let __cvUltimoStatoRenderizzato = null;
