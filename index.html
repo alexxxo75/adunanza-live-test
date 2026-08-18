@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-163 — creata il 18/08/2026 alle 17:37
+  Versione: LT-164 — creata il 18/08/2026 alle 17:52
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -380,14 +380,21 @@
   .hidden{display:none !important;}
   .section-title{font-family:var(--font-display);font-size:16px;color:var(--ink);margin:0 0 12px;font-weight:600;}
   .muted{color:var(--text-soft);font-size:12.5px;}
-  #appello-tbody td:nth-child(3){white-space:nowrap;}
+  /* BUG CORRETTO: prima la colonna Stato non poteva mai andare a capo (white-space:nowrap) —
+     con testi lunghi come "Delega a ... (esterno) — presente fisicamente (dalle 19:49)" la
+     riga si allargava a dismisura, spingendo i pulsanti della colonna Azioni fuori dallo
+     schermo (visibili solo scorrendo orizzontalmente). Ora il testo va a capo normalmente. */
+  #appello-tbody td:nth-child(3){white-space:normal;max-width:260px;}
   .btn-appello-azione{text-align:center;box-sizing:border-box;padding:5px 6px;font-size:11px;white-space:normal;line-height:1.2;}
   select.btn-appello-azione{font-family:var(--font-body);font-size:11px;font-weight:500;padding:5px 6px;border-radius:2px;border:1px solid var(--ink);background:#fff;color:var(--ink);cursor:pointer;}
   .appello-azioni-riga{display:grid;grid-template-columns:148px 118px 138px;gap:4px;align-items:center;}
   .appello-azioni-riga .btn.small{width:100%;box-sizing:border-box;padding:5px 6px;font-size:11px;white-space:normal;line-height:1.2;text-align:center;}
   .appello-azioni-riga select.btn-appello-azione{width:100%;box-sizing:border-box;}
   .appello-slot-vuoto{visibility:hidden;}
-  .appello-nome-cella{white-space:nowrap;}
+  /* Stesso principio per la colonna del nome: un nome/etichetta insolitamente lungo (es. "Nome
+     Cognome (esterno delegato)") può ora andare a capo invece di allargare la riga all'infinito
+     — una larghezza minima ragionevole evita che vada a capo per nomi normali, brevi. */
+  .appello-nome-cella{white-space:normal;min-width:140px;max-width:220px;}
   select.btn-appello-azione optgroup{font-weight:800;text-transform:uppercase;font-style:normal;}
   .note{background:rgba(169,130,44,.08);border:1px solid rgba(169,130,44,.3);border-radius:2px;padding:10px 14px;font-size:12.5px;color:var(--ink-soft);margin-top:10px;}
 
@@ -592,7 +599,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 18/08/2026 alle 17:37">LT-163</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 18/08/2026 alle 17:52">LT-164</span></div>
   </div>
 
   <!-- MAIN -->
