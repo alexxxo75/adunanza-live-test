@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-160 — creata il 18/08/2026 alle 10:50
+  Versione: LT-161 — creata il 18/08/2026 alle 11:00
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -571,7 +571,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 18/08/2026 alle 10:50">LT-160</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 18/08/2026 alle 11:00">LT-161</span></div>
   </div>
 
   <!-- MAIN -->
@@ -1953,6 +1953,13 @@ function getActiveBuilding(){ return buildings.find(b=>b.id===activeBuildingId);
 let draftBuilding = null; // condominio in fase di creazione, non ancora salvato in buildings[]
 function getWorkingBuilding(){ return draftBuilding || getActiveBuilding(); }
 function nomeCompletoCondomino(c){ return (c.cognome?(c.cognome+' '):'') + c.nome; }
+// Unisce un elenco di nomi in una frase leggibile: "Mario Rossi", "Mario Rossi e Luigi Verdi",
+// "Mario Rossi, Luigi Verdi e Anna Bianchi" — usato per mostrare più deleganti insieme.
+function elencoConE(nomi){
+  if(!nomi || nomi.length===0) return '';
+  if(nomi.length===1) return nomi[0];
+  return nomi.slice(0,-1).join(', ') + ' e ' + nomi[nomi.length-1];
+}
 // Se per QUESTA assemblea è stata registrata una sostituzione (es. cambio di proprietà tra
 // convocazione e assemblea, scoperto solo in aula), restituisce il nome di chi lo sostituisce;
 // altrimenti il nome del condòmino stesso. Usata ovunque si mostri il nome di un condòmino in
@@ -7275,9 +7282,16 @@ function costruisciSezionePresenti(assemblea, b){
       pallinoEst = '⚪';
       infoTestoEst = 'Non ancora collegato';
     }
+    // Nomi di chi ha delegato questa persona esterna (può essere più di uno): li mostriamo tra
+    // parentesi, così è chiaro subito CHI sta rappresentando, non solo che è un delegato esterno.
+    const nomiDeleganti = Object.keys(assemblea.appello.deleghe||{})
+      .filter(idStr=>String(assemblea.appello.deleghe[idStr])===String(est.id))
+      .map(idStr=>{ const c=b.condomini.find(x=>String(x.id)===String(idStr)); return c ? nomeCompletoCondomino(c) : null; })
+      .filter(Boolean);
+    const etichettaDeleganti = nomiDeleganti.length ? ' di '+elencoConE(nomiDeleganti) : '';
     return `<div class="cv-presente-riga">
       <div class="cv-presente-riga-top"><span class="cv-presente-pallino">${pallinoEst}</span><span class="cv-presente-nome">${escapeHtml(est.nome)}</span></div>
-      <div class="cv-presente-info">${infoTestoEst} <span class="muted">(delegato esterno)</span></div>
+      <div class="cv-presente-info">${infoTestoEst} <span class="muted">(delegato esterno${escapeHtml(etichettaDeleganti)})</span></div>
     </div>`;
   }).join('');
   return `<div class="assist-panel" id="cv-sezione-presenti">
