@@ -3,6 +3,18 @@
   Adunanza — Gestione assemblee condominiali online
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
+
+  Versione: LT-160 — creata il 18/08/2026 alle 10:50
+
+  NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
+  ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
+  1) il numero di versione qui sopra (incrementarlo di 1, es. LT-160 -> LT-161) e la data/ora
+     di questa modifica (formato gg/mm/aaaa alle hh:mm);
+  2) lo stesso identico numero di versione nel tag <span> in fondo alla topbar (cercare
+     "Versione creata il" più sotto nell'HTML) — testo visibile e title, tenendoli allineati;
+  3) l'ora usata deve essere quella reale del momento della modifica (es. da un comando come
+     `date`), non un valore inventato o ricopiato dalla versione precedente.
+  Questo va fatto SEMPRE, anche se l'utente non lo richiede esplicitamente in quella chat.
 -->
 <!DOCTYPE html>
 <html lang="it">
@@ -485,7 +497,7 @@
   #cv-lista-opzioni.scelta-fatta .cv-voto-btn.scelto{ padding:20px 16px; font-size:18px; opacity:1; border-width:3px; box-shadow:0 6px 16px rgba(169,130,44,.25); }
   #cv-btn-conferma-voto{ display:block; width:100%; padding:16px 14px; margin-top:14px; font-size:17px; font-weight:700; border-radius:8px; border:none; background:#8C7D57; color:#C4BCA5; cursor:not-allowed; text-align:center; transition:.15s; }
   #cv-btn-conferma-voto.attivo{ background:var(--sage,#3E7A54); color:#fff; cursor:pointer; }
-  #cv-conferma-voto-box{ text-align:center; background:#2A2519; border:1px solid var(--sage,#3E7A54); border-radius:10px; padding:20px; font-size:17px; font-weight:700; color:var(--sage,#3E7A54); min-height:190px; display:flex; flex-direction:column; align-items:center; justify-content:center; box-sizing:border-box; }
+  #cv-conferma-voto-box{ text-align:center; background:#2A2519; border:1px solid var(--sage,#3E7A54); border-radius:10px; padding:20px; font-size:17px; font-weight:700; color:var(--sage,#3E7A54); min-height:480px; display:flex; flex-direction:column; align-items:center; justify-content:center; box-sizing:border-box; }
   #cv-conferma-voto-box .sub{ display:block; font-size:13px; font-weight:400; color:#C4BCA5; margin-top:6px; }
   /* Il riquadro del sondaggio attivo lato condòmino (sia in fase di scelta/conferma sia con il
      voto già impostato in blocco dall'amministratore): ingrandito in altezza su richiesta
@@ -559,7 +571,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 18/08/2026">LT-158</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 18/08/2026 alle 10:50">LT-160</span></div>
   </div>
 
   <!-- MAIN -->
@@ -3033,9 +3045,27 @@ function arrotondaMillesimi(v){
 // Conta quante persone (teste) hanno scelto ciascuna opzione, a partire dalle scelte
 // individuali già registrate — usata per mostrare, accanto ai millesimi, anche il numero di
 // persone che hanno votato in ciascun modo.
-function contaTesteXOpzione(scelte){
+// BUG CORRETTO: prima questa funzione contava semplicemente OGNI chiave presente in "scelte"
+// come una "testa" a sé — ma scelte contiene anche righe che NON sono teste distinte:
+// - la riga di una persona ESTERNA delegata (id testuale tipo "ext-1"): non è un condòmino, la
+//   sua riga serve solo a sapere che ha votato; la vera testa è già contata attraverso il/i
+//   condòmini che l'hanno delegata (le loro righe, con il loro id numerico, restano in scelte)
+// - le unità SECONDARIE unificate (stesso proprietario di un'altra unità, unificatoCon valorizzato):
+//   il voto viene propagato automaticamente anche a loro, ma sono la stessa persona fisica
+//   dell'unità primaria — contarle a parte raddoppierebbe le teste dello stesso proprietario.
+// In entrambi i casi il peso in millesimi resta corretto (calcolaRisultatiSondaggio già le
+// escludeva), ma il conteggio delle teste risultava gonfiato: con 3 condòmini presenti, di cui
+// uno rappresentato da un delegato esterno, il risultato mostrava 4 teste invece di 3.
+function contaTesteXOpzione(scelte, building){
   const conteggio = {};
-  Object.values(scelte||{}).forEach(optId=>{
+  Object.keys(scelte||{}).forEach(chiave=>{
+    const optId = scelte[chiave];
+    if(building){
+      const idNumerico = parseInt(chiave, 10);
+      if(isNaN(idNumerico)) return; // id testuale (es. "ext-1"): persona esterna, non una testa
+      const c = building.condomini.find(x=>x.id===idNumerico);
+      if(c && c.unificatoCon!=null) return; // unità secondaria: stessa persona già contata come primaria
+    }
     conteggio[optId] = (conteggio[optId]||0) + 1;
   });
   return conteggio;
@@ -5766,7 +5796,7 @@ function renderOdgBlocks(){
     storicoEl.className='odg-block-storico';
     (p.storicoSondaggi||[]).forEach((s,si)=>{
       const totVotato = arrotondaMillesimi(Object.values(s.risultatiFinali).reduce((a,c)=>a+c,0));
-      const teste = contaTesteXOpzione(s.scelte);
+      const teste = contaTesteXOpzione(s.scelte, b);
       const maxMill = Math.max(0, ...s.options.map(o=>s.risultatiFinali[o.id]||0));
       const card=document.createElement('div');
       card.style.cssText='background:var(--paper);border:1px solid var(--line);border-radius:3px;padding:14px 16px;margin-bottom:12px;';
@@ -6590,19 +6620,22 @@ function renderPollResults(){
   // aggiornare anche il pannello admin se aperto altrove) non deve bloccarsi con un errore
   // solo perché qui questi elementi non ci sono — usciamo silenziosamente.
   if(!elStato || !el) return;
+  const bAttivo = getActiveBuilding();
   const totals = calcolaRisultatiSondaggio();
+  const teste = contaTesteXOpzione(activePoll.scelte, bAttivo);
   const totVotatoMill = arrotondaMillesimi(Object.values(totals).reduce((s,v)=>s+v,0));
-  const totCondomini = arrotondaMillesimi(getActiveBuilding().condomini.reduce((s,c)=>s+(c.millesimi[activePoll.tabella]||0),0)) || 1;
+  const totCondomini = arrotondaMillesimi(bAttivo.condomini.reduce((s,c)=>s+(c.millesimi[activePoll.tabella]||0),0)) || 1;
   elStato.textContent =
     `Voto ponderato — ${totVotatoMill} / ${totCondomini} millesimi (${activePoll.tabella}) espressi`;
   el.innerHTML='';
   activePoll.options.forEach(o=>{
     const millesimi = totals[o.id]||0;
+    const testeOpzione = teste[o.id]||0;
     const pct = totVotatoMill ? Math.round((millesimi/totVotatoMill)*100) : 0;
     const div=document.createElement('div');
     div.className='poll-option';
     div.innerHTML=`<div style="width:110px;font-size:13px;">${o.label}</div>
-      <div class="poll-bar-track"><div class="poll-bar-fill" style="width:${pct}%"></div><div class="poll-pct">${pct}% (${millesimi}‰)</div></div>`;
+      <div class="poll-bar-track"><div class="poll-bar-fill" style="width:${pct}%"></div><div class="poll-pct">${pct}% (${millesimi}‰ — ${testeOpzione} test${testeOpzione===1?'a':'e'})</div></div>`;
     el.appendChild(div);
   });
 }
@@ -7325,7 +7358,7 @@ let __cvUltimoStatoRenderizzato = null;
 // dell'ordine del giorno — resta lì per tutta l'assemblea, non scompare più dopo un po'.
 function costruisciRisultatoSondaggioPerPunto(s, condomino){
   const mieScelta = s.scelte && condomino ? s.scelte[condomino.id] : null;
-  const teste = contaTesteXOpzione(s.scelte||{});
+  const teste = contaTesteXOpzione(s.scelte||{}, getActiveBuilding());
   const risultati = s.risultatiFinali||{};
   const totale = Object.values(risultati).reduce((sum,v)=>sum+v,0) || 1;
   const maxMill = Math.max(0, ...(s.options||[]).map(o=>risultati[o.id]||0));
@@ -8491,13 +8524,18 @@ function ricalcolaContatoriId(){
 // dell'app: usata sia dal caricamento normale sia dalla sincronizzazione in tempo reale.
 function applicaDatiRicevuti(parsed, aggiornaAncheNavigazioneLocale){
   if(!(parsed && Array.isArray(parsed.buildings) && parsed.buildings.length)) return false;
-  // Se questo aggiornamento è più VECCHIO di uno che abbiamo già applicato localmente, lo
-  // scartiamo: capita quando si fanno più azioni di fila velocemente e gli aggiornamenti dal
-  // database condiviso arrivano fuori ordine — applicarlo comunque farebbe "tornare indietro
-  // nel tempo" i dati, perdendo l'ultima modifica.
-  if(typeof parsed.__versione === 'number' && parsed.__versione < __versioneStatoLocale){
-    return false;
-  }
+  // BUG CORRETTO: qui c'era un controllo che scartava l'aggiornamento in arrivo se il suo
+  // numero di versione risultava "più vecchio" di __versioneStatoLocale — ma quel contatore è
+  // SOLO locale a QUESTO dispositivo/scheda (cresce di 1 ad ogni SUA azione, salvaStato()),
+  // mentre parsed.__versione è la versione REALE sul server condiviso. I due numeri non sono
+  // confrontabili: bastava che questo dispositivo avesse fatto qualche azione locale in più
+  // (es. l'amministratore, con molte azioni durante l'assemblea) perché il suo contatore
+  // superasse quello, ancora corretto, del server — con il risultato che QUALSIASI aggiornamento
+  // arrivato da un ALTRO dispositivo (es. un condòmino che cambia voto dal cellulare) veniva
+  // scartato in silenzio e non si vedeva mai comparire, finché un'azione con transazione di
+  // unione (es. chiudere il sondaggio) non andava a leggere i dati veri direttamente dal
+  // server, ignorando questo controllo. Il database condiviso (Firebase) consegna sempre lo
+  // stato più recente confermato: non serve un controllo di "vecchiaia" lato client.
   if(typeof parsed.__versione === 'number'){ __versioneStatoLocale = parsed.__versione; }
   buildings = parsed.buildings.map(miglioraSchemaBuilding);
   // currentCondomino (chi è "autenticato" nella pagina personale, lato cellulare) punta a un
