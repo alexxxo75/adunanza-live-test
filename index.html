@@ -5883,7 +5883,11 @@ function avviaSondaggioPerPunto(odgId, prefill){
     salvaStato();
     toast('Sondaggio avviato: "'+domanda+'"');
   }catch(err){
-    toast('Non sono riuscito ad avviare il sondaggio: '+err.message);
+    // Includiamo anche la prima riga dello stack nel messaggio: se il problema si ripresenta,
+    // basta leggere il toast (senza dover aprire la Console del browser) per capire subito da
+    // quale punto del codice arriva l'errore.
+    const primaRigaStack = (err.stack||'').split('\n')[1] || '';
+    toast('Non sono riuscito ad avviare il sondaggio: '+err.message+(primaRigaStack?' — '+primaRigaStack.trim():''));
     console.error('Errore avviaSondaggioPerPunto:', err);
   }
 }
@@ -6065,8 +6069,19 @@ function showActivePoll(){
   }
   const slot=document.getElementById('odg-live-slot-'+activePollOdgId);
   if(slot && liveNode && liveNode.parentNode!==slot) slot.appendChild(liveNode);
-  document.getElementById('active-poll').classList.remove('hidden');
-  document.getElementById('active-poll-title-input').value=activePoll.question;
+  // Guardie difensive: questi due elementi dovrebbero esistere sempre (sono markup statico),
+  // ma se per qualsiasi motivo mancassero (es. pagina non ancora completamente caricata, o un
+  // problema di parsing/hosting), meglio uscire con un avviso chiaro invece di far crashare
+  // tutto con un errore "classList of null" poco comprensibile.
+  const activePollEl = document.getElementById('active-poll');
+  if(!activePollEl){
+    console.error('[Adunanza] showActivePoll: elemento #active-poll non trovato nel DOM.');
+    toast('Errore interno: il riquadro del sondaggio non è presente nella pagina. Prova a ricaricare la pagina (F5).');
+    return;
+  }
+  activePollEl.classList.remove('hidden');
+  const titleInputEl = document.getElementById('active-poll-title-input');
+  if(titleInputEl) titleInputEl.value=activePoll.question;
   renderSelettoreTabellaSondaggio();
   renderActivePollOptionsEdit();
   renderUnanimeButtons();
@@ -6177,6 +6192,7 @@ function rimuoviOpzioneSondaggio(optId){
 }
 function renderUnanimeButtons(){
   const el=document.getElementById('unanime-buttons');
+  if(!el){ console.error('[Adunanza] renderUnanimeButtons: elemento #unanime-buttons non trovato.'); return; }
   el.innerHTML='';
   activePoll.options.forEach(o=>{
     const btn=document.createElement('button');
