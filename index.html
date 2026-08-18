@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-162 — creata il 18/08/2026 alle 12:42
+  Versione: LT-163 — creata il 18/08/2026 alle 17:37
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -592,7 +592,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 18/08/2026 alle 12:42">LT-162</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 18/08/2026 alle 17:37">LT-163</span></div>
   </div>
 
   <!-- MAIN -->
@@ -3627,9 +3627,20 @@ function chiudiModaleCatenaDelegaAdmin(){
 }
 function confermaModaleCatenaDelegaAdmin(){
   if(!__catenaDelegaAdminInSospeso) return;
-  const {building, catena, deleganteId, delegatoId} = __catenaDelegaAdminInSospeso;
+  // Rileggiamo building/assemblea DA CAPO invece di fidarci del riferimento catturato
+  // all'apertura del modale: se nel frattempo è arrivata una sincronizzazione dal database
+  // condiviso, quell'oggetto potrebbe essere ormai scollegato dallo stato reale (sostituito da
+  // uno nuovo) — scriverci sopra la delega la registrerebbe su una copia "fantasma", perdendola
+  // in silenzio invece di salvarla davvero. Gli id di catena/delegante/delegato restano invece
+  // validi anche dopo una sincronizzazione (sono numeri, non riferimenti a oggetti).
+  const buildingFresco = getActiveBuilding();
+  const {catena: catenaOriginale, deleganteId, delegatoId} = __catenaDelegaAdminInSospeso;
+  const idCatenaOriginale = new Set(catenaOriginale.map(a=>a.id));
+  const catena = buildingFresco ? (buildingFresco.assemblee||[]).filter(a=>idCatenaOriginale.has(a.id)) : [];
+  const building = buildingFresco;
   const idsScelti = Array.from(document.querySelectorAll('.catena-delega-admin-checkbox:checked')).map(el=>parseInt(el.value));
   document.getElementById('modal-catena-delega-admin').classList.add('hidden');
+  if(!building || catena.length===0){ toast('La situazione dell\'assemblea è cambiata nel frattempo: riprova.'); __catenaDelegaAdminInSospeso = null; return; }
   if(idsScelti.length===0){ toast('Nessuna assemblea selezionata: la delega non è stata registrata da nessuna parte.'); __catenaDelegaAdminInSospeso = null; return; }
   const assembleeScelte = catena.filter(a=>idsScelti.includes(a.id));
   const risultati = applicaDelegaSuCatenaScelta(building, assembleeScelte, deleganteId, delegatoId);
@@ -3741,8 +3752,10 @@ function renderPaginaDelegaCondomino(){
   // sincronizzazione in arrivo azzerasse tutto e facesse ripartire dalla schermata iniziale.
   const formCondominoVisibile = !document.getElementById('delega-form-condomino').classList.contains('hidden');
   const formEsternoVisibile = !document.getElementById('delega-form-esterno').classList.contains('hidden');
+  const catenaVisibile = !document.getElementById('delega-catena-wrap').classList.contains('hidden');
+  const confermaEmailVisibile = !document.getElementById('delega-conferma-email').classList.contains('hidden');
   const confermaAppenaMostrata = !document.getElementById('delega-fatto').classList.contains('hidden');
-  if(formCondominoVisibile || formEsternoVisibile || confermaAppenaMostrata){
+  if(formCondominoVisibile || formEsternoVisibile || catenaVisibile || confermaEmailVisibile || confermaAppenaMostrata){
     return;
   }
   // Terza rete di sicurezza: se è passato solo un istante da un'interazione (un tocco, una
@@ -3926,11 +3939,15 @@ function mostraConfermaDelega(){
 function procediDopoSceltaCatenaCv(){
   if(!__delegaCatenaCvInSospeso) return;
   segnaInterazioneDelega();
-  const {b, catena} = __delegaCatenaCvInSospeso;
   const idsScelti = Array.from(document.querySelectorAll('.delega-catena-cv-checkbox:checked')).map(el=>parseInt(el.value));
   if(idsScelti.length===0){ toast('Scegli almeno un\'assemblea, altrimenti la delega non varrebbe da nessuna parte.'); return; }
+  // Salviamo solo gli ID (non gli oggetti assemblea): li risolveremo su dati SEMPRE freschi al
+  // momento dell'invio vero e proprio (vedi invaDelegaAdAmministratore), invece di rischiare di
+  // scrivere la delega su un oggetto ormai scollegato dallo stato reale se nel frattempo è
+  // arrivata una sincronizzazione dal database condiviso.
+  const {b, catena} = __delegaCatenaCvInSospeso;
+  __delegaCatenaCvInSospeso.assembleeScelteIds = idsScelti;
   const assembleeScelte = catena.filter(ass=>idsScelti.includes(ass.id));
-  __delegaCatenaCvInSospeso.assembleeScelte = assembleeScelte;
   document.getElementById('delega-catena-wrap').classList.add('hidden');
   document.getElementById('delega-testo-email').textContent = costruisciTestoDichiarazioneDelega(b, assembleeScelte);
   document.getElementById('delega-conferma-email').classList.remove('hidden');
@@ -3981,8 +3998,13 @@ function invaDelegaAdAmministratore(){
     }
   }
   // Le assemblee coinvolte sono già state scelte prima (mostraConfermaDelega, o
-  // procediDopoSceltaCatenaCv se c'era una catena): qui ci limitiamo a scriverle davvero.
-  const assembleeCoinvolte = (__delegaCatenaCvInSospeso && __delegaCatenaCvInSospeso.assembleeScelte) || [a];
+  // procediDopoSceltaCatenaCv se c'era una catena): qui le risolviamo su dati FRESCHI (b/a
+  // sono già freschi, presi qui sopra) a partire dagli ID salvati, invece di fidarci di
+  // eventuali oggetti assemblea catturati in precedenza — che nel frattempo potrebbero essere
+  // stati sostituiti da una sincronizzazione dal database condiviso.
+  const idsAssembleeCoinvolte = (__delegaCatenaCvInSospeso && __delegaCatenaCvInSospeso.assembleeScelteIds) || [a.id];
+  const assembleeCoinvolte = idsAssembleeCoinvolte.map(id=>b.assemblee.find(x=>x.id===id)).filter(Boolean);
+  if(assembleeCoinvolte.length===0){ toast('La situazione dell\'assemblea è cambiata nel frattempo: ricarica la pagina e riprova.'); return; }
   if(assembleeCoinvolte.length===1){
     // Nessuna catena (o comunque una sola assemblea coinvolta): un solo controllo del limite
     // del quinto con avviso bloccante, come sempre, prima di scrivere.
@@ -4199,6 +4221,15 @@ function renderAppello(){
   // ricostruendo la riga sotto un menù nativo del browser ancora aperto lo si farebbe
   // comportare in modo imprevedibile (si sposta, sfarfalla, si chiude da solo).
   if(document.activeElement && tbody.contains(document.activeElement) && document.activeElement.tagName==='SELECT' && document.activeElement.id.startsWith('delega-select-')){
+    return;
+  }
+  // BUG CORRETTO: mancava la stessa protezione per il modale "Su quali assemblee vale questa
+  // delega?" (catena di assemblee concatenate) — una sincronizzazione in arrivo mentre
+  // l'amministratore aveva questo modale aperto non lo chiudeva visibilmente, ma sostituiva
+  // sotto banco l'oggetto "building"/assemblea a cui il modale fa riferimento: alla conferma,
+  // la delega finiva scritta su un oggetto ormai scollegato dallo stato reale e andava persa in
+  // silenzio, senza nessun errore visibile.
+  if(!document.getElementById('modal-catena-delega-admin').classList.contains('hidden')){
     return;
   }
   if(assemblea){
