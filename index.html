@@ -548,7 +548,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 18/08/2026 alle 09:34">LT-156</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 18/08/2026">LT-157</span></div>
   </div>
 
   <!-- MAIN -->
@@ -6217,20 +6217,34 @@ function votoUnanime(optId){
       // pulsante). FA ECCEZIONE chi è online e ha già votato DI PERSONA, individualmente, dal
       // proprio dispositivo: quella è una scelta sua, deliberata, e non va toccata da un
       // pulsante pensato per chi non ha ancora votato o segue il gruppo.
-      const daVotareInBlocco = convocatiList.filter(c=>{
+      const condominiDaVotare = convocatiList.filter(c=>{
         const attivo = recordAttivoConSecondarie(bCorrente, assembleaCorrente, c.id);
         if(!attivo) return false;
         const haGiaVotatoDiPersona = attivo.tipo==='online' && activePoll.voted.has(c.id) && !activePoll.votatoInBlocco.has(c.id);
         return !haGiaVotatoDiPersona;
       });
-      diagnostica = `Convocati: ${assembleaCorrente?assembleaCorrente.convocati.selezionati.length:'?'} — Online: ${assembleaCorrente?assembleaCorrente.appello.online.filter(r=>!r.uscita).length:'?'} — Presenti in aula: ${assembleaCorrente?assembleaCorrente.appello.presenzeFisiche.filter(r=>!r.uscita).length:'?'} — Votati in blocco: ${daVotareInBlocco.length}`;
+      // BUG CORRETTO: le persone esterne con delega (es. un familiare/legale che rappresenta un
+      // condòmino, senza essere lui stesso condòmino) non compaiono in building.condomini —
+      // senza questo controllo separato, "Tutti" le ignorava completamente, lasciando fuori dal
+      // voto in blocco chiunque avesse delegato a un esterno presente in aula (il condòmino
+      // delegante, non essendo lui stesso online/in aula, risultava "non attivo" e veniva
+      // scartato dal filtro sopra). impostaVoto(est.id, ...) propaga comunque automaticamente
+      // il voto — con il peso corretto in millesimi — a tutti i deleganti di questo esterno.
+      const esterniDaVotare = (assembleaCorrente.deleghiEsterni||[]).filter(est=>{
+        const attivo = recordAttivo(assembleaCorrente, est.id);
+        if(!attivo) return false;
+        const haGiaVotatoDiPersona = attivo.tipo==='online' && activePoll.voted.has(est.id) && !activePoll.votatoInBlocco.has(est.id);
+        return !haGiaVotatoDiPersona;
+      });
+      const daVotareInBlocco = [...condominiDaVotare, ...esterniDaVotare];
+      diagnostica = `Convocati: ${assembleaCorrente?assembleaCorrente.convocati.selezionati.length:'?'} — Online: ${assembleaCorrente?assembleaCorrente.appello.online.filter(r=>!r.uscita).length:'?'} — Presenti in aula: ${assembleaCorrente?assembleaCorrente.appello.presenzeFisiche.filter(r=>!r.uscita).length:'?'} — Esterni presenti: ${esterniDaVotare.length} — Votati in blocco: ${daVotareInBlocco.length}`;
       // Azzeriamo prima eventuali blocchi di "voto impostato manualmente" sui deleganti,
       // altrimenti la propagazione automatica dal loro delegato (che sta per votare qui sotto)
       // li salterebbe lasciando il vecchio voto.
       activePoll.overridden.clear();
       count=0;
-      daVotareInBlocco.forEach(c=>{
-        impostaVoto(c.id, optId, false, true);
+      daVotareInBlocco.forEach(p=>{
+        impostaVoto(p.id, optId, false, true);
         count++;
       });
     }
