@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-164 — creata il 18/08/2026 alle 17:52
+  Versione: LT-167 — creata il 18/08/2026 alle 18:15
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -599,7 +599,7 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 18/08/2026 alle 17:52">LT-164</span></div>
+    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 18/08/2026 alle 18:15">LT-167</span></div>
   </div>
 
   <!-- MAIN -->
@@ -3121,25 +3121,69 @@ function renderTotaliMillesimi(){
 // ---------- RILEVAMENTO CONDÒMINI CON LO STESSO NOME (nuova unione, distinta dal vecchio
 // collegamento manuale "Stesso proprietario" — usa un campo a parte, unificatoCon, che
 // determina anche una visualizzazione diversa nelle tabelle di assemblea) ----------
+// Normalizza un testo per il confronto: minuscolo, accenti rimossi (es. "è"->"e", utile per
+// varianti di trascrizione dello stesso nome), spazi multipli o iniziali/finali ridotti a uno
+// solo (o rimossi). NON tocca il testo originale mostrato all'utente, serve solo per capire se
+// due testi si riferiscono "di fatto" alla stessa cosa.
+function normalizzaTestoConfronto(s){
+  return (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim().toLowerCase();
+}
+// Come normalizzaTestoConfronto, ma per i COGNOMI: tratta spazio e trattino come equivalenti,
+// così un cognome doppio scritto in due modi diversi (es. "Rossi Bianchi" e "Rossi-Bianchi")
+// viene riconosciuto come lo stesso. Non si usa per l'email, dove il trattino può essere
+// significativo.
+function normalizzaCognomeConfronto(s){
+  return normalizzaTestoConfronto((s||'').replace(/-/g,' '));
+}
+// Due nomi (di battesimo) sono "compatibili" se sono uguali una volta normalizzati, OPPURE se
+// uno dei due è scritto in forma abbreviata/puntata (es. "Mar." o "M." per "Maria"): in tal caso
+// basta che la parte prima del punto sia un prefisso dell'altro nome. Copre sia un'unica lettera
+// puntata sia abbreviazioni più lunghe. Gestita anche una singola lettera SENZA punto (es. "M").
+// Usata SEMPRE a parità di cognome (mai da sola): "M. Rossi" e "Marco Rossi" sono compatibili,
+// ma non lo sono "M." e "Marco" di due cognomi diversi, che restano due persone distinte.
+function nomiCompatibili(nomeA, nomeB){
+  const a = normalizzaTestoConfronto(nomeA);
+  const b = normalizzaTestoConfronto(nomeB);
+  if(!a || !b) return false;
+  if(a===b) return true;
+  const provaAbbreviazione = (breve, esteso) => breve.endsWith('.') && breve.length>1 && esteso.startsWith(breve.slice(0,-1));
+  if(provaAbbreviazione(a,b) || provaAbbreviazione(b,a)) return true;
+  if(a.length===1 && a===b[0]) return true;
+  if(b.length===1 && b===a[0]) return true;
+  return false;
+}
 function trovaGruppiNomiUguali(building){
   const condomini = building.condomini;
   const padre = condomini.map((_,i)=>i);
   function trova(i){ while(padre[i]!==i){ padre[i]=padre[padre[i]]; i=padre[i]; } return i; }
   function unisci(i,j){ const ri=trova(i), rj=trova(j); if(ri!==rj) padre[ri]=rj; }
 
-  // Stessa persona se condividono nome+cognome...
-  const perNome = {};
+  // Stessa persona se condividono il cognome (normalizzato) e un nome "compatibile" (uguale, o
+  // in forma puntata/abbreviata) — confronto a coppie dentro ogni gruppo di stesso cognome, dato
+  // che un nome puntato può combaciare con più forme estese diverse e non si presta a un
+  // semplice raggruppamento per chiave esatta.
+  const perCognome = {};
   condomini.forEach((c,i)=>{
-    const chiave = (c.cognome||'').trim().toLowerCase() + '|' + (c.nome||'').trim().toLowerCase();
-    if(chiave==='|') return;
-    if(perNome[chiave]===undefined) perNome[chiave]=i; else unisci(i, perNome[chiave]);
+    const cognome = normalizzaCognomeConfronto(c.cognome);
+    if(!cognome) return;
+    if(!perCognome[cognome]) perCognome[cognome] = [];
+    perCognome[cognome].push(i);
+  });
+  Object.values(perCognome).forEach(indici=>{
+    for(let x=0;x<indici.length;x++){
+      for(let y=x+1;y<indici.length;y++){
+        if(nomiCompatibili(condomini[indici[x]].nome, condomini[indici[y]].nome)){
+          unisci(indici[x], indici[y]);
+        }
+      }
+    }
   });
   // ...OPPURE la stessa email (utile se il nome ha piccole variazioni tra una riga e l'altra,
   // ma l'indirizzo email è lo stesso): unendo entrambi i criteri, chi risulta collegato da
   // ANCHE UNO SOLO dei due finisce nello stesso gruppo, anche transitivamente.
   const perEmail = {};
   condomini.forEach((c,i)=>{
-    const email = (c.email||'').trim().toLowerCase();
+    const email = normalizzaTestoConfronto(c.email);
     if(!email) return;
     if(perEmail[email]===undefined) perEmail[email]=i; else unisci(i, perEmail[email]);
   });
@@ -3168,9 +3212,8 @@ function controllaDuplicatiNomeDopoNuovaTabella(building, nomeTabella){
 }
 function mostraPopupDuplicatiNome(building, gruppi){
   const cont = document.getElementById('popup-duplicati-corpo');
-  cont.innerHTML = `<p class="muted" style="margin-bottom:14px;">Sono stati trovati condòmini con lo stesso Nome e Cognome (o la stessa email). Se sono la stessa persona con più proprietà, collegali con un flag; nell'appello e nei sondaggi delle assemblee saranno tutti visibili ma gestiti da un'unica riga.<br><br>Se sono persone diverse, omonime, o non si è sicuri non mettere il flag e resteranno condòmini differenti; sarà possibile unirli manualmente in un secondo momento con la funzione "Stesso proprietario di" presente in Dashboard.</p>` +
+  cont.innerHTML = `<p class="muted" style="margin-bottom:14px;">Sono stati trovati condòmini con lo stesso Nome e Cognome (o la stessa email). Se sono la stessa persona con più proprietà, tieni il flag sulle righe da collegare insieme; nell'appello e nei sondaggi delle assemblee saranno tutti visibili ma gestiti da un'unica riga. Le righe verranno collegate alla PRIMA riga con il flag ancora attivo (in ordine dall'alto).<br><br>Se una riga è in realtà una persona diversa, semplicemente omonima, togli il flag solo da quella: resterà un condòmino a sé, mentre le altre righe rimaste con il flag verranno comunque collegate tra loro. Se non si è sicuri di nessuna, togli tutti i flag: resteranno tutti condòmini differenti, collegabili manualmente in un secondo momento con la funzione "Stesso proprietario di" presente in Dashboard.</p>` +
     gruppi.map((g,i)=>{
-      const secondari = g.slice(1); // il primo (g[0]) è il riferimento — le righe con flag sono le altre unità da collegare a lui
       return `
       <div class="card" style="margin-bottom:16px;background:var(--paper);padding:18px 20px;">
         <label style="display:flex;align-items:center;gap:12px;font-weight:700;margin-bottom:14px;cursor:pointer;flex-wrap:wrap;">
@@ -3187,13 +3230,7 @@ function mostraPopupDuplicatiNome(building, gruppi){
             <th style="padding:6px 12px;text-align:left;">Email</th>
           </tr></thead>
           <tbody>
-            <tr style="background:rgba(169,130,44,.08);">
-              <td style="padding:9px 8px;vertical-align:middle;" title="Riferimento: le altre righe verranno collegate a questa">★</td>
-              <td style="padding:9px 12px;vertical-align:middle;">${escapeHtml(g[0].interno||'—')}</td>
-              <td style="padding:9px 12px;vertical-align:middle;">${escapeHtml(g[0].unita||'—')}</td>
-              <td style="padding:9px 12px;vertical-align:middle;">${escapeHtml(g[0].email||'—')}</td>
-            </tr>
-            ${secondari.map((c,j)=>`<tr>
+            ${g.map((c,j)=>`<tr>
             <td style="padding:9px 8px;vertical-align:middle;"><input type="checkbox" class="popup-dup-riga-${i}" id="popup-dup-flag-${i}-${j}" style="width:19px;height:19px;display:block;" checked></td>
             <td style="padding:9px 12px;vertical-align:middle;">${escapeHtml(c.interno||'—')}</td>
             <td style="padding:9px 12px;vertical-align:middle;">${escapeHtml(c.unita||'—')}</td>
@@ -3208,10 +3245,31 @@ function mostraPopupDuplicatiNome(building, gruppi){
 function confermaCollegamentoDuplicati(){
   const gruppi = window.__gruppiDuplicatiInSospeso || [];
   gruppi.forEach((g,i)=>{
-    const primario = g[0];
-    g.slice(1).forEach((c,j)=>{
+    const idsDelGruppo = new Set(g.map(c=>c.id));
+    // Il "primario" di questo gruppo non è più fisso sulla prima riga: è la PRIMA riga che ha
+    // ancora il flag attivo, in ordine dall'alto. Se quella riga (magari proprio la prima) non
+    // ha il flag perché è una persona diversa, il primario diventa semplicemente la successiva
+    // riga con il flag ancora attivo — così le righe rimaste possono comunque unirsi tra loro.
+    let primario = null;
+    g.forEach((c,j)=>{
       const flag = document.getElementById(`popup-dup-flag-${i}-${j}`);
-      c.unificatoCon = (flag && flag.checked) ? primario.id : (c.unificatoCon===primario.id ? null : c.unificatoCon);
+      if(!primario && flag && flag.checked) primario = c;
+    });
+    g.forEach((c,j)=>{
+      const flag = document.getElementById(`popup-dup-flag-${i}-${j}`);
+      const spuntata = !!(flag && flag.checked);
+      if(!primario || c.id===primario.id){
+        // Il primario di sé stesso non punta a nessuno; stessa cosa se il gruppo, alla fine,
+        // non ha nessuna riga spuntata (nessuna unione da fare).
+        if(c.unificatoCon!=null && idsDelGruppo.has(c.unificatoCon)) c.unificatoCon = null;
+      }else if(spuntata){
+        c.unificatoCon = primario.id;
+      }else if(c.unificatoCon!=null && idsDelGruppo.has(c.unificatoCon)){
+        // Aveva un collegamento precedente verso qualcuno di QUESTO gruppo, ma ora il flag è
+        // stato tolto: lo rimuoviamo. Un eventuale collegamento verso un condòmino di un
+        // gruppo diverso (improbabile ma non impossibile) resta invece intatto.
+        c.unificatoCon = null;
+      }
     });
   });
   window.__gruppiDuplicatiInSospeso = null;
