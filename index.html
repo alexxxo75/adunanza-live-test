@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-176 — creata il 21/08/2026 alle 17:26
+  Versione: LT-178 — creata il 21/08/2026 alle 17:38
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -432,6 +432,21 @@
      allineiamo allo stesso grigio scuro delle colonne stesse, così sotto resta un unico tono
      coerente invece di un bordo/varco nero a contrasto. */
   body.cv-layout-orizzontale .condomino-view{ background:#1C1C1D; }
+  /* Gli elementi qui sotto usano tutti sfondo NERO puro fisso: nella visualizzazione VERTICALE
+     va bene così (il contenitore attorno, .condomino-view, è anch'esso nero, quindi si
+     confondono con lo sfondo). In ORIZZONTALE, però, avendo reso grigio scuro il contenitore
+     qui sopra, questi stessi elementi neri risaltavano come tanti riquadri scuri a contrasto —
+     allineati anche loro allo stesso grigio scuro, così l'intera colonna destra resta un unico
+     tono coerente, come richiesto. */
+  body.cv-layout-orizzontale #cv-testata,
+  body.cv-layout-orizzontale #cv-tipo-assemblea,
+  body.cv-layout-orizzontale #cv-video-box,
+  body.cv-layout-orizzontale #cv-btn-torna-su,
+  body.cv-layout-orizzontale .cv-odg-punto,
+  body.cv-layout-orizzontale .cv-risultato-sotto-punto,
+  body.cv-layout-orizzontale .cv-presente-riga,
+  body.cv-layout-orizzontale .cv-chat-log,
+  body.cv-layout-orizzontale #cv-chat-input{ background:#1C1C1D !important; }
   body.cv-layout-orizzontale #cv-schermata-rientro,
   body.cv-layout-orizzontale #cv-schermata-terminata{ width:100%; }
   /* I due riquadri, ben visibili e separati l'uno dall'altro, in proporzione 5/8 - 3/8: video
@@ -625,7 +640,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 21/08/2026 alle 17:26">LT-176</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 21/08/2026 alle 17:38">LT-178</span>
   </div>
 
   <!-- MAIN -->
@@ -7704,22 +7719,32 @@ function toggleVotantiSondaggio(chiaveSondaggio){
   else __sondaggiConVotantiVisibili.add(chiaveSondaggio);
   renderCvPollArea();
 }
-// Elenco di chi ha votato, con cosa e con quale peso — un rigo per condòmino/unità (le persone
-// esterne delegate non hanno una riga propria qui: il loro voto è già rappresentato dalle righe
-// dei condòmini che le hanno delegate, che portano il vero peso in millesimi).
+// Elenco di chi ha votato, con cosa e con quale peso — UNA riga per persona reale, non per
+// unità: se un condòmino ha più proprietà unite (unificatoCon), i millesimi di TUTTE le sue
+// unità vengono sommati in un'unica riga con "1 testa", esattamente come già avviene nella
+// tabella voti della pagina assemblea (renderTabellaVotiSondaggio) — prima invece compariva una
+// riga separata per ogni unità, facendo sembrare la stessa persona presente più volte. Le
+// persone esterne delegate non hanno una riga propria qui: il loro voto è già rappresentato
+// dalle righe dei condòmini che le hanno delegate, che portano il vero peso in millesimi.
 function costruisciElencoVotantiSondaggio(s, building){
   if(!building) return [];
   const scelte = s.scelte||{};
   const opzioniPerId = {}; (s.options||[]).forEach(o=>opzioniPerId[o.id]=o.label);
-  return Object.keys(scelte).map(chiaveId=>{
+  const gruppiPerPrimario = {};
+  Object.keys(scelte).forEach(chiaveId=>{
     const idNumerico = parseInt(chiaveId,10);
-    if(isNaN(idNumerico)) return null; // riga di una persona esterna: già rappresentata dai suoi deleganti
+    if(isNaN(idNumerico)) return; // riga di una persona esterna: già rappresentata dai suoi deleganti
     const c = building.condomini.find(x=>x.id===idNumerico);
-    if(!c) return null;
+    if(!c) return;
+    const primario = c.unificatoCon!=null ? building.condomini.find(x=>x.id===c.unificatoCon) : c;
+    if(!primario) return;
     const millesimi = arrotondaMillesimi((c.millesimi && c.millesimi[s.tabella]) || 0);
-    const testa = c.unificatoCon==null; // le unità secondarie non contano come testa a sé (stesso proprietario di un'altra unità)
-    return { nome: nomeCompletoCondomino(c), opzione: opzioniPerId[scelte[chiaveId]]||'(opzione sconosciuta)', millesimi, testa };
-  }).filter(Boolean).sort((a,b)=>a.nome.localeCompare(b.nome,'it'));
+    if(!gruppiPerPrimario[primario.id]){
+      gruppiPerPrimario[primario.id] = { nome: nomeCompletoCondomino(primario), opzione: opzioniPerId[scelte[chiaveId]]||'(opzione sconosciuta)', millesimi: 0 };
+    }
+    gruppiPerPrimario[primario.id].millesimi = arrotondaMillesimi(gruppiPerPrimario[primario.id].millesimi + millesimi);
+  });
+  return Object.values(gruppiPerPrimario).sort((a,b)=>a.nome.localeCompare(b.nome,'it'));
 }
 function costruisciRisultatoSondaggioPerPunto(s, condomino){
   const mieScelta = s.scelte && condomino ? s.scelte[condomino.id] : null;
@@ -7747,7 +7772,7 @@ function costruisciRisultatoSondaggioPerPunto(s, condomino){
   const votanti = mostraVotanti ? costruisciElencoVotantiSondaggio(s, getActiveBuilding()) : [];
   const votantiHtml = mostraVotanti
     ? (votanti.length
-        ? `<div class="cv-elenco-votanti">${votanti.map(v=>`<div class="cv-elenco-votanti-riga">${escapeHtml(v.nome)} \u2014 ${escapeHtml(v.opzione)} \u2014 ${v.millesimi}\u2030${v.testa?' / 1 testa':''}</div>`).join('')}</div>`
+        ? `<div class="cv-elenco-votanti">${votanti.map(v=>`<div class="cv-elenco-votanti-riga">${escapeHtml(v.nome)} \u2014 ${escapeHtml(v.opzione)} \u2014 ${v.millesimi}\u2030 / 1 testa</div>`).join('')}</div>`
         : `<p class="muted cv-elenco-votanti-vuoto">Nessun voto individuale registrato per questo sondaggio.</p>`)
     : '';
   return `<div class="cv-risultato-sotto-punto"><p class="sub" style="margin:8px 0 6px;font-weight:600;">${escapeHtml(s.question||'')}</p>${barreHtml}
