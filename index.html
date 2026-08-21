@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-174 — creata il 21/08/2026 alle 12:17
+  Versione: LT-175 — creata il 21/08/2026 alle 17:04
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -395,7 +395,7 @@
      con testi lunghi come "Delega a ... (esterno) — presente fisicamente (dalle 19:49)" la
      riga si allargava a dismisura, spingendo i pulsanti della colonna Azioni fuori dallo
      schermo (visibili solo scorrendo orizzontalmente). Ora il testo va a capo normalmente. */
-  #appello-tbody td:nth-child(3){white-space:normal;max-width:260px;}
+  #appello-tbody td:nth-child(4){white-space:normal;max-width:260px;}
   .btn-appello-azione{text-align:center;box-sizing:border-box;padding:5px 6px;font-size:11px;white-space:normal;line-height:1.2;}
   select.btn-appello-azione{font-family:var(--font-body);font-size:11px;font-weight:500;padding:5px 6px;border-radius:2px;border:1px solid var(--ink);background:#fff;color:var(--ink);cursor:pointer;}
   .appello-azioni-riga{display:grid;grid-template-columns:148px 118px 138px;gap:4px;align-items:center;}
@@ -569,6 +569,10 @@
   .cv-presente-info{ color:#C4BCA5; padding-left:24px; }
   .cv-odg-badge{ flex-shrink:0; font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:20px; background:#8C7D57; color:#C4BCA5; }
   .cv-esito-riga{ margin-bottom:12px; }
+  .cv-elenco-votanti{ background:rgba(0,0,0,.15); border-radius:4px; padding:8px 12px; margin-top:4px; max-height:220px; overflow-y:auto; }
+  .cv-elenco-votanti-riga{ font-size:12.5px; padding:3px 0; border-bottom:1px solid rgba(255,255,255,.08); color:#D8D2BE; }
+  .cv-elenco-votanti-riga:last-child{ border-bottom:none; }
+  .cv-elenco-votanti-vuoto{ text-align:center;font-size:12.5px;margin-top:4px; }
   .cv-esito-riga .etichetta{ display:flex; justify-content:space-between; align-items:center; font-size:13.5px; font-weight:600; margin-bottom:4px; color:#F2F0EC; }
   .cv-esito-riga .etichetta .cv-esito-dati{ font-family:var(--font-mono); font-size:12px; font-weight:800; color:#C4BCA5; }
   .cv-esito-vincitore{ color:var(--sage,#3E7A54) !important; }
@@ -616,7 +620,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 21/08/2026 alle 12:17">LT-174</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 21/08/2026 alle 17:04">LT-175</span>
   </div>
 
   <!-- MAIN -->
@@ -1134,7 +1138,7 @@
           <div>
             <div class="card">
               <div class="section-title">Chat</div>
-              <div class="chat-log" id="admin-chat-log" style="height:365px;max-height:365px;"></div>
+              <div class="chat-log" id="admin-chat-log" style="height:320px;max-height:320px;"></div>
               <div class="row-inline" style="align-items:center;flex-wrap:nowrap;">
                 <input id="admin-chat-input" placeholder="Scrivi un messaggio..." style="flex:1;min-width:0;width:auto;" onkeydown="if(event.key==='Enter'){event.preventDefault();sendChatMessage('Amministratore','admin-chat-input');}">
                 <button class="btn small" style="flex:0 0 auto;min-width:0;padding:4px 10px;font-size:11px;white-space:nowrap;" onclick="sendChatMessage('Amministratore','admin-chat-input')">Invia</button>
@@ -1155,7 +1159,7 @@
         <div id="appello-body">
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Condòmino</th><th>Millesimi</th><th>Stato</th><th>Azioni</th></tr></thead>
+              <thead><tr><th>Condòmino</th><th style="width:34px;"></th><th>Millesimi</th><th>Stato</th><th>Azioni</th></tr></thead>
               <tbody id="appello-tbody"></tbody>
               <tfoot><tr id="appello-tfoot"></tr></tfoot>
             </table>
@@ -1483,6 +1487,19 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
     <p id="avviso-generico-testo" class="muted" style="font-size:15px;color:var(--ink);white-space:pre-wrap;text-align:left;"></p>
     <div class="modal-actions">
       <button class="btn" onclick="chiudiAvvisoGenerico()">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- Avviso quando l'amministratore lascia la pagina dell'assemblea con l'assemblea avviata ma
+     non ancora terminata: promemoria, non un blocco — si può comunque uscire. -->
+<div class="modal-overlay hidden" id="modal-uscita-assemblea-non-terminata">
+  <div class="modal-box">
+    <h3>⚠️ Attenzione — assemblea non terminata</h3>
+    <p class="muted" style="font-size:15px;color:var(--ink);text-align:left;">L'assemblea risulta avviata ma non ancora terminata: ricordati di premere "Termina assemblea" quando la riunione sarà davvero conclusa. Puoi comunque continuare a spostarti nell'app nel frattempo.</p>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="restaSullAssemblea()">Resta nell'assemblea</button>
+      <button class="btn" onclick="confermaUscitaAssembleaNonTerminata()">Esci comunque</button>
     </div>
   </div>
 </div>
@@ -2318,6 +2335,20 @@ document.addEventListener('visibilitychange', ()=>{
   }
 });
 function goPage(name){
+  // Se l'amministratore sta lasciando la pagina dell'assemblea (per andare altrove nell'app)
+  // mentre l'assemblea è stata avviata ma NON ancora terminata col tasto "Termina assemblea",
+  // avvisiamo prima di uscire — resta comunque possibile uscire, è solo un promemoria. Il
+  // parametro forzaUscita (secondo argomento) bypassa il controllo: usato dal pulsante "Esci
+  // comunque" del modale stesso, per completare davvero la navigazione dopo la conferma.
+  if(currentPage==='assemblea' && name!=='assemblea' && !arguments[1]){
+    const bCorrente = getActiveBuilding();
+    const assembleaCorrente = getAssembleaInCorso(bCorrente);
+    if(assembleaCorrente && assembleaCorrente.iniziata && assembleaCorrente.stato!=='conclusa'){
+      __paginaInAttesaDopoAvvisoUscitaAssemblea = name;
+      document.getElementById('modal-uscita-assemblea-non-terminata').classList.remove('hidden');
+      return;
+    }
+  }
   aggiornaNomeStudioTopbar();
   // Impedisce che lo schermo del telefono si spenga da solo per inattività mentre si è in
   // assemblea (utile soprattutto quando non si sta guardando il video, ma leggendo l'ordine
@@ -2404,6 +2435,19 @@ function toast(msg){
   const t=document.getElementById('toast');
   t.textContent=msg; t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),4600);
+}
+// Avviso "assemblea non terminata" quando l'amministratore prova a lasciare la pagina
+// dell'assemblea (vedi il controllo in cima a goPage()).
+let __paginaInAttesaDopoAvvisoUscitaAssemblea = null;
+function restaSullAssemblea(){
+  __paginaInAttesaDopoAvvisoUscitaAssemblea = null;
+  document.getElementById('modal-uscita-assemblea-non-terminata').classList.add('hidden');
+}
+function confermaUscitaAssembleaNonTerminata(){
+  const destinazione = __paginaInAttesaDopoAvvisoUscitaAssemblea;
+  __paginaInAttesaDopoAvvisoUscitaAssemblea = null;
+  document.getElementById('modal-uscita-assemblea-non-terminata').classList.add('hidden');
+  if(destinazione) goPage(destinazione, true); // il secondo argomento bypassa il controllo, per non riaprire subito lo stesso avviso
 }
 // Sostituto di alert(): il popup nativo del browser mostra sempre "<indirizzo del sito> dice"
 // come titolo, impossibile da cambiare via codice — questo modale mostra invece "Attenzione".
@@ -4423,6 +4467,7 @@ function renderAppello(){
     tdNome.className='appello-nome-cella';
     tdNome.innerHTML=semaforoAppello(semEst)+`${est.nome} <span class="muted">${indentata?'(esterno delegato)':'(persona esterna)'}</span>`;
     tr.appendChild(tdNome);
+    const tdBustaEst=document.createElement('td'); tr.appendChild(tdBustaEst);
     const tdMillEst=document.createElement('td'); tdMillEst.innerHTML='<span class="muted">—</span>'; tr.appendChild(tdMillEst);
     const tdStato=document.createElement('td');
     if(attivoEst && attivoEst.tipo==='online') tdStato.innerHTML = `<span class="badge">🟢 Online (dalle ${attivoEst.rec.entrata})</span>`;
@@ -4484,12 +4529,16 @@ function renderAppello(){
 
     const sostituzioneRiga = assemblea.sostituzioniPartecipanti && assemblea.sostituzioniPartecipanti[c.id];
     const tdNome=document.createElement('td'); tdNome.className='appello-nome-cella';
+    tdNome.innerHTML=semaforoAppello(semStato)+`<span class="nome-cliccabile-sostituzione" title="Clicca per sostituire questo partecipante per questa assemblea" onclick="apriSostituzionePartecipante(${c.id})" style="cursor:pointer;border-bottom:1px dotted var(--text-soft);">${nomeEffettivoCondominoAssemblea(c, assemblea)}</span>`;
+    tr.appendChild(tdNome);
+
     // Busta per rivedere/modificare/reinviare l'email di convocazione direttamente da qui: utile
     // se, appena prima che l'assemblea inizi, ci si accorge che va reinviata a qualcuno (stessa
-    // identica anteprima già usata nel Riepilogo invitati, riusata qui).
-    const bustaHtml = `<span onclick="apriAnteprimaEmailSingola(${c.id})" title="Vedi, modifica o reinvia l'email di convocazione di questo invitato" style="cursor:pointer;font-size:14px;margin-left:8px;" role="button">✉️</span>`;
-    tdNome.innerHTML=semaforoAppello(semStato)+`<span class="nome-cliccabile-sostituzione" title="Clicca per sostituire questo partecipante per questa assemblea" onclick="apriSostituzionePartecipante(${c.id})" style="cursor:pointer;border-bottom:1px dotted var(--text-soft);">${nomeEffettivoCondominoAssemblea(c, assemblea)}</span>`+bustaHtml;
-    tr.appendChild(tdNome);
+    // identica anteprima già usata nel Riepilogo invitati, riusata qui). In una colonna a sé,
+    // stretta quanto basta a contenere solo l'icona.
+    const tdBusta=document.createElement('td'); tdBusta.style.textAlign='center'; tdBusta.style.width='34px';
+    tdBusta.innerHTML = `<span onclick="apriAnteprimaEmailSingola(${c.id})" title="Vedi, modifica o reinvia l'email di convocazione di questo invitato" style="cursor:pointer;font-size:15px;" role="button">✉️</span>`;
+    tr.appendChild(tdBusta);
 
     // Se questo condòmino ha una o più unità unificate a lui (stesso proprietario, collegate
     // col nuovo meccanismo), la riga principale NON mostra un peso in millesimi proprio —
@@ -4694,6 +4743,7 @@ function renderAppello(){
     const tdNome=document.createElement('td');
     tdNome.innerHTML=`<span title="${titoloSemaforo}" style="display:inline-block;width:11px;height:11px;border-radius:50%;background:${colore};margin-right:9px;vertical-align:middle;flex-shrink:0;"></span>${nomeCompletoCondomino(c)}`;
     tr.appendChild(tdNome);
+    const tdBustaNc=document.createElement('td'); tr.appendChild(tdBustaNc);
     const tdMill=document.createElement('td'); tdMill.innerHTML='<span class="muted">—</span>'; tr.appendChild(tdMill);
     const tdStato=document.createElement('td');
     tdStato.innerHTML = attivo
@@ -4726,6 +4776,7 @@ function renderAppello(){
     const tr=document.createElement('tr');
     tr.style.background='var(--paper)';
     const tdNome=document.createElement('td'); tdNome.innerHTML=semaforoAppello('rosso')+`${nr.nome} <span class="muted">(non riconosciuto/a)</span>`; tr.appendChild(tdNome);
+    const tdBustaNr=document.createElement('td'); tr.appendChild(tdBustaNr);
     const tdMillNr=document.createElement('td'); tdMillNr.innerHTML='<span class="muted">—</span>'; tr.appendChild(tdMillNr);
     const tdStato=document.createElement('td'); tdStato.innerHTML='<span class="badge-convocazione-non-inviata">DA VERIFICARE</span>'; tr.appendChild(tdStato);
     const tdAz=document.createElement('td');
@@ -4738,7 +4789,7 @@ function renderAppello(){
 
   const tfoot = document.getElementById('appello-tfoot');
   if(tfoot){
-    tfoot.innerHTML = `<td colspan="2" style="font-weight:700;">Totale presenti: ${testePresenti}/${totaleTeste}</td><td colspan="2" style="font-weight:700;">${millPresenti} / 1000‰</td>`;
+    tfoot.innerHTML = `<td colspan="3" style="font-weight:700;">Totale presenti: ${testePresenti}/${totaleTeste}</td><td colspan="2" style="font-weight:700;">${millPresenti} / 1000‰</td>`;
   }
   renderSchemaDelegheAppello(assemblea, b);
 }
@@ -7626,6 +7677,33 @@ let __cvUltimoPuntoRenderizzato = null;
 let __cvUltimoStatoRenderizzato = null;
 // Un risultato di sondaggio concluso, mostrato in modo permanente sotto il proprio punto
 // dell'ordine del giorno — resta lì per tutta l'assemblea, non scompare più dopo un po'.
+// Stato SOLO in memoria (si azzera ricaricando la pagina, va bene così: è un semplice
+// "mostra/nascondi" manuale) di quali sondaggi hanno l'elenco dei votanti tenuto visibile a
+// mano dal condòmino tramite il bottone "Mostra i voti", anche oltre la finestra di tempo in
+// cui compaiono automaticamente. Chiave: s.chiusoEpoch (unico per ogni sondaggio chiuso).
+let __sondaggiConVotantiVisibili = new Set();
+function toggleVotantiSondaggio(chiaveSondaggio){
+  if(__sondaggiConVotantiVisibili.has(chiaveSondaggio)) __sondaggiConVotantiVisibili.delete(chiaveSondaggio);
+  else __sondaggiConVotantiVisibili.add(chiaveSondaggio);
+  renderCvPollArea();
+}
+// Elenco di chi ha votato, con cosa e con quale peso — un rigo per condòmino/unità (le persone
+// esterne delegate non hanno una riga propria qui: il loro voto è già rappresentato dalle righe
+// dei condòmini che le hanno delegate, che portano il vero peso in millesimi).
+function costruisciElencoVotantiSondaggio(s, building){
+  if(!building) return [];
+  const scelte = s.scelte||{};
+  const opzioniPerId = {}; (s.options||[]).forEach(o=>opzioniPerId[o.id]=o.label);
+  return Object.keys(scelte).map(chiaveId=>{
+    const idNumerico = parseInt(chiaveId,10);
+    if(isNaN(idNumerico)) return null; // riga di una persona esterna: già rappresentata dai suoi deleganti
+    const c = building.condomini.find(x=>x.id===idNumerico);
+    if(!c) return null;
+    const millesimi = arrotondaMillesimi((c.millesimi && c.millesimi[s.tabella]) || 0);
+    const testa = c.unificatoCon==null; // le unità secondarie non contano come testa a sé (stesso proprietario di un'altra unità)
+    return { nome: nomeCompletoCondomino(c), opzione: opzioniPerId[scelte[chiaveId]]||'(opzione sconosciuta)', millesimi, testa };
+  }).filter(Boolean).sort((a,b)=>a.nome.localeCompare(b.nome,'it'));
+}
 function costruisciRisultatoSondaggioPerPunto(s, condomino){
   const mieScelta = s.scelte && condomino ? s.scelte[condomino.id] : null;
   const teste = contaTesteXOpzione(s.scelte||{}, getActiveBuilding());
@@ -7641,7 +7719,24 @@ function costruisciRisultatoSondaggioPerPunto(s, condomino){
     return `<div class="cv-esito-riga ${eLaMiaScelta?'mia':''}"><div class="etichetta"><span class="${eVincitore?'cv-esito-vincitore':''}">${escapeHtml(o.label)}${eLaMiaScelta?' ✓':''}</span><span class="cv-esito-dati">${voti}\u2030 \u2014 ${testeOpzione} test${testeOpzione===1?'a':'e'}</span></div>
       <div class="cv-esito-barra-sfondo"><div class="cv-esito-barra-riempita ${eVincitore?'cv-esito-vincitore-barra':''}" style="width:${percentuale}%;"></div></div></div>`;
   }).join('');
-  return `<div class="cv-risultato-sotto-punto"><p class="sub" style="margin:8px 0 6px;font-weight:600;">${escapeHtml(s.question||'')}</p>${barreHtml}</div>`;
+  // L'elenco dei votanti compare da solo per la stessa finestra di tempo in cui l'esito resta
+  // "in primo piano" (5s in verticale, 10s in orizzontale — stessa logica di
+  // trovaRisultatoSondaggioRecentementeChiuso), poi si nasconde da solo lasciando solo l'esito
+  // — ma resta richiamabile in qualsiasi momento col bottone, anche molto più tardi.
+  const chiaveSondaggio = s.chiusoEpoch || 0;
+  const inOrizzontale = document.body.classList.contains('cv-layout-orizzontale');
+  const finestraMs = inOrizzontale ? 10000 : 5000;
+  const entroLaFinestra = s.chiusoEpoch && (Date.now()-s.chiusoEpoch) < finestraMs;
+  const mostraVotanti = entroLaFinestra || __sondaggiConVotantiVisibili.has(chiaveSondaggio);
+  const votanti = mostraVotanti ? costruisciElencoVotantiSondaggio(s, getActiveBuilding()) : [];
+  const votantiHtml = mostraVotanti
+    ? (votanti.length
+        ? `<div class="cv-elenco-votanti">${votanti.map(v=>`<div class="cv-elenco-votanti-riga">${escapeHtml(v.nome)} \u2014 ${escapeHtml(v.opzione)} \u2014 ${v.millesimi}\u2030${v.testa?' / 1 testa':''}</div>`).join('')}</div>`
+        : `<p class="muted cv-elenco-votanti-vuoto">Nessun voto individuale registrato per questo sondaggio.</p>`)
+    : '';
+  return `<div class="cv-risultato-sotto-punto"><p class="sub" style="margin:8px 0 6px;font-weight:600;">${escapeHtml(s.question||'')}</p>${barreHtml}
+    <div style="text-align:center;margin:8px 0;"><button class="btn small secondary" onclick="toggleVotantiSondaggio(${chiaveSondaggio})">${mostraVotanti?'Nascondi i voti':'Mostra i voti'}</button></div>
+    ${votantiHtml}</div>`;
 }
 // Il sondaggio ATTIVO in questo momento: sempre "in primo piano", sopra l'ordine del giorno.
 // Determina CHI sta davvero votando in questo momento su questo dispositivo: normalmente il
