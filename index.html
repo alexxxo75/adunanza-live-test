@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-178 — creata il 21/08/2026 alle 17:38
+  Versione: LT-179 — creata il 21/08/2026 alle 17:47
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -427,11 +427,13 @@
      scorrono a destra. In verticale questa sezione non si applica affatto: nulla cambia lì. */
   body.cv-layout-orizzontale #condomino-view-box{ max-width:none; width:100%; }
   body.cv-layout-orizzontale .condomino-shell{ display:flex; justify-content:center; padding:14px 10px; }
-  /* Il riquadro NERO che si vedeva nel varco tra le due colonne era lo sfondo di
-     .condomino-view (il contenitore comune a entrambe): qui, solo in orizzontale, lo
-     allineiamo allo stesso grigio scuro delle colonne stesse, così sotto resta un unico tono
-     coerente invece di un bordo/varco nero a contrasto. */
-  body.cv-layout-orizzontale .condomino-view{ background:#1C1C1D; }
+  /* Il riquadro NERO segnalato dall'utente era lo sfondo di .condomino-view (il contenitore
+     comune alle due colonne): un primo tentativo lo aveva reso #1C1C1D (grigio molto scuro),
+     ma visivamente si confonde ancora con il nero. Ora è reso TRASPARENTE: sotto resta visibile
+     solo il grigio di .condomino-shell (#313132), un livello in meno tra il bordo grigio
+     chiaro esterno (sfondo pagina) e le due colonne (video/pulsanti a sinistra,
+     Presidente/Segretario/ODG a destra) — SOLO in orizzontale, il verticale resta invariato. */
+  body.cv-layout-orizzontale .condomino-view{ background:transparent; }
   /* Gli elementi qui sotto usano tutti sfondo NERO puro fisso: nella visualizzazione VERTICALE
      va bene così (il contenitore attorno, .condomino-view, è anch'esso nero, quindi si
      confondono con lo sfondo). In ORIZZONTALE, però, avendo reso grigio scuro il contenitore
@@ -640,7 +642,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 21/08/2026 alle 17:38">LT-178</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 21/08/2026 alle 17:47">LT-179</span>
   </div>
 
   <!-- MAIN -->
