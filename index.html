@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-175 — creata il 21/08/2026 alle 17:04
+  Versione: LT-176 — creata il 21/08/2026 alle 17:26
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -427,6 +427,11 @@
      scorrono a destra. In verticale questa sezione non si applica affatto: nulla cambia lì. */
   body.cv-layout-orizzontale #condomino-view-box{ max-width:none; width:100%; }
   body.cv-layout-orizzontale .condomino-shell{ display:flex; justify-content:center; padding:14px 10px; }
+  /* Il riquadro NERO che si vedeva nel varco tra le due colonne era lo sfondo di
+     .condomino-view (il contenitore comune a entrambe): qui, solo in orizzontale, lo
+     allineiamo allo stesso grigio scuro delle colonne stesse, così sotto resta un unico tono
+     coerente invece di un bordo/varco nero a contrasto. */
+  body.cv-layout-orizzontale .condomino-view{ background:#1C1C1D; }
   body.cv-layout-orizzontale #cv-schermata-rientro,
   body.cv-layout-orizzontale #cv-schermata-terminata{ width:100%; }
   /* I due riquadri, ben visibili e separati l'uno dall'altro, in proporzione 5/8 - 3/8: video
@@ -620,7 +625,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 21/08/2026 alle 17:04">LT-175</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 21/08/2026 alle 17:26">LT-176</span>
   </div>
 
   <!-- MAIN -->
@@ -6572,7 +6577,13 @@ function votoUnanime(optId){
       // pulsante). FA ECCEZIONE chi è online e ha già votato DI PERSONA, individualmente, dal
       // proprio dispositivo: quella è una scelta sua, deliberata, e non va toccata da un
       // pulsante pensato per chi non ha ancora votato o segue il gruppo.
+      const idsConvocatiSet = new Set(convocatiList.map(c=>c.id));
       const condominiDaVotare = convocatiList.filter(c=>{
+        // Le unità SECONDARIE (stesso proprietario di un'altra unità PRESENTE in questo elenco)
+        // non vanno votate a parte: impostaVoto() propaga già automaticamente il voto a loro
+        // quando si vota la primaria. Votarle anche qui le conterebbe due volte nel messaggio
+        // finale ("assegnato a N persone"), gonfiando il numero reale di persone coinvolte.
+        if(c.unificatoCon && idsConvocatiSet.has(c.unificatoCon)) return false;
         const attivo = recordAttivoConSecondarie(bCorrente, assembleaCorrente, c.id);
         if(!attivo) return false;
         const haGiaVotatoDiPersona = attivo.tipo==='online' && activePoll.voted.has(c.id) && !activePoll.votatoInBlocco.has(c.id);
@@ -7525,7 +7536,13 @@ function costruisciSezionePresenti(assemblea, b){
   const {totaleTeste, testePresenti} = contaTeste(convocatiList, assemblea, b);
   const totMillConvocati = arrotondaMillesimi(convocatiList.reduce((s,c)=>s+(pesoConvocato(c,assemblea,b)),0)) || 1;
   const millPresenti = arrotondaMillesimi(rappresentati.reduce((s,c)=>s+(pesoConvocato(c,assemblea,b)),0));
-  const righeHtml = convocatiList.map(c=>{
+  const idsConvocati = new Set(convocatiList.map(c=>c.id));
+  // Le unità SECONDARIE (stesso proprietario di un'altra unità PRESENTE in questa stessa lista,
+  // unificatoCon) non hanno una riga propria: comparirebbero come se fossero una persona
+  // diversa, quando sono lo stesso proprietario — stessa esclusione già usata ovunque nel resto
+  // del codice per questo scopo (es. tabella Appello dell'amministratore).
+  const convocatiListPerRighe = convocatiList.filter(c=>!(c.unificatoCon && idsConvocati.has(c.unificatoCon)));
+  const righeHtml = convocatiListPerRighe.map(c=>{
     const attivo = recordAttivoConSecondarie(b, assemblea, c.id);
     const recOnlineUscito = (assemblea.appello.online||[]).find(r=>r.condominoId===c.id && r.uscita);
     const recPresenzaUscito = (assemblea.appello.presenzeFisiche||[]).find(r=>r.condominoId===c.id && r.uscita);
@@ -7720,12 +7737,11 @@ function costruisciRisultatoSondaggioPerPunto(s, condomino){
       <div class="cv-esito-barra-sfondo"><div class="cv-esito-barra-riempita ${eVincitore?'cv-esito-vincitore-barra':''}" style="width:${percentuale}%;"></div></div></div>`;
   }).join('');
   // L'elenco dei votanti compare da solo per la stessa finestra di tempo in cui l'esito resta
-  // "in primo piano" (5s in verticale, 10s in orizzontale — stessa logica di
+  // "in primo piano" (7 secondi, sia in verticale che in orizzontale — stessa logica di
   // trovaRisultatoSondaggioRecentementeChiuso), poi si nasconde da solo lasciando solo l'esito
   // — ma resta richiamabile in qualsiasi momento col bottone, anche molto più tardi.
   const chiaveSondaggio = s.chiusoEpoch || 0;
-  const inOrizzontale = document.body.classList.contains('cv-layout-orizzontale');
-  const finestraMs = inOrizzontale ? 10000 : 5000;
+  const finestraMs = 7000; // stessi 7 secondi sia in verticale che in orizzontale, su richiesta esplicita
   const entroLaFinestra = s.chiusoEpoch && (Date.now()-s.chiusoEpoch) < finestraMs;
   const mostraVotanti = entroLaFinestra || __sondaggiConVotantiVisibili.has(chiaveSondaggio);
   const votanti = mostraVotanti ? costruisciElencoVotantiSondaggio(s, getActiveBuilding()) : [];
@@ -7886,11 +7902,8 @@ function collegaInterazioneSondaggioAttivo(){
 let __cvMomentoVotoConfermato = null; // quando si è confermato il voto, per il conto alla rovescia di 4s in verticale
 function trovaRisultatoSondaggioRecentementeChiuso(assemblea){
   if(!assemblea || !assemblea.odg) return null;
-  // In verticale il risultato resta in primo piano solo 5 secondi (non più 10): in
-  // orizzontale il comportamento è diverso (gestito a parte, con l'attesa se si sta scrivendo
-  // in chat) e qui resta come prima.
-  const inOrizzontale = document.body.classList.contains('cv-layout-orizzontale');
-  const finestraMs = inOrizzontale ? 10000 : 5000;
+  // Il risultato resta in primo piano per 7 secondi, sia in verticale che in orizzontale.
+  const finestraMs = 7000; // stessi 7 secondi sia in verticale che in orizzontale, su richiesta esplicita
   let piuRecente = null;
   assemblea.odg.forEach((p,i)=>{
     const storico = p.storicoSondaggi||[];
