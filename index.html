@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-169 — creata il 21/08/2026 alle 07:10
+  Versione: LT-170 — creata il 21/08/2026 alle 07:25
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -150,6 +150,13 @@
 
   /* TOPBAR */
   .topbar{position:fixed;top:0;left:0;right:0;height:52px;background:var(--ink);color:#EDEEEB;display:flex;align-items:center;gap:26px;padding:0 24px;z-index:150;}
+  /* Barra diagnostica: sottile, nera, sempre fissa in fondo allo schermo visibile — resta ferma
+     mentre il resto della pagina scorre sopra di lei. Contiene solo le informazioni "di
+     servizio" (stato connessione, persone monitorate, esporta dati, versione), spostate qui via
+     dalla topbar in alto su richiesta esplicita. */
+  .footbar-diagnostica{position:fixed;bottom:0;left:0;right:0;height:26px;background:#000;color:rgba(255,255,255,.5);display:flex;align-items:center;gap:14px;padding:0 20px;font-size:11px;white-space:nowrap;overflow-x:auto;z-index:150;}
+  .footbar-diagnostica span{cursor:pointer;text-decoration:underline;flex-shrink:0;}
+  .footbar-diagnostica span:hover{color:rgba(255,255,255,.8);}
   .topbar-brand{font-family:var(--font-display);font-size:16px;font-weight:600;color:#fff;flex-shrink:0;}
   .topbar-nav{display:flex;align-items:center;gap:2px;flex:1;overflow-x:auto;}
   .topbar-foot{margin-left:auto;display:flex;gap:14px;font-size:11px;color:rgba(255,255,255,.4);flex-shrink:0;white-space:nowrap;}
@@ -599,7 +606,13 @@
         <div class="nav-item" onclick="scrollToSezione('sezione-verbale')">Verbale</div>
       </div>
     </div>
-    <div class="topbar-foot"><span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span><span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span><span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span><span onclick="esportaDatiDiagnostica()">Esporta dati</span><span style="cursor:default;text-decoration:none;" title="Versione creata il 21/08/2026 alle 07:10">LT-169</span></div>
+  </div>
+  <div class="footbar-diagnostica" id="footbar-diagnostica-principale">
+    <span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span>
+    <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
+    <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
+    <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 21/08/2026 alle 07:25">LT-170</span>
   </div>
 
   <!-- MAIN -->
@@ -2291,13 +2304,24 @@ function goPage(name){
   // nascondiamo del tutto in queste pagine, comprimendo lo spazio lasciato libero.
   const topbarEl = document.getElementById('topbar-principale');
   const paginePersonaliCondomino = ['vista-condomino','delega-condomino'];
+  const footbarEl = document.getElementById('footbar-diagnostica-principale');
   if(topbarEl){
     if(paginePersonaliCondomino.includes(name)){
       topbarEl.classList.add('hidden');
       document.querySelector('.main').style.margin = '0 auto';
+      // Riportiamo il padding al valore di base (definito nel CSS): il valore maggiorato serve
+      // solo lato amministratore per lasciare spazio alla barra diagnostica in fondo, che qui
+      // non c'è. Lasciarlo "appiccicato" romperebbe il calcolo del margine negativo qui sotto,
+      // pensato apposta per annullare ESATTAMENTE il padding di base di .main.
+      document.querySelector('.main').style.paddingBottom = '';
+      if(footbarEl) footbarEl.classList.add('hidden');
     }else{
       topbarEl.classList.remove('hidden');
       document.querySelector('.main').style.margin = '';
+      // Un po' di spazio in più in fondo, così la barra diagnostica fissa (visibile solo qui)
+      // non copre mai l'ultima riga di contenuto quando si scorre fino in fondo alla pagina.
+      document.querySelector('.main').style.paddingBottom = '58px';
+      if(footbarEl) footbarEl.classList.remove('hidden');
     }
   }
   const paginePerCondominio = ['dashboard','crea-assemblea','assemblea','registrazioni','invio-verbale'];
