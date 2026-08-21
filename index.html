@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-173 — creata il 21/08/2026 alle 09:36
+  Versione: LT-174 — creata il 21/08/2026 alle 12:17
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -616,14 +616,14 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 21/08/2026 alle 09:36">LT-173</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 21/08/2026 alle 12:17">LT-174</span>
   </div>
 
   <!-- MAIN -->
   <div class="main">
 
     <div class="active-banner hidden" id="active-banner">
-      <div class="lbl">Stai lavorando su</div>
+      <div class="lbl">Condomìnio:</div>
       <div class="name" id="active-banner-name">—</div>
     </div>
 
@@ -1134,7 +1134,7 @@
           <div>
             <div class="card">
               <div class="section-title">Chat</div>
-              <div class="chat-log" id="admin-chat-log" style="max-height:320px;"></div>
+              <div class="chat-log" id="admin-chat-log" style="height:365px;max-height:365px;"></div>
               <div class="row-inline" style="align-items:center;flex-wrap:nowrap;">
                 <input id="admin-chat-input" placeholder="Scrivi un messaggio..." style="flex:1;min-width:0;width:auto;" onkeydown="if(event.key==='Enter'){event.preventDefault();sendChatMessage('Amministratore','admin-chat-input');}">
                 <button class="btn small" style="flex:0 0 auto;min-width:0;padding:4px 10px;font-size:11px;white-space:nowrap;" onclick="sendChatMessage('Amministratore','admin-chat-input')">Invia</button>
@@ -1178,6 +1178,16 @@
 
       <div class="card" id="inizia-assemblea-card" style="margin-bottom:18px;">
         <div id="inizia-assemblea-banner"></div>
+      </div>
+
+      <div class="card" id="cariche-assemblea-card" style="margin-bottom:18px;">
+        <div class="section-title" style="margin-bottom:10px;">👤 Presidente e Segretario dell'assemblea</div>
+        <label>Presidente nominato:</label>
+        <input type="text" id="input-presidente-nominato" placeholder="Nome e cognome" oninput="segnaScritturaCaricaAssemblea()" onchange="salvaCaricaAssemblea('Presidente', this.value)">
+        <label style="margin-top:10px;display:block;">Segretario nominato:</label>
+        <input type="text" id="input-segretario-nominato" placeholder="Nome e cognome" oninput="segnaScritturaCaricaAssemblea()" onchange="salvaCaricaAssemblea('Segretario', this.value)">
+        <div class="note" style="margin-top:10px;">Questi nominativi vengono riportati nel verbale. Se cambiano nel corso dell'assemblea, il verbale registrerà anche l'orario del cambio.</div>
+        <div id="cronologia-cariche-assemblea" class="muted" style="font-size:12.5px;margin-top:8px;"></div>
       </div>
 
       <div class="card hidden" id="active-poll" style="margin-bottom:18px;border-left:4px solid var(--brass);">
@@ -1241,7 +1251,7 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
         <button class="btn" id="gen-verbale-btn" onclick="generaVerbale()">Genera verbale con IA</button>
         <div id="verbale-output" style="margin-top:16px;"></div>
         <div class="note" style="margin-top:14px;">Quando l'assemblea è conclusa (verbale generato, sondaggi chiusi), archiviala: resterà consultabile nella scheda del condominio, con il video disponibile per 60 giorni.</div>
-        <button class="btn" style="margin-top:10px;background:var(--brick);border-color:var(--brick);" onclick="terminaAssemblea()">🔴 Termina assemblea</button>
+        <button class="btn full" style="margin-top:10px;padding:20px;font-size:18px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;display:flex;align-items:center;justify-content:center;gap:10px;background:var(--brick);border-color:var(--brick);" onclick="terminaAssemblea()">🔴 Termina assemblea</button>
         <div id="avviso-catena-termina" class="hidden note" style="margin-top:10px;border-color:var(--brass);color:var(--ink);"></div>
       </div>
     </div>
@@ -1460,6 +1470,19 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
     <div class="modal-actions">
       <button class="btn secondary" onclick="chiudiModalEsciAssemblea()">Resta</button>
       <button class="btn" style="background:var(--brick);border-color:var(--brick);" onclick="confermaEsciAssemblea()">Abbandona</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sostituisce gli alert() nativi del browser: quelli mostrano sempre il titolo "<indirizzo del
+     sito> dice" (impossibile da personalizzare, per motivi di sicurezza del browser stesso) —
+     questo modale, tutto nostro, mostra invece "⚠️ Attenzione" come titolo vero. -->
+<div class="modal-overlay hidden" id="modal-avviso-generico">
+  <div class="modal-box">
+    <h3>⚠️ Attenzione</h3>
+    <p id="avviso-generico-testo" class="muted" style="font-size:15px;color:var(--ink);white-space:pre-wrap;text-align:left;"></p>
+    <div class="modal-actions">
+      <button class="btn" onclick="chiudiAvvisoGenerico()">OK</button>
     </div>
   </div>
 </div>
@@ -2371,7 +2394,7 @@ function goPage(name){
   }
   if(name==='dashboard') renderDashboard();
   if(name==='crea-assemblea') renderCreaAssemblea();
-  if(name==='assemblea'){ aggiornaTitoloAssemblea(); renderHandsList(); renderChat('admin-chat-log'); renderOdgBlocks(); renderAppello(); renderFloatingActivePoll(); }
+  if(name==='assemblea'){ aggiornaTitoloAssemblea(); renderHandsList(); renderChat('admin-chat-log'); renderOdgBlocks(); renderAppello(); renderFloatingActivePoll(); renderCaricheAssemblea(); }
   if(name==='registrazioni') renderRegistrazioni();
   renderNavSubmenu();
 }
@@ -2381,6 +2404,15 @@ function toast(msg){
   const t=document.getElementById('toast');
   t.textContent=msg; t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),4600);
+}
+// Sostituto di alert(): il popup nativo del browser mostra sempre "<indirizzo del sito> dice"
+// come titolo, impossibile da cambiare via codice — questo modale mostra invece "Attenzione".
+function mostraAvviso(messaggio){
+  document.getElementById('avviso-generico-testo').textContent = messaggio;
+  document.getElementById('modal-avviso-generico').classList.remove('hidden');
+}
+function chiudiAvvisoGenerico(){
+  document.getElementById('modal-avviso-generico').classList.add('hidden');
 }
 
 // ---------- HOME ----------
@@ -4329,6 +4361,11 @@ function renderAppello(){
   if(!document.getElementById('modal-catena-delega-admin').classList.contains('hidden')){
     return;
   }
+  // Stessa protezione anche per il modale di anteprima/reinvio email aperto dalla busta qui
+  // accanto: l'amministratore potrebbe starci scrivendo dentro (corpo del messaggio, indirizzo).
+  if(!document.getElementById('modal-anteprima-email').classList.contains('hidden')){
+    return;
+  }
   if(assemblea){
     // Corregge silenziosamente eventuali riferimenti di delega rimasti su un'unità secondaria
     // invece che sul primario (può capitare da un salvataggio precedente): senza questo, un
@@ -4447,7 +4484,11 @@ function renderAppello(){
 
     const sostituzioneRiga = assemblea.sostituzioniPartecipanti && assemblea.sostituzioniPartecipanti[c.id];
     const tdNome=document.createElement('td'); tdNome.className='appello-nome-cella';
-    tdNome.innerHTML=semaforoAppello(semStato)+`<span class="nome-cliccabile-sostituzione" title="Clicca per sostituire questo partecipante per questa assemblea" onclick="apriSostituzionePartecipante(${c.id})" style="cursor:pointer;border-bottom:1px dotted var(--text-soft);">${nomeEffettivoCondominoAssemblea(c, assemblea)}</span>`;
+    // Busta per rivedere/modificare/reinviare l'email di convocazione direttamente da qui: utile
+    // se, appena prima che l'assemblea inizi, ci si accorge che va reinviata a qualcuno (stessa
+    // identica anteprima già usata nel Riepilogo invitati, riusata qui).
+    const bustaHtml = `<span onclick="apriAnteprimaEmailSingola(${c.id})" title="Vedi, modifica o reinvia l'email di convocazione di questo invitato" style="cursor:pointer;font-size:14px;margin-left:8px;" role="button">✉️</span>`;
+    tdNome.innerHTML=semaforoAppello(semStato)+`<span class="nome-cliccabile-sostituzione" title="Clicca per sostituire questo partecipante per questa assemblea" onclick="apriSostituzionePartecipante(${c.id})" style="cursor:pointer;border-bottom:1px dotted var(--text-soft);">${nomeEffettivoCondominoAssemblea(c, assemblea)}</span>`+bustaHtml;
     tr.appendChild(tdNome);
 
     // Se questo condòmino ha una o più unità unificate a lui (stesso proprietario, collegate
@@ -5904,7 +5945,53 @@ function staScrivendoInCampoProtetto(){
   if(!el || (el.tagName!=='INPUT' && el.tagName!=='TEXTAREA')) return false;
   const container = document.getElementById('odg-blocks-container');
   const activePollEl = document.getElementById('active-poll');
-  return (container && container.contains(el)) || (activePollEl && activePollEl.contains(el));
+  const caricheEl = document.getElementById('cariche-assemblea-card');
+  return (container && container.contains(el)) || (activePollEl && activePollEl.contains(el)) || (caricheEl && caricheEl.contains(el));
+}
+// Segna che l'amministratore ha appena interagito col riquadro Presidente/Segretario: usata
+// dalla stessa logica "non ridisegnare se ci si sta scrivendo dentro" già in uso altrove.
+function segnaScritturaCaricaAssemblea(){ /* la protezione vera è già in staScrivendoInCampoProtetto() via il focus reale */ }
+// Salva il nome del Presidente o del Segretario per l'assemblea in corso. Se il nome cambia
+// rispetto a quello già registrato, la modifica viene anche annotata con l'orario in una
+// cronologia dedicata, che finirà nel verbale (richiesto esplicitamente: se questi nominativi
+// cambiano durante l'assemblea, il verbale deve riportare quando e chi è il nuovo nominativo).
+function salvaCaricaAssemblea(ruolo, nuovoNomeGrezzo){
+  const b = getActiveBuilding();
+  const assemblea = getAssembleaInCorso(b);
+  if(!assemblea) return;
+  const nuovoNome = (nuovoNomeGrezzo||'').trim();
+  const campo = ruolo==='Presidente' ? 'presidenteNominato' : 'segretarioNominato';
+  const vecchioNome = assemblea[campo] || '';
+  if(nuovoNome === vecchioNome) return; // nessuna modifica reale, non serve annotare nulla
+  assemblea[campo] = nuovoNome;
+  assemblea.cronologiaCarichePresidenzaSegreteria = assemblea.cronologiaCarichePresidenzaSegreteria || [];
+  assemblea.cronologiaCarichePresidenzaSegreteria.push({
+    ora: new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}),
+    ruolo, vecchioNome, nuovoNome
+  });
+  salvaStato();
+  renderCaricheAssemblea();
+  renderCvPollArea(); // aggiorna anche il riquadro lato condòmino, se sta guardando in questo momento
+}
+// Ridisegna il riquadro Presidente/Segretario lato amministratore: NON tocca i campi se
+// l'amministratore ci sta scrivendo dentro in questo momento (staScrivendoInCampoProtetto),
+// così come già avviene per gli altri campi di testo protetti nella pagina assemblea.
+function renderCaricheAssemblea(){
+  const b = getActiveBuilding();
+  const assemblea = getAssembleaInCorso(b);
+  const inputPres = document.getElementById('input-presidente-nominato');
+  const inputSeg = document.getElementById('input-segretario-nominato');
+  const cronologiaEl = document.getElementById('cronologia-cariche-assemblea');
+  if(!inputPres || !inputSeg || !assemblea) return;
+  if(document.activeElement!==inputPres) inputPres.value = assemblea.presidenteNominato || '';
+  if(document.activeElement!==inputSeg) inputSeg.value = assemblea.segretarioNominato || '';
+  const cronologia = assemblea.cronologiaCarichePresidenzaSegreteria || [];
+  cronologiaEl.innerHTML = cronologia.length>1
+    ? 'Cronologia: ' + cronologia.map(v => v.vecchioNome
+        ? `${v.ruolo} cambiato alle ${v.ora} (da "${escapeHtml(v.vecchioNome)}" a "${escapeHtml(v.nuovoNome)}")`
+        : `${v.ruolo} nominato alle ${v.ora} ("${escapeHtml(v.nuovoNome)}")`
+      ).join('; ')
+    : '';
 }
 function renderOdgBlocks(){
   renderOdgPillsTopbar();
@@ -6080,7 +6167,7 @@ function avviaSondaggioPerPunto(odgId, prefill){
     const b=getActiveBuilding();
     const assemblea=getAssembleaInCorso(b);
     if(!assemblea.iniziata){
-      alert('Prima di aprire un sondaggio devi avviare l\'assemblea, premendo il pulsante "▶️ AVVIA ASSEMBLEA": serve a registrare correttamente l\'orario di inizio e ad avviare la registrazione.');
+      mostraAvviso('Prima di aprire un sondaggio devi avviare l\'assemblea, premendo il pulsante "▶️ AVVIA ASSEMBLEA": serve a registrare correttamente l\'orario di inizio e ad avviare la registrazione.');
       return;
     }
     const p=assemblea.odg.find(x=>x.id===odgId);
@@ -6473,11 +6560,11 @@ function votoUnanime(optId){
       // Nessuno trovato da votare: questo è probabilmente il "non succede niente" segnalato —
       // lo mostriamo in modo impossibile da non vedere, con i numeri esatti, invece di un
       // piccolo messaggio che passa inosservato.
-      alert('ATTENZIONE — Nessun convocato attivo trovato da votare.\n\n' + diagnostica + '\n\nSe questi numeri non corrispondono a quello che vedi nell\'Appello, segnalamelo con questo messaggio esatto.');
+      mostraAvviso('Nessun convocato attivo trovato da votare.\n\n' + diagnostica + '\n\nSe questi numeri non corrispondono a quello che vedi nell\'Appello, segnalamelo con questo messaggio esatto.');
     }
   }catch(e){
     console.error('[Adunanza] votoUnanime fallito:', e);
-    alert('ERRORE nel voto unanime — copia e segnalami questo messaggio esatto:\n\n' + (e && e.message ? e.message : e) + '\n\n' + (e && e.stack ? e.stack.split('\\n').slice(0,3).join('\\n') : ''));
+    mostraAvviso('ERRORE nel voto unanime — copia e segnalami questo messaggio esatto:\n\n' + (e && e.message ? e.message : e) + '\n\n' + (e && e.stack ? e.stack.split('\\n').slice(0,3).join('\\n') : ''));
   }
 }
 
@@ -7829,6 +7916,18 @@ function renderCvPollArea_interno(){
 // Estratta a parte: la stessa identica costruzione serve sia nella vista normale sia — in
 // layout orizzontale, dopo aver votato — insieme al piccolo avviso "hai votato", quando il
 // sondaggio si restringe invece di restare a schermo pieno.
+// Riquadro Presidente/Segretario, mostrato prima dell'ordine del giorno lato condòmino — solo
+// se almeno uno dei due è già stato nominato (altrimenti resterebbe un riquadro vuoto inutile).
+function costruisciRiquadroCaricheCondomino(assembleaCorrente){
+  const pres = assembleaCorrente.presidenteNominato;
+  const seg = assembleaCorrente.segretarioNominato;
+  if(!pres && !seg) return '';
+  return `<div class="assist-panel" style="margin-bottom:14px;">
+    <h3 style="margin-bottom:6px;">👤 Presidente e Segretario</h3>
+    ${pres ? `<div>Presidente: <b>${escapeHtml(pres)}</b></div>` : ''}
+    ${seg ? `<div>Segretario: <b>${escapeHtml(seg)}</b></div>` : ''}
+  </div>`;
+}
 function costruisciOdgEChiCeCondomino(assembleaCorrente, b){
   const odgHtml = (assembleaCorrente.odg||[]).map((p,i)=>{
     const storico = p.storicoSondaggi||[];
@@ -7838,7 +7937,8 @@ function costruisciOdgEChiCeCondomino(assembleaCorrente, b){
       ${risultatiHtml}
     </div>`;
   }).join('');
-  return `<div class="assist-panel"><h3>📋 Ordine del giorno</h3><div class="cv-odg-lista">${odgHtml || '<p class="muted" style="color:#A39C88;">Nessun punto ancora inserito.</p>'}</div></div>` +
+  return costruisciRiquadroCaricheCondomino(assembleaCorrente) +
+    `<div class="assist-panel"><h3>📋 Ordine del giorno</h3><div class="cv-odg-lista">${odgHtml || '<p class="muted" style="color:#A39C88;">Nessun punto ancora inserito.</p>'}</div></div>` +
     costruisciSezionePresenti(assembleaCorrente, b);
 }
 function selezionaOpzioneCondomino(optionId){
@@ -7886,7 +7986,7 @@ function confermaVotoCondomino(){
     // chiaro (e il voto resta comunque annotato qui sotto: lo si può segnalare all'amministratore).
     console.error('[Adunanza] confermaVotoCondomino fallito:', e);
     if(btnConferma){ btnConferma.disabled=false; btnConferma.textContent='Errore — riprova a confermare'; }
-    alert('ERRORE nell\'invio del voto — copia e segnalami questo messaggio esatto:\n\n' + (e && e.message ? e.message : e));
+    mostraAvviso('ERRORE nell\'invio del voto — copia e segnalami questo messaggio esatto:\n\n' + (e && e.message ? e.message : e));
   }
 }
 
@@ -8007,6 +8107,17 @@ async function generaVerbale(){
   const sondaggioTxt = righeSondaggi.length ? righeSondaggi.join('\n') : 'Nessun sondaggio concluso in questa sessione.';
   const a = assemblea;
   const dataAssemblea = a.dataSeconda ? formattaData(a.dataSeconda) + ' ore ' + (a.oraSeconda||'--:--') : '12 Marzo 2026, ore 18:30';
+  // Presidente/Segretario nominati per questa assemblea, con eventuale cronologia di cambi
+  // (richiesto tassativamente nel verbale): se non sono mai stati inseriti, lo diciamo chiaro
+  // invece di ometterli in silenzio, così resta evidente che manca questa informazione formale.
+  const cronologiaCariche = a.cronologiaCarichePresidenzaSegreteria || [];
+  const carichePresidenzaTxt = [
+    `Presidente: ${a.presidenteNominato || 'non nominato'}`,
+    `Segretario: ${a.segretarioNominato || 'non nominato'}`,
+    ...(cronologiaCariche.length>1 ? cronologiaCariche.map(v=>
+      `Alle ore ${v.ora}, il ${v.ruolo} è cambiato${v.vecchioNome?` (da "${v.vecchioNome}")`:''}: viene nominato/a "${v.nuovoNome}".`
+    ) : [])
+  ].join('\n');
 
   // Tabelle costruite direttamente dai dati (non dall'IA), usate sia con IA sia col modello fisso
   const tabPresenti = costruisciTabellaPresentiVerbale(buildingAttivo, assemblea);
@@ -8018,7 +8129,7 @@ async function generaVerbale(){
   // Senza appunti non c'è nulla di significativo da far riassumere all'IA: si passa
   // direttamente al modello a testo fisso, senza sprecare una chiamata inutile.
   if(!haAppunti){
-    const testoFisso = generaVerbaleModelloFisso(buildingAttivo, a, appunti, partecipantiTxt, righeSondaggi, dataAssemblea);
+    const testoFisso = generaVerbaleModelloFisso(buildingAttivo, a, appunti, partecipantiTxt, righeSondaggi, dataAssemblea, carichePresidenzaTxt);
     document.getElementById('verbale-output').innerHTML =
       `<div class="note" style="margin-bottom:12px;">Nessun appunto inserito per questa assemblea: il verbale riporta comunque i dati essenziali (presenti, ingressi/uscite, esiti delle votazioni) qui sotto.</div>
       <div class="verbale-doc">${logoOSigilloVerbale(buildingAttivo.nome)}<h4>Verbale d'assemblea</h4>${escapeHtml(testoFisso)}${tabelleHtml}</div>
@@ -8037,12 +8148,13 @@ Genera un verbale d'assemblea completo basandoti su queste informazioni:
 Condominio: "${buildingAttivo.nome}"
 Tipo assemblea: ${a.tipo}
 Data assemblea: ${dataAssemblea}
+${carichePresidenzaTxt}
 Partecipanti presenti: ${partecipantiTxt}
 Appunti/ordine del giorno discusso: ${appunti}
 Esito delle votazioni svolte, punto per punto, con i millesimi:
 ${sondaggioTxt}
 
-Struttura il verbale con: intestazione, presenti/assenti, ordine del giorno numerato, discussione sintetica per ogni punto, delibere assunte con relativo esito di voto, chiusura seduta con orario. Usa un tono formale ma scorrevole. Non aggiungere commenti fuori dal testo del verbale.`;
+Struttura il verbale con: intestazione, presenti/assenti, ordine del giorno numerato, discussione sintetica per ogni punto, delibere assunte con relativo esito di voto, chiusura seduta con orario. Il Presidente e il Segretario indicati sopra vanno SEMPRE riportati nell'intestazione del verbale; se è indicato un cambio di Presidente o Segretario durante la seduta, riportalo nel punto del verbale in cui è avvenuto, con l'orario. Usa un tono formale ma scorrevole. Non aggiungere commenti fuori dal testo del verbale.`;
 
   const idCondominioPerVerbale = buildingAttivo.id;
   const idAssembleaPerVerbale = assemblea.id;
@@ -8105,13 +8217,15 @@ function logoOSigilloVerbale(nomeCondominio){
   }
   return `<div class="seal">${nomeCondominio.toUpperCase()}</div>`;
 }
-function generaVerbaleModelloFisso(building, a, appunti, partecipantiTxt, righeSondaggi, dataAssemblea){
+function generaVerbaleModelloFisso(building, a, appunti, partecipantiTxt, righeSondaggi, dataAssemblea, carichePresidenzaTxt){
   const righeOdg = a.odg.map((p,i)=>`${i+1}. ${p.testo||'(punto senza titolo)'}`).join('\n') || '(nessun punto registrato)';
   const esitoVotazioni = righeSondaggi.length ? righeSondaggi.join('\n') : 'Nessun sondaggio concluso in questa sessione.';
   return `VERBALE DI ASSEMBLEA CONDOMINIALE
 Condominio: ${building.nome}
 Tipo di assemblea: ${a.tipo}
 Data e ora: ${dataAssemblea}
+
+${carichePresidenzaTxt || `Presidente: ${a.presidenteNominato || 'non nominato'}\nSegretario: ${a.segretarioNominato || 'non nominato'}`}
 
 PARTECIPANTI
 ${partecipantiTxt}
@@ -8354,7 +8468,7 @@ function renderRegistrazioni(){
           <button class="btn small brass" onclick="apriInvioVerbale(${b.id}, ${a.id})">✉ ${etichettaInvioArchivio}</button>
         </div>
       </div>
-      ${a.registrazioneAttiva ? `<button class="btn small secondary" ${disponibileVideo?'':'disabled'} style="margin-bottom:12px;" onclick="alert('In questa demo il video non è realmente conservato — qui vedresti la registrazione Jitsi di quella seduta.')">Visualizza registrazione</button>` : ''}
+      ${a.registrazioneAttiva ? `<button class="btn small secondary" ${disponibileVideo?'':'disabled'} style="margin-bottom:12px;" onclick="mostraAvviso('In questa demo il video non è realmente conservato — qui vedresti la registrazione Jitsi di quella seduta.')">Visualizza registrazione</button>` : ''}
       ${a.verbale
         ? `<div style="display:flex;gap:8px;margin-bottom:10px;">
              <button class="btn small brass" onclick="scaricaVerbaleArchivio(${b.id}, ${a.id})">⬇ Scarica verbale (.txt)</button>
@@ -8784,6 +8898,7 @@ function rirenderizzaDopoSincronizzazione(){
     renderAppello(); renderHandsList(); renderChat('admin-chat-log');
     segnalaNuoviMessaggiChat();
     renderOdgBlocks();
+    renderCaricheAssemblea();
     if(activePoll){ showActivePoll(); }
   }
   if(currentPage==='crea-assemblea' && workingAssembly && workingAssembly.invitiInviati){
