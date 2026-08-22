@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-179 — creata il 21/08/2026 alle 17:47
+  Versione: LT-183 — creata il 22/08/2026 alle 15:22
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -516,6 +516,13 @@
      classico "tira per aggiornare"). */
   #cv-pannello-superiore{position:fixed;top:0;left:0;right:0;max-width:760px;margin:0 auto;z-index:150;background:#2A2519;padding:10px 20px 12px;box-shadow:0 4px 16px rgba(0,0,0,.35);border-radius:0 0 10px 10px;transform:translateY(-105%);transition:transform .35s ease;}
   #cv-pannello-superiore.visibile{transform:translateY(0);}
+  /* Modalità "solo voto": il pannello sopra resta fisso e sempre visibile invece di scomparire
+     dopo 5 secondi — è l'unico punto di riferimento per sapere a colpo d'occhio a quale
+     assemblea e come chi si è collegati, dato che qui non c'è il video con il proprio nome
+     sopra. Essendo "fixed" (fuori dal flusso normale), aggiungiamo qui uno spazio vuoto in
+     cima pari alla sua altezza reale (misurata via JS, così si adatta da sola anche se il nome
+     dell'assemblea o del condominio sono lunghi e vanno a capo), altrimenti coprirebbe le prime
+     righe del contenuto sottostante.
   .condomino-view h1{font-size:13px;font-weight:600;color:#fff;font-family:var(--font-display);margin:0;}
   .condomino-view .sub{font-size:0.95em;color:#C4BCA5;}
   #cv-welcome{font-size:12px;margin-top:4px;text-align:center;color:#C4BCA5;}
@@ -642,7 +649,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 21/08/2026 alle 17:47">LT-179</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 22/08/2026 alle 15:22">LT-183</span>
   </div>
 
   <!-- MAIN -->
@@ -747,7 +754,7 @@
             <option value="online">ON-LINE</option>
           </select>
           <p class="muted" id="prof-testo-base-hint" style="margin-bottom:8px;"></p>
-          <textarea id="prof-testo-base" rows="10" placeholder="Lascia vuoto per usare il testo predefinito dell'app per questa modalità. Puoi usare gli stessi segnaposto disponibili nel testo di ogni singola assemblea: {{nome}}, {{nomecondominio}}, {{comune}}, {{tipo}}, {{modalita}}, {{data_prima}}, {{ora_prima}}, {{data_seconda}}, {{ora_seconda}}, {{luogo}}, {{indirizzostudio}}, {{link_accesso}}, {{link_delega}}, {{allegati}}, {{firma_amministratore}}, {{odg}}."></textarea>
+          <textarea id="prof-testo-base" rows="10" placeholder="Lascia vuoto per usare il testo predefinito dell'app per questa modalità. Puoi usare gli stessi segnaposto disponibili nel testo di ogni singola assemblea: {{nome}}, {{nomecondominio}}, {{comune}}, {{tipo}}, {{modalita}}, {{data_prima}}, {{ora_prima}}, {{data_seconda}}, {{ora_seconda}}, {{luogo}}, {{indirizzostudio}}, {{link_accesso}}, {{link_delega}}, {{link_solo_voto}}, {{allegati}}, {{firma_amministratore}}, {{odg}}."></textarea>
           <p class="muted" style="margin-top:4px;">{{indirizzostudio}} e {{firma_amministratore}} vengono presi automaticamente dai campi qui sopra. {{luogo}} e gli eventuali documenti da allegare si impostano invece per ogni singola assemblea, non qui.</p>
         </div>
         <div class="field">
@@ -1044,7 +1051,7 @@
             <input type="text" id="ca-luogo" placeholder="Es. Sala condominiale, Via Roma 5, Milano">
             <p class="muted" style="margin-top:4px;">La prima convocazione si tiene sempre presso lo Studio dell'Amministratore (indirizzo preso dal tuo profilo); questo campo serve solo per la seconda convocazione, di solito in un locale più capiente.</p>
           </div>
-          <p class="muted" style="margin-bottom:10px;">Segnaposto: <span style="font-family:var(--font-mono);">{{nome}} {{nomecondominio}} {{comune}} {{tipo}} {{modalita}} {{data_prima}} {{ora_prima}} {{data_seconda}} {{ora_seconda}} {{luogo}} {{indirizzostudio}} {{link_accesso}} {{link_delega}} {{allegati}} {{firma_amministratore}} {{odg}}</span></p>
+          <p class="muted" style="margin-bottom:10px;">Segnaposto: <span style="font-family:var(--font-mono);">{{nome}} {{nomecondominio}} {{comune}} {{tipo}} {{modalita}} {{data_prima}} {{ora_prima}} {{data_seconda}} {{ora_seconda}} {{luogo}} {{indirizzostudio}} {{link_accesso}} {{link_delega}} {{link_solo_voto}} {{allegati}} {{firma_amministratore}} {{odg}}</span></p>
           <textarea id="ca-testo" rows="8"></textarea>
           <div class="field" style="margin-top:16px;">
             <label>Descrizione degli allegati selezionabili qui sotto</label>
@@ -1181,7 +1188,7 @@
         <div id="appello-body">
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Condòmino</th><th style="width:34px;"></th><th>Millesimi</th><th>Stato</th><th>Azioni</th></tr></thead>
+              <thead><tr><th>Condòmino</th><th style="width:52px;"></th><th>Millesimi</th><th>Stato</th><th>Azioni</th></tr></thead>
               <tbody id="appello-tbody"></tbody>
               <tfoot><tr id="appello-tfoot"></tr></tfoot>
             </table>
@@ -1522,6 +1529,23 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
     <div class="modal-actions">
       <button class="btn secondary" onclick="restaSullAssemblea()">Resta nell'assemblea</button>
       <button class="btn" onclick="confermaUscitaAssembleaNonTerminata()">Esci comunque</button>
+    </div>
+  </div>
+</div>
+
+<!-- NUOVA FUNZIONALITÀ: link "solo voto" — stesso token personale del condòmino, ma con
+     l'indicazione "modo=voto": chi lo apre non entra online (niente video, niente chat), può
+     solo vedere l'ordine del giorno/i presenti e votare quando c'è un sondaggio aperto. Pensato
+     per chi è già presente in aula (o comunque presente per altre vie) e vuole solo votare dal
+     proprio telefono, senza toccare lo stato di presenza già registrato altrove. -->
+<div class="modal-overlay hidden" id="modal-link-solo-voto">
+  <div class="modal-box">
+    <h3>🗳️ Link "solo voto"</h3>
+    <p class="muted" style="font-size:14px;color:var(--ink);text-align:left;margin-bottom:10px;">Per <b id="link-solo-voto-nome"></b> — da usare SOLO se è già presente in aula (o comunque già segnato presente per altre vie): aprendo questo link non risulterà online, potrà solo vedere l'ordine del giorno e votare quando c'è un sondaggio aperto.</p>
+    <input type="text" id="link-solo-voto-testo" readonly style="width:100%;font-family:var(--font-mono);font-size:12.5px;padding:8px;box-sizing:border-box;margin-bottom:10px;" onclick="this.select()">
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="chiudiLinkSoloVoto()">Chiudi</button>
+      <button class="btn" onclick="copiaLinkSoloVoto()">Copia link</button>
     </div>
   </div>
 </div>
@@ -2026,9 +2050,16 @@ function mandaBattitoPing(){
       if(!aCorrente) return;
       aCorrente.pingBattito = aCorrente.pingBattito || {};
       aCorrente.pingBattito[condominoId] = (aCorrente.pingBattito[condominoId]||0) + 1;
+      // In modalità "solo voto" segniamo anche QUESTO, così il ciclo di controllo periodico sa
+      // di dover tracciare questa persona come "voto autonomo" (semaforo verde scuro, niente
+      // online) invece che come presenza online normale.
+      if(cvModalitaSoloVoto){
+        aCorrente.modalitaPing = aCorrente.modalitaPing || {};
+        aCorrente.modalitaPing[condominoId] = 'soloVoto';
+      }
     });
     const ora = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-    mostraStatoPingCondomino('Online — ultimo segnale alle ' + ora);
+    mostraStatoPingCondomino((cvModalitaSoloVoto ? 'Collegato (solo voto) — ultimo segnale alle ' : 'Online — ultimo segnale alle ') + ora);
   }catch(e){
     console.error('[Adunanza][ping] Segnale di battito fallito:', e);
     mostraStatoPingCondomino('\u26a0\ufe0f Segnale fallito, riprovo tra poco...');
@@ -2043,6 +2074,12 @@ function fermaRispostaPing(){
 }
 
 let contestoAssembleaIdCondomino = null; // l'id dell'assemblea specifica indicata nel link personale (parametro "assemblea"): il condòmino resta legato a QUESTA, non a "qualunque cosa l'amministratore abbia aperto ora"
+// NUOVA FUNZIONALITÀ: link "solo voto" (parametro "modo=voto" nell'indirizzo) — stesso token
+// personale di sempre, ma la persona NON entra online (niente video, niente chat): può solo
+// vedere l'ordine del giorno/i presenti e votare quando c'è un sondaggio aperto. Pensato per chi
+// è già fisicamente in aula (o comunque presente per altre vie) e vuole solo votare dal proprio
+// telefono, senza toccare lo stato di presenza già registrato in altro modo.
+let cvModalitaSoloVoto = false;
 // Trova l'assemblea giusta per il condòmino: se il link conteneva un id specifico, usa SEMPRE
 // quello (indipendentemente da dove l'amministratore sta navigando in questo momento);
 // altrimenti, per compatibilità con link vecchi senza questo parametro, usa il vecchio
@@ -2114,6 +2151,7 @@ function initFromUrlToken(){
   const params = new URLSearchParams(window.location.search);
   const token = params.get('token');
   if(!token) return false;
+  cvModalitaSoloVoto = params.get('modo')==='voto';
   for(const b of buildings){
     const c = b.condomini.find(x=>x.token===token);
     if(c){
@@ -2167,7 +2205,7 @@ function initFromUrlToken(){
           // non risulti disattivato (un altro delegante ha già attivato la stessa persona
           // esterna): in quel caso non segniamo nulla, sarà avviaRispostaPing/mandaBattitoPing,
           // chiamato subito sotto, a mostrare il messaggio corretto.
-          if(idRisoltoPerPing!=null) segnaSubitoOnline(bCorrente, idRisoltoPerPing);
+          if(!cvModalitaSoloVoto && idRisoltoPerPing!=null) segnaSubitoOnline(bCorrente, idRisoltoPerPing);
           avviaRispostaPing(idCondominoToken);
         }catch(e){
           console.error('[Adunanza] Segnalazione online fallita (il riconoscimento del condòmino prosegue comunque):', e);
@@ -2232,6 +2270,23 @@ function mostraPannelloSuperiore(){
   if(!pannello) return;
   pannello.classList.add('visibile');
   if(__pannelloSuperioreTimer) clearTimeout(__pannelloSuperioreTimer);
+  // In modalità "solo voto" (link dedicato per chi vuole solo votare, senza entrare online) il
+  // pannello con condominio/assemblea/nome del condòmino resta SEMPRE a vista, fisso — non ha
+  // senso farlo scomparire dopo 5 secondi qui: in questa modalità non c'è altro modo per
+  // ricordarsi a colpo d'occhio chi si è e a quale assemblea si è collegati (niente video con
+  // il proprio nome sopra, come nella modalità normale).
+  if(cvModalitaSoloVoto){
+    // Lasciamo uno spazio vuoto in cima pari all'altezza REALE del pannello (misurata solo ora
+    // che è visibile: prima di essere mostrato la sua altezza sarebbe 0), così il contenuto
+    // sottostante non resta mai coperto — funziona anche se il testo del pannello va a capo su
+    // più righe per un nome lungo di assemblea o condominio.
+    requestAnimationFrame(()=>{
+      const altezza = pannello.offsetHeight;
+      const shell = document.querySelector('.condomino-shell');
+      if(shell) shell.style.paddingTop = (altezza + 14) + 'px';
+    });
+    return;
+  }
   __pannelloSuperioreTimer = setTimeout(()=>{
     pannello.classList.remove('visibile');
     __pannelloSuperioreTimer = null;
@@ -2479,6 +2534,34 @@ function mostraAvviso(messaggio){
 }
 function chiudiAvvisoGenerico(){
   document.getElementById('modal-avviso-generico').classList.add('hidden');
+}
+// NUOVA FUNZIONALITÀ: mostra il link "solo voto" di un condòmino — stesso token di sempre, con
+// in più "modo=voto" nell'indirizzo. Costruito allo stesso modo del link normale (vedi
+// costruisciEmail), così l'assemblea a cui resta legato è sempre quella giusta.
+function mostraLinkSoloVoto(condominoId){
+  const b = getActiveBuilding();
+  const assemblea = getAssembleaInCorso(b);
+  const c = b ? b.condomini.find(x=>x.id===condominoId) : null;
+  if(!b || !assemblea || !c){ toast('Impossibile generare il link: dati non trovati.'); return; }
+  const baseUrl = window.location.origin + window.location.pathname;
+  const link = `${baseUrl}?token=${c.token}&assemblea=${assemblea.id}&modo=voto`;
+  document.getElementById('link-solo-voto-nome').textContent = nomeCompletoCondomino(c);
+  document.getElementById('link-solo-voto-testo').value = link;
+  document.getElementById('modal-link-solo-voto').classList.remove('hidden');
+}
+function chiudiLinkSoloVoto(){
+  document.getElementById('modal-link-solo-voto').classList.add('hidden');
+}
+function copiaLinkSoloVoto(){
+  const campo = document.getElementById('link-solo-voto-testo');
+  campo.select();
+  navigator.clipboard.writeText(campo.value).then(()=>{
+    toast('Link copiato negli appunti.');
+  }).catch(()=>{
+    // Alcuni browser/contesti (es. senza connessione sicura) non permettono la copia
+    // automatica: il campo resta comunque selezionato, pronto per una copia manuale (Ctrl+C).
+    toast('Copia automatica non disponibile: il link è selezionato, copialo con Ctrl+C (o tenendo premuto sul telefono).');
+  });
 }
 
 // ---------- HOME ----------
@@ -3538,6 +3621,11 @@ function risolviIdentificativoPing(building, condominoId){
   return delegatoId;
 }
 function recordAttivo(assemblea, condominoId){
+  // Controllato per primo: se la persona sta usando il link "solo voto" in questo momento,
+  // vogliamo che risulti così anche se è ANCHE segnata online o in presenza per altra via
+  // (il link "solo voto" apposta non tocca quei due stati — vedi sopra).
+  const rVoto = (assemblea.votoAutonomo||[]).find(r=>r.condominoId===condominoId && !r.uscita);
+  if(rVoto) return {tipo:'voto-autonomo', rec:rVoto};
   const rOn = assemblea.appello.online.find(r=>r.condominoId===condominoId && !r.uscita);
   if(rOn) return {tipo:'online', rec:rOn};
   const rPres = assemblea.appello.presenzeFisiche.find(r=>r.condominoId===condominoId && !r.uscita);
@@ -4402,8 +4490,8 @@ function contaTeste(convocatiList, assemblea, building){
   return {totaleTeste: teste.length, testePresenti: testePresenti.length};
 }
 function semaforoAppello(stato){
-  const colori = {verde:'#3D8B4C', blu:'#1D6FD1', arancio:'#E08A2C', grigio:'#9AA0A6', nero:'#2A2A2A', rosso:'#C0392B', rosa:'#C2508A'};
-  const titoli = {verde:'Presente online', blu:'Presente fisicamente', arancio:'Delega', grigio:'Assente', nero:'Uscito/a', rosso:'Online, non ancora riconosciuto', rosa:'Online, segnato a mano dall\'amministratore'};
+  const colori = {verde:'#3D8B4C', 'voto-scuro':'#1F4D33', blu:'#1D6FD1', arancio:'#E08A2C', grigio:'#9AA0A6', nero:'#2A2A2A', rosso:'#C0392B', rosa:'#C2508A'};
+  const titoli = {verde:'Presente online', 'voto-scuro':'Sta votando in autonomia (link solo voto)', blu:'Presente fisicamente', arancio:'Delega', grigio:'Assente', nero:'Uscito/a', rosso:'Online, non ancora riconosciuto', rosa:'Online, segnato a mano dall\'amministratore'};
   return `<span title="${titoli[stato]||stato}" style="display:inline-block;width:11px;height:11px;border-radius:50%;background:${colori[stato]||'#9AA0A6'};margin-right:9px;vertical-align:middle;flex-shrink:0;"></span>`;
 }
 function renderAppello(){
@@ -4484,7 +4572,7 @@ function renderAppello(){
     const attivoEst = recordAttivo(assemblea, est.id);
     const tr=document.createElement('tr');
     tr.style.background='var(--paper)';
-    const semEst = (attivoEst && attivoEst.tipo==='online') ? 'verde' : (attivoEst && attivoEst.rec.online) ? 'rosa' : attivoEst ? 'blu' : 'grigio';
+    const semEst = (attivoEst && attivoEst.tipo==='voto-autonomo') ? 'voto-scuro' : (attivoEst && attivoEst.tipo==='online') ? 'verde' : (attivoEst && attivoEst.rec.online) ? 'rosa' : attivoEst ? 'blu' : 'grigio';
     const tdNome=document.createElement('td');
     tdNome.className='appello-nome-cella';
     tdNome.innerHTML=semaforoAppello(semEst)+`${est.nome} <span class="muted">${indentata?'(esterno delegato)':'(persona esterna)'}</span>`;
@@ -4492,7 +4580,8 @@ function renderAppello(){
     const tdBustaEst=document.createElement('td'); tr.appendChild(tdBustaEst);
     const tdMillEst=document.createElement('td'); tdMillEst.innerHTML='<span class="muted">—</span>'; tr.appendChild(tdMillEst);
     const tdStato=document.createElement('td');
-    if(attivoEst && attivoEst.tipo==='online') tdStato.innerHTML = `<span class="badge">🟢 Online (dalle ${attivoEst.rec.entrata})</span>`;
+    if(attivoEst && attivoEst.tipo==='voto-autonomo') tdStato.innerHTML = `<span class="badge" style="background:#1F4D33;color:#B9E6C9;">🟢 Votando in autonomia (dalle ${attivoEst.rec.entrata})</span>`;
+    else if(attivoEst && attivoEst.tipo==='online') tdStato.innerHTML = `<span class="badge">🟢 Online (dalle ${attivoEst.rec.entrata})</span>`;
     else if(attivoEst && attivoEst.tipo==='presenza' && attivoEst.rec.online) tdStato.innerHTML = `<span class="badge" style="background:#F3D6E4;color:#9B2C63;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#9B2C63;margin-right:5px;vertical-align:middle;"></span>Online (a mano, dalle ${attivoEst.rec.entrata})</span>`;
     else if(attivoEst) tdStato.innerHTML = `<span class="badge pending">🏠 In presenza (dalle ${attivoEst.rec.entrata})</span>`;
     else tdStato.innerHTML = '<span class="muted">⚪ Non ancora presente</span>';
@@ -4541,7 +4630,8 @@ function renderAppello(){
       ? ((assemblea.appello.online||[]).find(r=>r.condominoId===delegatoId && r.uscita)
          || (assemblea.appello.presenzeFisiche||[]).find(r=>r.condominoId===delegatoId && r.uscita))
       : null;
-    const semStato = (attivo && attivo.tipo==='online') ? 'verde'
+    const semStato = (attivo && attivo.tipo==='voto-autonomo') ? 'voto-scuro'
+      : (attivo && attivo.tipo==='online') ? 'verde'
       : (attivo && attivo.tipo==='presenza' && attivo.rec.online) ? 'rosa'
       : (attivo && attivo.tipo==='presenza') ? 'blu'
       : (delegatoId!=null && delegatoAttivo) ? 'arancio'
@@ -4556,10 +4646,12 @@ function renderAppello(){
 
     // Busta per rivedere/modificare/reinviare l'email di convocazione direttamente da qui: utile
     // se, appena prima che l'assemblea inizi, ci si accorge che va reinviata a qualcuno (stessa
-    // identica anteprima già usata nel Riepilogo invitati, riusata qui). In una colonna a sé,
-    // stretta quanto basta a contenere solo l'icona.
-    const tdBusta=document.createElement('td'); tdBusta.style.textAlign='center'; tdBusta.style.width='34px';
-    tdBusta.innerHTML = `<span onclick="apriAnteprimaEmailSingola(${c.id})" title="Vedi, modifica o reinvia l'email di convocazione di questo invitato" style="cursor:pointer;font-size:15px;" role="button">✉️</span>`;
+    // identica anteprima già usata nel Riepilogo invitati, riusata qui). Accanto, l'icona per
+    // ottenere il link "solo voto" di questo condòmino (nuova funzionalità: stesso token, ma la
+    // persona non entra online — può solo vedere l'ordine del giorno/i presenti e votare).
+    // Entrambe nella stessa colonna, stretta quanto basta a contenere le due icone.
+    const tdBusta=document.createElement('td'); tdBusta.style.textAlign='center'; tdBusta.style.width='52px'; tdBusta.style.whiteSpace='nowrap';
+    tdBusta.innerHTML = `<span onclick="apriAnteprimaEmailSingola(${c.id})" title="Vedi, modifica o reinvia l'email di convocazione di questo invitato" style="cursor:pointer;font-size:15px;" role="button">✉️</span> <span onclick="mostraLinkSoloVoto(${c.id})" title="Genera il link &quot;solo voto&quot; per questo condòmino (per chi è già presente e vuole solo votare dal telefono, senza andare online)" style="cursor:pointer;font-size:15px;" role="button">🗳️</span>`;
     tr.appendChild(tdBusta);
 
     // Se questo condòmino ha una o più unità unificate a lui (stesso proprietario, collegate
@@ -4579,7 +4671,10 @@ function renderAppello(){
     tr.appendChild(tdMill);
 
     const tdStato=document.createElement('td');
-    if(attivo && attivo.tipo==='online'){
+    if(attivo && attivo.tipo==='voto-autonomo'){
+      tdStato.innerHTML=`<span class="badge" style="background:#1F4D33;color:#B9E6C9;">🟢 Votando in autonomia (dalle ${attivo.rec.entrata})</span>`;
+    }
+    else if(attivo && attivo.tipo==='online'){
       if(delegatoId!=null){
         const nomeDelegato = nomePersonaAppello(b, assemblea, delegatoId);
         tdStato.innerHTML = `<span class="badge">🟢 Delega a ${nomeDelegato} — presente online (dalle ${attivo.rec.entrata})</span>`;
@@ -4592,7 +4687,7 @@ function renderAppello(){
     else if(delegatoId!=null){
       const nomeDelegato = nomePersonaAppello(b, assemblea, delegatoId);
       if(delegatoAttivo){
-        const doveE = delegatoAttivo.tipo==='online' ? 'online' : 'fisicamente';
+        const doveE = delegatoAttivo.tipo==='online' ? 'online' : delegatoAttivo.tipo==='voto-autonomo' ? 'votando in autonomia' : 'fisicamente';
         tdStato.innerHTML=`<span class="badge">📝 Delega a ${nomeDelegato} — presente ${doveE} (dalle ${delegatoAttivo.rec.entrata})</span>`;
       }else{
         tdStato.innerHTML=`<span class="badge">📝 Delega a ${nomeDelegato}</span>`;
@@ -5635,6 +5730,13 @@ function costruisciEmail(c, a, b){
   // confuse (persino vedersi mostrare un'assemblea già conclusa per sbaglio).
   const link = `${baseUrl}?token=${c.token}&assemblea=${a.id}`;
   const linkDelega = `${baseUrl}?token=${c.token}&delega=${a.id}`;
+  // NUOVA FUNZIONALITÀ: link "solo voto" (modo=voto) — a differenza del link di accesso pieno,
+  // ha senso includerlo ANCHE per un'assemblea in presenza pura: chi è già fisicamente in aula
+  // può usarlo dal proprio telefono solo per votare, senza aprire video/chat né toccare lo
+  // stato di presenza già registrato dall'amministratore. Per questo non è condizionato da
+  // a.modalita come gli altri due link qui sopra.
+  const linkSoloVoto = `${baseUrl}?token=${c.token}&assemblea=${a.id}&modo=voto`;
+  const linkSoloVotoHtml = `<a class="email-link-btn" href="${linkSoloVoto}" target="_blank">Vota (senza partecipare online) →</a><div class="muted" style="margin-top:4px;">Utilizzabile SOLO per esprimere il voto quando viene aperto un sondaggio — non dà accesso a video, chat o all'ordine del giorno completo. Da usare se sei già presente all'assemblea (in aula o altrimenti) e vuoi solo votare dal telefono.</div><div class="muted" style="margin-top:8px;font-family:var(--font-mono);">${linkSoloVoto}</div>`;
   // In presenza pura non si può partecipare online: niente link di accesso né di delega
   // digitale — restano fuori dall'email, coerentemente con quanto stabilito.
   const linkAccessoHtml = a.modalita==='in-presenza' ? '' :
@@ -5669,6 +5771,7 @@ function costruisciEmail(c, a, b){
     .replaceAll('{{indirizzostudio}}', (amministratore.indirizzoStudio && amministratore.indirizzoStudio.trim()) ? amministratore.indirizzoStudio.trim() : '(indirizzo studio non impostato — vai su "Il mio profilo")')
     .replaceAll('{{link_accesso}}', linkAccessoHtml)
     .replaceAll('{{link_delega}}', linkDelegaHtml)
+    .replaceAll('{{link_solo_voto}}', linkSoloVotoHtml)
     .replaceAll('{{allegati}}', allegatiBlock)
     .replaceAll('{{firma_amministratore}}', firmaAmministratore)
     .replaceAll('{{odg}}', odgTesto) + nota;
@@ -6603,7 +6706,7 @@ function votoUnanime(optId){
         if(c.unificatoCon && idsConvocatiSet.has(c.unificatoCon)) return false;
         const attivo = recordAttivoConSecondarie(bCorrente, assembleaCorrente, c.id);
         if(!attivo) return false;
-        const haGiaVotatoDiPersona = attivo.tipo==='online' && activePoll.voted.has(c.id) && !activePoll.votatoInBlocco.has(c.id);
+        const haGiaVotatoDiPersona = (attivo.tipo==='online' || attivo.tipo==='voto-autonomo') && activePoll.voted.has(c.id) && !activePoll.votatoInBlocco.has(c.id);
         return !haGiaVotatoDiPersona;
       });
       // BUG CORRETTO: le persone esterne con delega (es. un familiare/legale che rappresenta un
@@ -6616,7 +6719,7 @@ function votoUnanime(optId){
       const esterniDaVotare = (assembleaCorrente.deleghiEsterni||[]).filter(est=>{
         const attivo = recordAttivo(assembleaCorrente, est.id);
         if(!attivo) return false;
-        const haGiaVotatoDiPersona = attivo.tipo==='online' && activePoll.voted.has(est.id) && !activePoll.votatoInBlocco.has(est.id);
+        const haGiaVotatoDiPersona = (attivo.tipo==='online' || attivo.tipo==='voto-autonomo') && activePoll.voted.has(est.id) && !activePoll.votatoInBlocco.has(est.id);
         return !haGiaVotatoDiPersona;
       });
       const daVotareInBlocco = [...condominiDaVotare, ...esterniDaVotare];
@@ -6823,7 +6926,8 @@ function renderTabellaVotiSondaggio(){
     tr.appendChild(tdMillVoto);
 
     const tdStato=document.createElement('td');
-    if(attivo && attivo.tipo==='online') tdStato.innerHTML='<span class="badge">🟢 Online</span>';
+    if(attivo && attivo.tipo==='voto-autonomo') tdStato.innerHTML='<span class="badge" style="background:#1F4D33;color:#B9E6C9;">🟢 Voto autonomo</span>';
+    else if(attivo && attivo.tipo==='online') tdStato.innerHTML='<span class="badge">🟢 Online</span>';
     else if(attivo && attivo.tipo==='presenza') tdStato.innerHTML='<span class="badge pending">🏠 In presenza</span>';
     else if(delegatoId){ tdStato.innerHTML=`<span class="badge">📝 Delega a ${nomeDelegato(delegatoId, b, assemblea)}</span>`; }
     else if(eUscito){
@@ -6895,12 +6999,13 @@ function renderTabellaVotiSondaggio(){
         const note=document.createElement('span'); note.className='muted'; note.style.marginLeft='6px'; note.textContent='(sbloccato per pochi secondi)';
         tdVoto.appendChild(note);
       }
-    }else if(attivo && attivo.tipo==='online'){
-      // Chi è online vota in autonomia dal proprio dispositivo: il select per correggerlo a
-      // mano dalla tabella dell'amministratore resta bloccato dietro lo stesso meccanismo già
-      // usato per chi ha delegato — un click chiede conferma, poi si sblocca per pochi secondi
-      // e si riblocca da solo. Stesso aspetto, stessa funzione: evita di correggere per sbaglio
-      // il voto di qualcuno che sta votando autonomamente in questo preciso momento.
+    }else if(attivo && (attivo.tipo==='online' || attivo.tipo==='voto-autonomo')){
+      // Chi è online (o sta votando in autonomia tramite il link "solo voto") vota in autonomia
+      // dal proprio dispositivo: il select per correggerlo a mano dalla tabella
+      // dell'amministratore resta bloccato dietro lo stesso meccanismo già usato per chi ha
+      // delegato — un click chiede conferma, poi si sblocca per pochi secondi e si riblocca da
+      // solo. Stesso aspetto, stessa funzione: evita di correggere per sbaglio il voto di
+      // qualcuno che sta votando autonomamente in questo preciso momento.
       const bloccato = votoDeleganteBloccato(c.id);
       sel.disabled = bloccato;
       if(bloccato) sel.style.opacity = '0.45';
@@ -6909,7 +7014,7 @@ function renderTabellaVotiSondaggio(){
       if(bloccato){
         const overlay=document.createElement('span');
         overlay.style.cssText='position:absolute;inset:0;cursor:pointer;';
-        overlay.title='Questa persona è online e vota in autonomia — clicca per correggere il suo voto';
+        overlay.title = attivo.tipo==='voto-autonomo' ? 'Questa persona sta votando in autonomia dal link "solo voto" — clicca per correggere il suo voto' : 'Questa persona è online e vota in autonomia — clicca per correggere il suo voto';
         overlay.onclick=()=>richiediSbloccoVotoDelegante(c.id, 'online');
         wrap.appendChild(overlay);
       }
@@ -7151,7 +7256,7 @@ function rientraInAssemblea(){
     // voluta a causa di un battito residuo in arrivo in ritardo). Qui invece la persona ha
     // appena chiesto esplicitamente di rientrare: va fatto subito — a meno che il link non
     // risulti disattivato (un altro delegante ha già attivato la stessa persona esterna).
-    if(idRisoltoPerPing!=null) segnaSubitoOnline(bCorrente, idRisoltoPerPing);
+    if(!cvModalitaSoloVoto && idRisoltoPerPing!=null) segnaSubitoOnline(bCorrente, idRisoltoPerPing);
     avviaRispostaPing(idCondominoToken);
   }catch(e){
     console.error('[Adunanza] Rientro in assemblea fallito:', e);
@@ -7366,19 +7471,27 @@ function renderVistaCondomino(){
   if(schermataTerminata) schermataTerminata.classList.add('hidden');
   if(schermataRientro) schermataRientro.classList.add('hidden');
   restoContenuto.forEach(el=>{ if(el) el.classList.remove('hidden'); });
+  // NUOVA FUNZIONALITÀ "solo voto": niente video, niente chat, niente alza-la-mano — questa
+  // persona deve poter vedere solo l'ordine del giorno/i presenti e votare quando c'è un
+  // sondaggio aperto, esattamente come deciso con l'utente.
+  if(cvModalitaSoloVoto){
+    [document.getElementById('cv-video-wrap'), document.getElementById('cv-chat-sezione'), document.getElementById('cv-btn-chat-toggle'), document.getElementById('cv-hand-btn')].forEach(el=>{ if(el) el.classList.add('hidden'); });
+  }
   const tipoAssembleaEl = document.getElementById('cv-tipo-assemblea');
   if(tipoAssembleaEl && assembleaCorrente){
     const tipoTesto = assembleaCorrente.tipo==='straordinaria' ? 'Straordinaria' : 'Ordinaria';
     const dataTesto = assembleaCorrente.dataSeconda || assembleaCorrente.dataPrima || 'data da definire';
     tipoAssembleaEl.textContent = `Assemblea ${tipoTesto} del ${dataTesto} — ${assembleaCorrente.oggetto||'(oggetto non indicato)'}`;
   }
-  renderChatCondomino();
+  if(!cvModalitaSoloVoto) renderChatCondomino();
   renderCvPollArea();
   const btn=document.getElementById('cv-hand-btn');
-  if(currentCondomino && handsArr().find(h=>h.condominoId===currentCondomino.id)){
-    btn.classList.add('active'); btn.textContent='✋ Mano alzata — tocca per abbassare';
-  }else{
-    btn.classList.remove('active'); btn.textContent='✋ Alza la mano';
+  if(!cvModalitaSoloVoto){
+    if(currentCondomino && handsArr().find(h=>h.condominoId===currentCondomino.id)){
+      btn.classList.add('active'); btn.textContent='✋ Mano alzata — tocca per abbassare';
+    }else{
+      btn.classList.remove('active'); btn.textContent='✋ Alza la mano';
+    }
   }
 }
 function adjustFontScale(dir){
@@ -7566,8 +7679,8 @@ function costruisciSezionePresenti(assemblea, b){
     const delegatoId = assemblea.appello.deleghe ? assemblea.appello.deleghe[c.id] : undefined;
     let pallino, infoTesto;
     if(attivo){
-      pallino = attivo.tipo==='online' ? '🟢' : '🔵';
-      infoTesto = attivo.tipo==='online' ? `Online dalle ${attivo.rec.entrata}` : `In presenza dalle ${attivo.rec.entrata}`;
+      pallino = attivo.tipo==='online' ? '🟢' : attivo.tipo==='voto-autonomo' ? '🟢' : '🔵';
+      infoTesto = attivo.tipo==='online' ? `Online dalle ${attivo.rec.entrata}` : attivo.tipo==='voto-autonomo' ? `Votando in autonomia dalle ${attivo.rec.entrata}` : `In presenza dalle ${attivo.rec.entrata}`;
     }else if(delegatoId!=null){
       const delegatoAttivoCv = recordAttivo(assemblea, delegatoId);
       pallino = delegatoAttivoCv ? '🟠' : '⚪';
@@ -7605,8 +7718,8 @@ function costruisciSezionePresenti(assemblea, b){
     const recPresenzaUscitoEst = (assemblea.appello.presenzeFisiche||[]).find(r=>r.condominoId===est.id && r.uscita);
     let pallinoEst, infoTestoEst;
     if(attivoEst){
-      pallinoEst = attivoEst.tipo==='online' ? '🟢' : '🔵';
-      infoTestoEst = attivoEst.tipo==='online' ? `Online dalle ${attivoEst.rec.entrata}` : `In presenza dalle ${attivoEst.rec.entrata}`;
+      pallinoEst = attivoEst.tipo==='online' ? '🟢' : attivoEst.tipo==='voto-autonomo' ? '🟢' : '🔵';
+      infoTestoEst = attivoEst.tipo==='online' ? `Online dalle ${attivoEst.rec.entrata}` : attivoEst.tipo==='voto-autonomo' ? `Votando in autonomia dalle ${attivoEst.rec.entrata}` : `In presenza dalle ${attivoEst.rec.entrata}`;
     }else if(recOnlineUscitoEst || recPresenzaUscitoEst){
       const rec = recOnlineUscitoEst || recPresenzaUscitoEst;
       pallinoEst = rec.usciteAutomatica ? '🟡' : '⚫';
@@ -7657,6 +7770,21 @@ function applicaVisibilitaElementiCondomino(modalita){
   // "Torna a inizio pagina" non ha senso vederlo durante il sondaggio o il suo risultato in
   // evidenza, né in verticale né in orizzontale.
   if(tornaSuBar) tornaSuBar.classList.toggle('hidden', schermataEsclusiva);
+  // NUOVA FUNZIONALITÀ "solo voto": video, mano alzata e chat restano SEMPRE nascosti,
+  // qualunque sia la modalità richiesta qui sotto — altrimenti, per esempio, il passaggio a
+  // "normale" dopo aver votato in layout orizzontale li rimostrerebbe (quel passaggio dice
+  // esplicitamente "chat e video restano utilizzabili da questo momento", cosa che qui non
+  // deve valere).
+  if(cvModalitaSoloVoto){
+    if(videoWrap) videoWrap.classList.add('hidden');
+    if(handBtn) handBtn.classList.add('hidden');
+    const chatSezione = document.getElementById('cv-chat-sezione');
+    if(chatSezione) chatSezione.style.display = 'none';
+    const btnChatSoloVoto = document.getElementById('cv-btn-chat-toggle');
+    if(btnChatSoloVoto) btnChatSoloVoto.classList.add('hidden');
+    if(esciBtn) esciBtn.classList.toggle('hidden', schermataEsclusiva && !inOrizzontale);
+    return;
+  }
   // In layout orizzontale, video e pulsanti principali restano SEMPRE al loro posto, anche
   // durante un sondaggio: cambia aspetto solo la colonna destra, non quella sinistra.
   const nascondiIlResto = schermataEsclusiva && !inOrizzontale;
@@ -8137,6 +8265,7 @@ function costruisciTabellaPresentiVerbale(building, assemblea){
     const delegatoId = assemblea.appello.deleghe[c.id];
     let stato;
     if(attivo && attivo.tipo==='online') stato='Online';
+    else if(attivo && attivo.tipo==='voto-autonomo') stato='Presente (voto autonomo)';
     else if(attivo && attivo.tipo==='presenza') stato='In presenza';
     else if(delegatoId){
       const delegato = building.condomini.find(x=>x.id===delegatoId);
@@ -9148,6 +9277,11 @@ function eseguiCicloPing(){
   try{
   const daSegnareOnline = []; // [{buildingId, assembleaId, condominoId}] — primo battito mai visto, o rientro dopo un'uscita automatica
   const daSegnareUsciti = []; // [{buildingId, assembleaId, condominoId}]
+  // Stesse due liste, ma per chi sta battendo in modalità "solo voto" (link dedicato, niente
+  // online): finiscono in a.votoAutonomo invece che in a.appello.online, con la stessa identica
+  // logica di ingresso/uscita — non tocca in alcun modo lo stato online/presenza normale.
+  const daSegnareVotoAutonomo = [];
+  const daSegnareVotoAutonomoUsciti = [];
   const battitiVisti = []; // [{buildingId, assembleaId, condominoId, ultimoVisto, mancate}]
   let quantiControllati = 0;
   buildings.forEach(bb=>{
@@ -9168,6 +9302,7 @@ function eseguiCicloPing(){
     const pingBattito = a.pingBattito || {};
     const pingUltimoVisto = a.pingUltimoVisto || {};
     const pingMancate = a.pingMancate || {};
+    const modalitaPing = a.modalitaPing || {};
 
     // Ogni identificativo che può davvero mandare un battito: ciascun condòmino convocato, più
     // ciascuna persona esterna che compare tra le deleghe di questa assemblea.
@@ -9179,27 +9314,29 @@ function eseguiCicloPing(){
       if(valoreAttuale == null) return; // non ha mai mandato un battito: resta "mai collegato", non lo tocchiamo
       quantiControllati++;
       const valorePrecedente = pingUltimoVisto[id];
-      const recOnline = (a.appello.online||[]).find(r=>r.condominoId===id);
+      const inSoloVoto = modalitaPing[id]==='soloVoto';
+      const recOnline = inSoloVoto
+        ? (a.votoAutonomo||[]).find(r=>r.condominoId===id)
+        : (a.appello.online||[]).find(r=>r.condominoId===id);
       const eraOnlineAttivo = recOnline && !recOnline.uscita;
-      const eraUscitoAutomatico = recOnline && recOnline.uscita && recOnline.usciteAutomatica;
       const eraUscitoVolontario = recOnline && recOnline.uscita && !recOnline.usciteAutomatica;
 
       if(valoreAttuale !== valorePrecedente){
         // Il battito è salito rispetto all'ultima volta controllata: il dispositivo è vivo ADESSO.
         if(!eraOnlineAttivo && !eraUscitoVolontario){
-          // Non era online (mai stato, o era uscito in automatico): lo mettiamo online — anche
-          // se è il suo primissimo battito in assoluto.
-          daSegnareOnline.push({buildingId: bb.id, assembleaId: a.id, condominoId: id});
+          // Non era online/in voto autonomo (mai stato, o era uscito in automatico): lo
+          // rimettiamo attivo — anche se è il suo primissimo battito in assoluto.
+          (inSoloVoto ? daSegnareVotoAutonomo : daSegnareOnline).push({buildingId: bb.id, assembleaId: a.id, condominoId: id});
         }
         // Se era uscito VOLONTARIAMENTE (ha premuto "Lascia l'assemblea"), non lo rimettiamo
         // online da soli nemmeno se un battito residuo dovesse ancora arrivare: serve un suo
         // tocco esplicito su "Rientra in assemblea".
         battitiVisti.push({buildingId: bb.id, assembleaId: a.id, condominoId: id, ultimoVisto: valoreAttuale, mancate: 0});
       }else if(eraOnlineAttivo){
-        // Era online, ma nessun nuovo battito da quando abbiamo controllato l'ultima volta.
+        // Era attivo, ma nessun nuovo battito da quando abbiamo controllato l'ultima volta.
         const mancateAggiornate = (pingMancate[id]||0) + 1;
         if(mancateAggiornate >= TENTATIVI_PING_PRIMA_DI_USCITA){
-          daSegnareUsciti.push({buildingId: bb.id, assembleaId: a.id, condominoId: id});
+          (inSoloVoto ? daSegnareVotoAutonomoUsciti : daSegnareUsciti).push({buildingId: bb.id, assembleaId: a.id, condominoId: id});
         }
         battitiVisti.push({buildingId: bb.id, assembleaId: a.id, condominoId: id, ultimoVisto: valoreAttuale, mancate: mancateAggiornate});
       }
@@ -9228,6 +9365,23 @@ function eseguiCicloPing(){
       // viene usato potrà attivarla di nuovo, invece di restare bloccato sul primo per sempre.
       if(typeof condominoId==='string' && a.esternoClaimatoDa) delete a.esternoClaimatoDa[condominoId];
     });
+    daSegnareVotoAutonomo.forEach(({buildingId, assembleaId, condominoId})=>{
+      const bb = buildings.find(x=>x.id===buildingId);
+      const a = bb ? (bb.assemblee||[]).find(x=>x.id===assembleaId) : null;
+      if(!a) return;
+      a.votoAutonomo = a.votoAutonomo || [];
+      const rec = a.votoAutonomo.find(r=>r.condominoId===condominoId);
+      if(!rec) a.votoAutonomo.push({condominoId, entrata:oraAdesso(), uscita:null});
+      else{ delete rec.uscita; delete rec.usciteAutomatica; }
+    });
+    daSegnareVotoAutonomoUsciti.forEach(({buildingId, assembleaId, condominoId})=>{
+      const bb = buildings.find(x=>x.id===buildingId);
+      const a = bb ? (bb.assemblee||[]).find(x=>x.id===assembleaId) : null;
+      if(!a || !a.votoAutonomo) return;
+      const oraStr = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+      const rec = a.votoAutonomo.find(r=>r.condominoId===condominoId && !r.uscita);
+      if(rec){ rec.uscita = oraStr; rec.usciteAutomatica = true; }
+    });
     battitiVisti.forEach(({buildingId, assembleaId, condominoId, ultimoVisto, mancate})=>{
       const bb = buildings.find(x=>x.id===buildingId);
       const a = bb ? (bb.assemblee||[]).find(x=>x.id===assembleaId) : null;
@@ -9239,7 +9393,7 @@ function eseguiCicloPing(){
     });
   }
   eseguiConUnioneSuServer(applicaPiano);
-  if(daSegnareOnline.length || daSegnareUsciti.length) renderAppello(); // aggiorniamo subito la tabella visibile, senza aspettare l'eco di Firebase
+  if(daSegnareOnline.length || daSegnareUsciti.length || daSegnareVotoAutonomo.length || daSegnareVotoAutonomoUsciti.length) renderAppello(); // aggiorniamo subito la tabella visibile, senza aspettare l'eco di Firebase
   const indicatorePing = document.getElementById('fb-ultimo-ping');
   if(indicatorePing) indicatorePing.textContent = '📡 Giro ' + new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) + ' — ' + quantiControllati + ' persone monitorate';
   }catch(e){
