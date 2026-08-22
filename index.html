@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-185 — creata il 22/08/2026 alle 18:21
+  Versione: LT-186 — creata il 22/08/2026 alle 18:53
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -649,7 +649,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 22/08/2026 alle 18:21">LT-185</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 22/08/2026 alle 18:53">LT-186</span>
   </div>
 
   <!-- MAIN -->
@@ -663,7 +663,7 @@
     <!-- PAGE: HOME -->
     <div class="page hidden" id="page-home">
       <div class="page-head">
-        <div><h1>Planning assemblee</h1><p class="sub">Calendario e assemblee in programma.</p></div>
+        <div><h1>Planning assemblee</h1></div>
       </div>
 
       <div class="grid grid-2" style="align-items:start;">
@@ -2430,13 +2430,7 @@ function goPage(name){
   // parametro forzaUscita (secondo argomento) bypassa il controllo: usato dal pulsante "Esci
   // comunque" del modale stesso, per completare davvero la navigazione dopo la conferma.
   if(currentPage==='assemblea' && name!=='assemblea' && !arguments[1]){
-    const bCorrente = getActiveBuilding();
-    const assembleaCorrente = getAssembleaInCorso(bCorrente);
-    if(assembleaCorrente && assembleaCorrente.iniziata && assembleaCorrente.stato!=='conclusa'){
-      __paginaInAttesaDopoAvvisoUscitaAssemblea = name;
-      document.getElementById('modal-uscita-assemblea-non-terminata').classList.remove('hidden');
-      return;
-    }
+    if(!eseguireOAvvisareUscitaAssemblea(()=>goPage(name, true))) return;
   }
   aggiornaNomeStudioTopbar();
   // Impedisce che lo schermo del telefono si spenga da solo per inattività mentre si è in
@@ -2527,16 +2521,37 @@ function toast(msg){
 }
 // Avviso "assemblea non terminata" quando l'amministratore prova a lasciare la pagina
 // dell'assemblea (vedi il controllo in cima a goPage()).
-let __paginaInAttesaDopoAvvisoUscitaAssemblea = null;
+let __azioneInAttesaDopoAvvisoUscitaAssemblea = null;
 function restaSullAssemblea(){
-  __paginaInAttesaDopoAvvisoUscitaAssemblea = null;
+  __azioneInAttesaDopoAvvisoUscitaAssemblea = null;
   document.getElementById('modal-uscita-assemblea-non-terminata').classList.add('hidden');
 }
 function confermaUscitaAssembleaNonTerminata(){
-  const destinazione = __paginaInAttesaDopoAvvisoUscitaAssemblea;
-  __paginaInAttesaDopoAvvisoUscitaAssemblea = null;
+  const azione = __azioneInAttesaDopoAvvisoUscitaAssemblea;
+  __azioneInAttesaDopoAvvisoUscitaAssemblea = null;
   document.getElementById('modal-uscita-assemblea-non-terminata').classList.add('hidden');
-  if(destinazione) goPage(destinazione, true); // il secondo argomento bypassa il controllo, per non riaprire subito lo stesso avviso
+  if(azione) azione();
+}
+// Funzione condivisa: esegue subito "azione", a meno che l'assemblea in corso sia stata
+// avviata ma non ancora terminata — nel qual caso mostra prima l'avviso e rimanda "azione" a
+// dopo la conferma dell'utente. Usata sia da goPage() sia da chi deve fare altri passaggi
+// PRIMA di navigare via (es. azzerare il condominio selezionato, come "Planning" in topbar):
+// se il controllo restasse solo dentro goPage(), quei passaggi azzererebbero lo stato PRIMA
+// che goPage() possa verificarlo, vanificando l'avviso — bug reale scoperto e corretto qui.
+// Restituisce true se "azione" è stata eseguita subito (nessun avviso necessario), false se
+// l'avviso è stato mostrato e "azione" resta in sospeso.
+function eseguireOAvvisareUscitaAssemblea(azione){
+  if(currentPage==='assemblea'){
+    const bCorrente = getActiveBuilding();
+    const assembleaCorrente = getAssembleaInCorso(bCorrente);
+    if(assembleaCorrente && assembleaCorrente.iniziata && assembleaCorrente.stato!=='conclusa'){
+      __azioneInAttesaDopoAvvisoUscitaAssemblea = azione;
+      document.getElementById('modal-uscita-assemblea-non-terminata').classList.remove('hidden');
+      return false;
+    }
+  }
+  azione();
+  return true;
 }
 // Sostituto di alert(): il popup nativo del browser mostra sempre "<indirizzo del sito> dice"
 // come titolo, impossibile da cambiare via codice — questo modale mostra invece "Attenzione".
@@ -2857,12 +2872,14 @@ function renderDashboard(){
   renderZonaPericolosa();
 }
 function vaiAllaHomeSenzaSelezione(){
-  richiediConfermaUscitaCreazione(()=>{
-    activeBuildingId = null;
-    draftBuilding = null;
-    calVista = null; // il calendario torna a mostrare il mese corrente
-    salvaStato();
-    goPage('home');
+  eseguireOAvvisareUscitaAssemblea(()=>{
+    richiediConfermaUscitaCreazione(()=>{
+      activeBuildingId = null;
+      draftBuilding = null;
+      calVista = null; // il calendario torna a mostrare il mese corrente
+      salvaStato();
+      goPage('home', true); // il controllo sull'assemblea è già stato fatto qui sopra
+    });
   });
 }
 // ---------- CONFERMA USCITA SENZA SALVARE (creazione condominio in corso) ----------
@@ -2908,15 +2925,17 @@ const paginaGenitore = {
 function tornaIndietro(){
   const dest = paginaGenitore[currentPage];
   if(!dest) return;
-  richiediConfermaUscitaCreazione(()=>{
-    if(dest==='home'){
-      activeBuildingId = null;
-      draftBuilding = null;
-      salvaStato();
-      goPage('home');
-    }else{
-      goPage(dest);
-    }
+  eseguireOAvvisareUscitaAssemblea(()=>{
+    richiediConfermaUscitaCreazione(()=>{
+      if(dest==='home'){
+        activeBuildingId = null;
+        draftBuilding = null;
+        salvaStato();
+        goPage('home', true);
+      }else{
+        goPage(dest, true);
+      }
+    });
   });
 }
 function scrollToSezione(id){
@@ -2950,8 +2969,10 @@ function renderNavSubmenu(){
   if(inAssemblea) renderOdgPillsTopbar();
 }
 function renderCondominiElenco(){
-  const attivi = buildings.filter(b=>b.attivo!==false);
-  const inattivi = buildings.filter(b=>b.attivo===false);
+  // Ordinati alfabeticamente per nome, non nell'ordine di creazione.
+  const ordinaPerNome = (a,b)=>(a.nome||'').localeCompare(b.nome||'','it');
+  const attivi = buildings.filter(b=>b.attivo!==false).sort(ordinaPerNome);
+  const inattivi = buildings.filter(b=>b.attivo===false).sort(ordinaPerNome);
   document.getElementById('stat-edifici-attivi').textContent = attivi.length;
 
   const grid = document.getElementById('buildings-grid');
@@ -8372,25 +8393,25 @@ function costruisciTabelleSondaggiVerbale(building, assemblea){
   const blocchiTesto = [];
   assemblea.odg.forEach((p,i)=>{
     (p.storicoSondaggi||[]).forEach(s=>{
-      const righe = building.condomini
-        .filter(c=>s.scelte && s.scelte[c.id]!=null)
-        .map(c=>{
-          const opt = s.options.find(o=>o.id===s.scelte[c.id]);
-          return {nome:nomeCompletoCondomino(c), voto: opt?opt.label:'—', millesimi: c.millesimi[s.tabella]||0};
-        });
+      // Stessa funzione già corretta altrove (esito del sondaggio lato condòmino): raggruppa
+      // per proprietario PRIMARIO, sommando i millesimi di tutte le sue unità in un'unica riga
+      // con "1 testa" — evita che lo stesso proprietario con più unità (es. "Colombo Ma" e
+      // "Colombo Maria") compaia come due persone diverse nel verbale.
+      const righe = costruisciElencoVotantiSondaggio(s, building);
+      const teste = contaTesteXOpzione(s.scelte||{}, building);
       const totVotato = arrotondaMillesimi(Object.values(s.risultatiFinali).reduce((a,c)=>a+c,0)) || 1;
-      const esitoTxt = s.options.map(o=>`${o.label}: ${s.risultatiFinali[o.id]||0}‰ (${Math.round(((s.risultatiFinali[o.id]||0)/totVotato)*100)}%)`).join(' — ');
+      const esitoTxt = s.options.map(o=>`${o.label}: ${s.risultatiFinali[o.id]||0}‰ (${Math.round(((s.risultatiFinali[o.id]||0)/totVotato)*100)}%) — ${teste[o.id]||0} test${(teste[o.id]||0)===1?'a':'e'}`).join(' — ');
       const righeHtml = righe.length
-        ? righe.map(r=>`<tr><td>${escapeHtml(r.nome)}</td><td>${escapeHtml(r.voto)}</td><td>${r.millesimi}</td></tr>`).join('')
-        : '<tr><td colspan="3" class="muted">Nessun voto individuale registrato.</td></tr>';
+        ? righe.map(r=>`<tr><td>${escapeHtml(r.nome)}</td><td>${escapeHtml(r.opzione)}</td><td style="text-align:right;">${r.millesimi}</td><td style="text-align:right;">1</td></tr>`).join('')
+        : '<tr><td colspan="4" class="muted">Nessun voto individuale registrato.</td></tr>';
       blocchiHtml.push(`<h4 style="margin-top:20px;">Sondaggio — Punto ${i+1}: "${escapeHtml(s.question)}" (tabella ${escapeHtml(s.tabella)})</h4>
         <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
-          <thead><tr><th style="text-align:left;border-bottom:1px solid var(--line);padding:4px 6px;">Nome</th><th style="text-align:left;border-bottom:1px solid var(--line);padding:4px 6px;">Voto</th><th style="text-align:right;border-bottom:1px solid var(--line);padding:4px 6px;">Millesimi</th></tr></thead>
+          <thead><tr><th style="text-align:left;border-bottom:1px solid var(--line);padding:4px 6px;">Nome</th><th style="text-align:left;border-bottom:1px solid var(--line);padding:4px 6px;">Voto</th><th style="text-align:right;border-bottom:1px solid var(--line);padding:4px 6px;">Millesimi</th><th style="text-align:right;border-bottom:1px solid var(--line);padding:4px 6px;">Teste</th></tr></thead>
           <tbody>${righeHtml}</tbody>
         </table>
         <p style="margin-top:8px;"><b>Esito:</b> ${esitoTxt}</p>`);
       blocchiTesto.push(`SONDAGGIO — Punto ${i+1}: "${s.question}" (tabella ${s.tabella})\n` +
-        (righe.length ? righe.map(r=>`- ${r.nome} — ${r.voto} — ${r.millesimi} millesimi`).join('\n') : '(nessun voto individuale registrato)') +
+        (righe.length ? righe.map(r=>`- ${r.nome} — ${r.opzione} — ${r.millesimi} millesimi — 1 testa`).join('\n') : '(nessun voto individuale registrato)') +
         `\nEsito: ${esitoTxt}`);
     });
   });
@@ -8550,7 +8571,7 @@ ${partecipantiTxt}
 ORDINE DEL GIORNO
 ${righeOdg}
 
-APPUNTI DELLA RIUNIONE
+VERBALE DELLA RIUNIONE
 ${appunti}
 
 ESITO DELLE VOTAZIONI
