@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-183 — creata il 22/08/2026 alle 15:22
+  Versione: LT-184 — creata il 22/08/2026 alle 15:46
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -649,7 +649,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 22/08/2026 alle 15:22">LT-183</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 22/08/2026 alle 15:46">LT-184</span>
   </div>
 
   <!-- MAIN -->
@@ -1592,7 +1592,7 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
     <label class="muted" style="font-size:12px;display:block;margin-bottom:3px;flex-shrink:0;">Indirizzo destinatario</label>
     <input type="email" id="anteprima-email-indirizzo" style="margin-bottom:12px;flex-shrink:0;">
     <p class="muted" style="font-size:12px;margin-bottom:3px;flex-shrink:0;">Oggetto: <b id="anteprima-email-oggetto" style="color:var(--ink);"></b></p>
-    <div style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;">
+    <div id="anteprima-email-scroll-wrap" style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;">
       <label class="muted" style="font-size:12px;display:block;margin-bottom:3px;flex-shrink:0;">Anteprima (come apparirà davvero, pulsante compreso)</label>
       <div id="anteprima-email-render" style="background:#fff;border:1px solid var(--line);border-radius:4px;padding:16px;margin-bottom:16px;font-size:13.5px;white-space:pre-wrap;line-height:1.6;flex-shrink:0;"></div>
       <label class="muted" style="font-size:12px;display:block;margin-bottom:3px;flex-shrink:0;">Testo dell'email (modificabile — il pulsante e il link si aggiornano da soli, non serve modificarli qui)</label>
@@ -1759,6 +1759,10 @@ Vista l'importanza degli argomenti da trattare si invitano i Signori Condòmini 
 
 {{link_delega}}
 
+Se sei già presente all'assemblea (in aula o comunque per altra via) e vuoi soltanto votare dal tuo telefono, senza aprire video o chat, puoi usare invece questo link dedicato, valido solo per esprimere il voto quando viene aperto un sondaggio:
+
+{{link_solo_voto}}
+
 ORDINE DEL GIORNO
 {{odg}}
 
@@ -1793,6 +1797,10 @@ Vista l'importanza degli argomenti da trattare si invitano i Signori Condòmini 
 
 {{link_delega}}
 
+Se sei già presente all'assemblea (per altra via) e vuoi soltanto votare dal tuo telefono, senza aprire video o chat, puoi usare invece questo link dedicato, valido solo per esprimere il voto quando viene aperto un sondaggio:
+
+{{link_solo_voto}}
+
 ORDINE DEL GIORNO
 {{odg}}
 
@@ -1820,6 +1828,10 @@ Gentile {{nome}},
 la S.V. è invitata ad intervenire all'assemblea condominiale {{tipo}} del condominio {{nomecondominio}}, {{comune}} che si terrà in modalità {{modalita}} il giorno {{data_prima}} alle ore {{ora_prima}} in prima convocazione presso lo Studio dell'Amministratore sito in {{indirizzostudio}} ed in SECONDA CONVOCAZIONE il giorno {{data_seconda}} alle ore {{ora_seconda}} presso {{luogo}}.
 
 Vista l'importanza degli argomenti da trattare si invitano i Signori Condòmini a intervenire numerosi; in caso di impossibilità a partecipare di persona, è raccomandato farsi rappresentare con delega, stampando e compilando l'apposito modulo in calce a questa mail.
+
+Se preferisci non partecipare di persona ma vuoi comunque esprimere il tuo voto durante l'assemblea, puoi farlo dal tuo telefono con questo link dedicato, valido solo per votare quando viene aperto un sondaggio (non dà accesso a video o chat):
+
+{{link_solo_voto}}
 
 ORDINE DEL GIORNO
 {{odg}}
@@ -5870,6 +5882,14 @@ function apriAnteprimaEmailSingola(condominoId){
   // di eventuali modifiche (compreso, se capitasse per sbaglio, un pulsante rovinato).
   areaTesto.oninput = () => { render.innerHTML = areaTesto.value; };
   document.getElementById('modal-anteprima-email').classList.remove('hidden');
+  // BUG CORRETTO: riaprendo l'anteprima per un altro condòmino, il pannello restava scorso in
+  // basso dalla visualizzazione precedente — mostrando solo la coda del testo (es. "Firma
+  // ___________") invece dei pulsanti in alto, che sembravano spariti mentre erano solo fuori
+  // vista. La causa era anche nell'ordine delle operazioni: azzerare scrollTop mentre il
+  // modale è ancora "display:none" viene ignorato dal browser in silenzio — va fatto DOPO
+  // averlo reso visibile, non prima.
+  document.getElementById('anteprima-email-scroll-wrap').scrollTop = 0;
+  areaTesto.scrollTop = 0;
 }
 function chiudiAnteprimaEmail(){
   document.getElementById('modal-anteprima-email').classList.add('hidden');
@@ -7183,16 +7203,26 @@ function confermaEsciAssemblea(){
     // sicurezza, ripetiamo il controllo su tutti i condomìni nel caso fosse presente altrove.
     const bCorrente = getActiveBuilding();
     const assembleaVera = bCorrente ? getAssembleaContestualizzataCondomino(bCorrente) : null;
-    if(assembleaVera){
-      const recOn = (assembleaVera.appello.online||[]).find(r=>r.condominoId===idCondomino && !r.uscita);
-      if(recOn) recOn.uscita = oraOra;
-      const recPres = (assembleaVera.appello.presenzeFisiche||[]).find(r=>r.condominoId===idCondomino && !r.uscita);
-      if(recPres) recPres.uscita = oraOra;
-      // Se chi esce è una persona esterna con un collegamento "attivato" da un delegante
-      // specifico, lo liberiamo: il prossimo delegante il cui link viene usato potrà attivarla
-      // di nuovo, invece di restare bloccato sul primo per sempre.
-      if(typeof idCondomino==='string' && assembleaVera.esternoClaimatoDa) delete assembleaVera.esternoClaimatoDa[idCondomino];
+    if(!assembleaVera) return;
+    if(cvModalitaSoloVoto){
+      // In modalità "solo voto" NON tocchiamo MAI online/presenzeFisiche: sono stati
+      // indipendenti che possono essere già registrati per altra via (es. l'amministratore ha
+      // segnato questa persona "in presenza in aula"). Qui chiudiamo SOLO il canale di voto
+      // autonomo — da questo momento, se vuole ancora votare, sarà l'amministratore a
+      // registrare il suo voto (di persona o come già segnato). Il suo vero stato sottostante
+      // (online/in presenza/assente) resta esattamente quello che era, invariato.
+      const recVoto = (assembleaVera.votoAutonomo||[]).find(r=>r.condominoId===idCondomino && !r.uscita);
+      if(recVoto) recVoto.uscita = oraOra;
+      return;
     }
+    const recOn = (assembleaVera.appello.online||[]).find(r=>r.condominoId===idCondomino && !r.uscita);
+    if(recOn) recOn.uscita = oraOra;
+    const recPres = (assembleaVera.appello.presenzeFisiche||[]).find(r=>r.condominoId===idCondomino && !r.uscita);
+    if(recPres) recPres.uscita = oraOra;
+    // Se chi esce è una persona esterna con un collegamento "attivato" da un delegante
+    // specifico, lo liberiamo: il prossimo delegante il cui link viene usato potrà attivarla
+    // di nuovo, invece di restare bloccato sul primo per sempre.
+    if(typeof idCondomino==='string' && assembleaVera.esternoClaimatoDa) delete assembleaVera.esternoClaimatoDa[idCondomino];
   }
   try{
     eseguiConUnioneSuServer(applicaUscita);
@@ -7475,7 +7505,7 @@ function renderVistaCondomino(){
   // persona deve poter vedere solo l'ordine del giorno/i presenti e votare quando c'è un
   // sondaggio aperto, esattamente come deciso con l'utente.
   if(cvModalitaSoloVoto){
-    [document.getElementById('cv-video-wrap'), document.getElementById('cv-chat-sezione'), document.getElementById('cv-btn-chat-toggle'), document.getElementById('cv-hand-btn')].forEach(el=>{ if(el) el.classList.add('hidden'); });
+    [document.getElementById('cv-video-wrap'), document.getElementById('cv-chat-sezione'), document.getElementById('cv-btn-chat-toggle'), document.getElementById('cv-hand-btn'), document.getElementById('cv-esci-btn')].forEach(el=>{ if(el) el.classList.add('hidden'); });
   }
   const tipoAssembleaEl = document.getElementById('cv-tipo-assemblea');
   if(tipoAssembleaEl && assembleaCorrente){
@@ -7782,7 +7812,7 @@ function applicaVisibilitaElementiCondomino(modalita){
     if(chatSezione) chatSezione.style.display = 'none';
     const btnChatSoloVoto = document.getElementById('cv-btn-chat-toggle');
     if(btnChatSoloVoto) btnChatSoloVoto.classList.add('hidden');
-    if(esciBtn) esciBtn.classList.toggle('hidden', schermataEsclusiva && !inOrizzontale);
+    if(esciBtn) esciBtn.classList.add('hidden');
     return;
   }
   // In layout orizzontale, video e pulsanti principali restano SEMPRE al loro posto, anche
