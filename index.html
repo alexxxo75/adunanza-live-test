@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-184 — creata il 22/08/2026 alle 15:46
+  Versione: LT-185 — creata il 22/08/2026 alle 18:21
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -649,7 +649,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 22/08/2026 alle 15:46">LT-184</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 22/08/2026 alle 18:21">LT-185</span>
   </div>
 
   <!-- MAIN -->
@@ -3644,6 +3644,18 @@ function recordAttivo(assemblea, condominoId){
   if(rPres) return {tipo:'presenza', rec:rPres};
   return null;
 }
+// Come recordAttivo, ma IGNORA il voto autonomo: su richiesta esplicita, l'indicazione "sta
+// votando in autonomia" deve comparire SOLO nel contesto del sondaggio (tabella voti
+// dell'amministratore) — non nell'appello, nell'elenco partecipanti, nella descrizione di una
+// delega, né nel verbale, dove deve restare visibile solo la presenza/online reale, come se il
+// link "solo voto" non venisse mai usato.
+function statoRealeSenzaVotoAutonomo(assemblea, condominoId){
+  const rOn = assemblea.appello.online.find(r=>r.condominoId===condominoId && !r.uscita);
+  if(rOn) return {tipo:'online', rec:rOn};
+  const rPres = assemblea.appello.presenzeFisiche.find(r=>r.condominoId===condominoId && !r.uscita);
+  if(rPres) return {tipo:'presenza', rec:rPres};
+  return null;
+}
 // Come recordAttivo, ma per un "primario" (condòmino con una o più unità unificate a lui)
 // controlla anche le sue unità secondarie: ciascuna ha un proprio link personale distinto, e
 // se il condòmino si collega tramite il link di una proprietà secondaria invece che quella
@@ -3655,6 +3667,19 @@ function recordAttivoConSecondarie(building, assemblea, condominoId){
   const secondarie = building.condomini.filter(x=>x.unificatoCon===condominoId);
   for(const u of secondarie){
     const att = recordAttivo(assemblea, u.id);
+    if(att) return att;
+  }
+  return null;
+}
+// Come recordAttivoConSecondarie, ma ignorando il voto autonomo (vedi statoRealeSenzaVotoAutonomo) —
+// per gli stessi punti (appello, elenco partecipanti, verbale) dove il voto autonomo non deve
+// comparire, anche quando si considerano le unità secondarie di un condòmino.
+function recordAttivoConSecondarieSenzaVotoAutonomo(building, assemblea, condominoId){
+  const diretto = statoRealeSenzaVotoAutonomo(assemblea, condominoId);
+  if(diretto) return diretto;
+  const secondarie = building.condomini.filter(x=>x.unificatoCon===condominoId);
+  for(const u of secondarie){
+    const att = statoRealeSenzaVotoAutonomo(assemblea, u.id);
     if(att) return att;
   }
   return null;
@@ -4502,8 +4527,8 @@ function contaTeste(convocatiList, assemblea, building){
   return {totaleTeste: teste.length, testePresenti: testePresenti.length};
 }
 function semaforoAppello(stato){
-  const colori = {verde:'#3D8B4C', 'voto-scuro':'#1F4D33', blu:'#1D6FD1', arancio:'#E08A2C', grigio:'#9AA0A6', nero:'#2A2A2A', rosso:'#C0392B', rosa:'#C2508A'};
-  const titoli = {verde:'Presente online', 'voto-scuro':'Sta votando in autonomia (link solo voto)', blu:'Presente fisicamente', arancio:'Delega', grigio:'Assente', nero:'Uscito/a', rosso:'Online, non ancora riconosciuto', rosa:'Online, segnato a mano dall\'amministratore'};
+  const colori = {verde:'#3D8B4C', blu:'#1D6FD1', arancio:'#E08A2C', grigio:'#9AA0A6', nero:'#2A2A2A', rosso:'#C0392B', rosa:'#C2508A'};
+  const titoli = {verde:'Presente online', blu:'Presente fisicamente', arancio:'Delega', grigio:'Assente', nero:'Uscito/a', rosso:'Online, non ancora riconosciuto', rosa:'Online, segnato a mano dall\'amministratore'};
   return `<span title="${titoli[stato]||stato}" style="display:inline-block;width:11px;height:11px;border-radius:50%;background:${colori[stato]||'#9AA0A6'};margin-right:9px;vertical-align:middle;flex-shrink:0;"></span>`;
 }
 function renderAppello(){
@@ -4581,10 +4606,10 @@ function renderAppello(){
   // l'indicazione "esterno delegato"), sia in fondo alla tabella per chi è nel gruppo delle
   // persone esterne ma al momento non ha una delega attiva da nessuno.
   function costruisciRigaEsterno(est, indentata){
-    const attivoEst = recordAttivo(assemblea, est.id);
+    const attivoEst = statoRealeSenzaVotoAutonomo(assemblea, est.id);
     const tr=document.createElement('tr');
     tr.style.background='var(--paper)';
-    const semEst = (attivoEst && attivoEst.tipo==='voto-autonomo') ? 'voto-scuro' : (attivoEst && attivoEst.tipo==='online') ? 'verde' : (attivoEst && attivoEst.rec.online) ? 'rosa' : attivoEst ? 'blu' : 'grigio';
+    const semEst = (attivoEst && attivoEst.tipo==='online') ? 'verde' : (attivoEst && attivoEst.rec.online) ? 'rosa' : attivoEst ? 'blu' : 'grigio';
     const tdNome=document.createElement('td');
     tdNome.className='appello-nome-cella';
     tdNome.innerHTML=semaforoAppello(semEst)+`${est.nome} <span class="muted">${indentata?'(esterno delegato)':'(persona esterna)'}</span>`;
@@ -4592,8 +4617,7 @@ function renderAppello(){
     const tdBustaEst=document.createElement('td'); tr.appendChild(tdBustaEst);
     const tdMillEst=document.createElement('td'); tdMillEst.innerHTML='<span class="muted">—</span>'; tr.appendChild(tdMillEst);
     const tdStato=document.createElement('td');
-    if(attivoEst && attivoEst.tipo==='voto-autonomo') tdStato.innerHTML = `<span class="badge" style="background:#1F4D33;color:#B9E6C9;">🟢 Votando in autonomia (dalle ${attivoEst.rec.entrata})</span>`;
-    else if(attivoEst && attivoEst.tipo==='online') tdStato.innerHTML = `<span class="badge">🟢 Online (dalle ${attivoEst.rec.entrata})</span>`;
+    if(attivoEst && attivoEst.tipo==='online') tdStato.innerHTML = `<span class="badge">🟢 Online (dalle ${attivoEst.rec.entrata})</span>`;
     else if(attivoEst && attivoEst.tipo==='presenza' && attivoEst.rec.online) tdStato.innerHTML = `<span class="badge" style="background:#F3D6E4;color:#9B2C63;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#9B2C63;margin-right:5px;vertical-align:middle;"></span>Online (a mano, dalle ${attivoEst.rec.entrata})</span>`;
     else if(attivoEst) tdStato.innerHTML = `<span class="badge pending">🏠 In presenza (dalle ${attivoEst.rec.entrata})</span>`;
     else tdStato.innerHTML = '<span class="muted">⚪ Non ancora presente</span>';
@@ -4621,17 +4645,17 @@ function renderAppello(){
     return tr;
   }
   b.condomini.filter(c=>convocatiIds.includes(c.id) && !(c.unificatoCon && convocatiIds.includes(c.unificatoCon))).forEach(c=>{
-    const attivo = recordAttivoConSecondarie(b, assemblea, c.id);
+    const attivo = recordAttivoConSecondarieSenzaVotoAutonomo(b, assemblea, c.id);
     const delegatoId = assemblea.appello.deleghe[c.id];
     const collegate = personeCollegate(b, c.id);
-    const collegatoAttivo = !attivo && !delegatoId ? collegate.map(id=>recordAttivo(assemblea,id)).find(Boolean) : null;
+    const collegatoAttivo = !attivo && !delegatoId ? collegate.map(id=>statoRealeSenzaVotoAutonomo(assemblea,id)).find(Boolean) : null;
     const collegatoIdAttivo = collegatoAttivo ? collegate.find(id=>recordAttivo(assemblea,id)) : null;
     const tr=document.createElement('tr');
 
     // se è uscito anticipatamente ha priorità su tutto il resto per il colore del semaforo
     const rOnUscitoSem = assemblea.appello.online.find(r=>r.condominoId===c.id && r.uscita);
     const rPresUscitoSem = assemblea.appello.presenzeFisiche.find(r=>r.condominoId===c.id && r.uscita);
-    const delegatoAttivo = delegatoId!=null ? recordAttivo(assemblea, delegatoId) : null;
+    const delegatoAttivo = delegatoId!=null ? statoRealeSenzaVotoAutonomo(assemblea, delegatoId) : null;
     // Se questa persona ha delegato, e il delegato risultava presente ma ora si è disconnesso
     // (anche solo temporaneamente, es. rete debole o scheda in secondo piano), la delega non
     // conta più per il quorum, ma il suo colore deve comunque riflettere "uscito" — non
@@ -4642,8 +4666,7 @@ function renderAppello(){
       ? ((assemblea.appello.online||[]).find(r=>r.condominoId===delegatoId && r.uscita)
          || (assemblea.appello.presenzeFisiche||[]).find(r=>r.condominoId===delegatoId && r.uscita))
       : null;
-    const semStato = (attivo && attivo.tipo==='voto-autonomo') ? 'voto-scuro'
-      : (attivo && attivo.tipo==='online') ? 'verde'
+    const semStato = (attivo && attivo.tipo==='online') ? 'verde'
       : (attivo && attivo.tipo==='presenza' && attivo.rec.online) ? 'rosa'
       : (attivo && attivo.tipo==='presenza') ? 'blu'
       : (delegatoId!=null && delegatoAttivo) ? 'arancio'
@@ -4683,10 +4706,7 @@ function renderAppello(){
     tr.appendChild(tdMill);
 
     const tdStato=document.createElement('td');
-    if(attivo && attivo.tipo==='voto-autonomo'){
-      tdStato.innerHTML=`<span class="badge" style="background:#1F4D33;color:#B9E6C9;">🟢 Votando in autonomia (dalle ${attivo.rec.entrata})</span>`;
-    }
-    else if(attivo && attivo.tipo==='online'){
+    if(attivo && attivo.tipo==='online'){
       if(delegatoId!=null){
         const nomeDelegato = nomePersonaAppello(b, assemblea, delegatoId);
         tdStato.innerHTML = `<span class="badge">🟢 Delega a ${nomeDelegato} — presente online (dalle ${attivo.rec.entrata})</span>`;
@@ -4699,7 +4719,7 @@ function renderAppello(){
     else if(delegatoId!=null){
       const nomeDelegato = nomePersonaAppello(b, assemblea, delegatoId);
       if(delegatoAttivo){
-        const doveE = delegatoAttivo.tipo==='online' ? 'online' : delegatoAttivo.tipo==='voto-autonomo' ? 'votando in autonomia' : 'fisicamente';
+        const doveE = delegatoAttivo.tipo==='online' ? 'online' : 'fisicamente';
         tdStato.innerHTML=`<span class="badge">📝 Delega a ${nomeDelegato} — presente ${doveE} (dalle ${delegatoAttivo.rec.entrata})</span>`;
       }else{
         tdStato.innerHTML=`<span class="badge">📝 Delega a ${nomeDelegato}</span>`;
@@ -7505,7 +7525,10 @@ function renderVistaCondomino(){
   // persona deve poter vedere solo l'ordine del giorno/i presenti e votare quando c'è un
   // sondaggio aperto, esattamente come deciso con l'utente.
   if(cvModalitaSoloVoto){
-    [document.getElementById('cv-video-wrap'), document.getElementById('cv-chat-sezione'), document.getElementById('cv-btn-chat-toggle'), document.getElementById('cv-hand-btn'), document.getElementById('cv-esci-btn')].forEach(el=>{ if(el) el.classList.add('hidden'); });
+    // "Lascia l'assemblea" resta apposta VISIBILE anche qui, su richiesta esplicita: premerlo
+    // chiude solo il canale di voto autonomo (vedi confermaEsciAssemblea), segnalando che da
+    // quel momento il voto di questa persona sarà gestito manualmente dall'amministratore.
+    [document.getElementById('cv-video-wrap'), document.getElementById('cv-chat-sezione'), document.getElementById('cv-btn-chat-toggle'), document.getElementById('cv-hand-btn')].forEach(el=>{ if(el) el.classList.add('hidden'); });
   }
   const tipoAssembleaEl = document.getElementById('cv-tipo-assemblea');
   if(tipoAssembleaEl && assembleaCorrente){
@@ -7703,14 +7726,14 @@ function costruisciSezionePresenti(assemblea, b){
   // del codice per questo scopo (es. tabella Appello dell'amministratore).
   const convocatiListPerRighe = convocatiList.filter(c=>!(c.unificatoCon && idsConvocati.has(c.unificatoCon)));
   const righeHtml = convocatiListPerRighe.map(c=>{
-    const attivo = recordAttivoConSecondarie(b, assemblea, c.id);
+    const attivo = recordAttivoConSecondarieSenzaVotoAutonomo(b, assemblea, c.id);
     const recOnlineUscito = (assemblea.appello.online||[]).find(r=>r.condominoId===c.id && r.uscita);
     const recPresenzaUscito = (assemblea.appello.presenzeFisiche||[]).find(r=>r.condominoId===c.id && r.uscita);
     const delegatoId = assemblea.appello.deleghe ? assemblea.appello.deleghe[c.id] : undefined;
     let pallino, infoTesto;
     if(attivo){
-      pallino = attivo.tipo==='online' ? '🟢' : attivo.tipo==='voto-autonomo' ? '🟢' : '🔵';
-      infoTesto = attivo.tipo==='online' ? `Online dalle ${attivo.rec.entrata}` : attivo.tipo==='voto-autonomo' ? `Votando in autonomia dalle ${attivo.rec.entrata}` : `In presenza dalle ${attivo.rec.entrata}`;
+      pallino = attivo.tipo==='online' ? '🟢' : '🔵';
+      infoTesto = attivo.tipo==='online' ? `Online dalle ${attivo.rec.entrata}` : `In presenza dalle ${attivo.rec.entrata}`;
     }else if(delegatoId!=null){
       const delegatoAttivoCv = recordAttivo(assemblea, delegatoId);
       pallino = delegatoAttivoCv ? '🟠' : '⚪';
@@ -7743,13 +7766,13 @@ function costruisciSezionePresenti(assemblea, b){
     .slice()
     .sort((x,y)=>(x.nome||'').localeCompare(y.nome||'','it'));
   const righeEsterniHtml = esterniOrdinati.map(est=>{
-    const attivoEst = recordAttivo(assemblea, est.id);
+    const attivoEst = statoRealeSenzaVotoAutonomo(assemblea, est.id);
     const recOnlineUscitoEst = (assemblea.appello.online||[]).find(r=>r.condominoId===est.id && r.uscita);
     const recPresenzaUscitoEst = (assemblea.appello.presenzeFisiche||[]).find(r=>r.condominoId===est.id && r.uscita);
     let pallinoEst, infoTestoEst;
     if(attivoEst){
-      pallinoEst = attivoEst.tipo==='online' ? '🟢' : attivoEst.tipo==='voto-autonomo' ? '🟢' : '🔵';
-      infoTestoEst = attivoEst.tipo==='online' ? `Online dalle ${attivoEst.rec.entrata}` : attivoEst.tipo==='voto-autonomo' ? `Votando in autonomia dalle ${attivoEst.rec.entrata}` : `In presenza dalle ${attivoEst.rec.entrata}`;
+      pallinoEst = attivoEst.tipo==='online' ? '🟢' : '🔵';
+      infoTestoEst = attivoEst.tipo==='online' ? `Online dalle ${attivoEst.rec.entrata}` : `In presenza dalle ${attivoEst.rec.entrata}`;
     }else if(recOnlineUscitoEst || recPresenzaUscitoEst){
       const rec = recOnlineUscitoEst || recPresenzaUscitoEst;
       pallinoEst = rec.usciteAutomatica ? '🟡' : '⚫';
@@ -7812,7 +7835,8 @@ function applicaVisibilitaElementiCondomino(modalita){
     if(chatSezione) chatSezione.style.display = 'none';
     const btnChatSoloVoto = document.getElementById('cv-btn-chat-toggle');
     if(btnChatSoloVoto) btnChatSoloVoto.classList.add('hidden');
-    if(esciBtn) esciBtn.classList.add('hidden');
+    // "Lascia l'assemblea" resta apposta visibile qui, su richiesta esplicita — vedi il
+    // commento in renderVistaCondomino().
     return;
   }
   // In layout orizzontale, video e pulsanti principali restano SEMPRE al loro posto, anche
@@ -8291,11 +8315,10 @@ function costruisciTabellaPresentiVerbale(building, assemblea){
   const tabellaRif = tabellaQuorum(assemblea, building);
   const righe = [];
   building.condomini.filter(c=>assemblea.convocati.selezionati.includes(c.id)).forEach(c=>{
-    const attivo = recordAttivoConSecondarie(building, assemblea, c.id);
+    const attivo = recordAttivoConSecondarieSenzaVotoAutonomo(building, assemblea, c.id);
     const delegatoId = assemblea.appello.deleghe[c.id];
     let stato;
     if(attivo && attivo.tipo==='online') stato='Online';
-    else if(attivo && attivo.tipo==='voto-autonomo') stato='Presente (voto autonomo)';
     else if(attivo && attivo.tipo==='presenza') stato='In presenza';
     else if(delegatoId){
       const delegato = building.condomini.find(x=>x.id===delegatoId);
