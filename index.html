@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-186 — creata il 22/08/2026 alle 18:53
+  Versione: LT-188 — creata il 23/08/2026 alle 11:30
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -618,7 +618,7 @@
   .assist-panel{background:#5E5439;border:1px solid #8C7D57;border-radius:6px;padding:18px;margin-top:18px;}
   #cv-chat-sezione{background:#313132;}
   .assist-panel h3{font-size:1.05em;margin:0 0 4px;font-family:var(--font-display);color:#fff;}
-  .cv-chat-log{max-height:260px;overflow-y:auto;background:#000000;border:1px solid #8C7D57;border-radius:4px;padding:10px 12px;margin-bottom:10px;font-size:0.85em;}
+  .cv-chat-log{height:116px;max-height:116px;overflow-y:auto;background:#000000;border:1px solid #8C7D57;border-radius:4px;padding:10px 12px;margin-bottom:10px;font-size:0.85em;}
   .cv-chat-log .chat-msg{color:#E5DEC9;}
   .cv-chat-log .chat-msg b{color:var(--brass-soft);}
   .cv-poll-option-btn{display:block;width:100%;text-align:left;padding:16px;margin-bottom:10px;border-radius:6px;border:1px solid #8C7D57;background:#5E5439;color:#F2F0EC;font-size:1em;cursor:pointer;}
@@ -649,7 +649,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 22/08/2026 alle 18:53">LT-186</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 23/08/2026 alle 11:30">LT-188</span>
   </div>
 
   <!-- MAIN -->
@@ -1384,7 +1384,7 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
             <p class="muted" style="color:#A39C88;margin-bottom:10px;">Per segnalazioni pratiche (es. "non sento l'audio") — non è la chat per gli interventi formali.</p>
             <div class="cv-chat-log" id="cv-chat-log"></div>
             <div class="row-inline" style="align-items:center;">
-              <input id="cv-chat-input" placeholder="Scrivi qui..." style="background:#000000;border-color:#8C7D57;color:#F2F0EC;flex:1;min-width:0;" oninput="segnaAttivitaChatCondomino()">
+              <input id="cv-chat-input" placeholder="Scrivi qui..." style="background:#000000;border-color:#8C7D57;color:#F2F0EC;flex:1;min-width:0;" oninput="segnaAttivitaChatCondomino()" onkeydown="if(event.key==='Enter'){event.preventDefault();sendChatMessage(currentCondomino?nomeCompletoCondomino(currentCondomino):'Condòmino','cv-chat-input');segnaAttivitaChatCondomino();}">
               <button class="btn small brass" style="width:32px;height:32px;min-width:32px;min-height:32px;max-width:32px;max-height:32px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;" onclick="sendChatMessage(currentCondomino?nomeCompletoCondomino(currentCondomino):'Condòmino','cv-chat-input');segnaAttivitaChatCondomino();" aria-label="Invia">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 5v6a3 3 0 0 1-3 3H6" stroke="#1B222B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.5 10.5 5 14l4.5 3.5" stroke="#1B222B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </button>
@@ -6185,6 +6185,18 @@ function staScrivendoInCampoProtetto(){
   const caricheEl = document.getElementById('cariche-assemblea-card');
   return (container && container.contains(el)) || (activePollEl && activePollEl.contains(el)) || (caricheEl && caricheEl.contains(el));
 }
+// Protezione MIRATA e TEMPORANEA (non permanente, a differenza di staScrivendoInCampoProtetto)
+// per i menu a tendina della tabella voti del sondaggio: cliccarne uno per aprirlo segna il
+// momento esatto; per pochi secondi da lì il ridisegno della tabella viene saltato, così una
+// sincronizzazione in arrivo (es. il voto di un altro condòmino, o il giro periodico di
+// controllo) non chiude la tendina appena aperta mentre si sta scegliendo un'opzione. Passato
+// quel breve periodo, il blocco scade da solo: gli aggiornamenti in tempo reale degli altri
+// continuano ad arrivare normalmente, non restano bloccati per sempre come nel vecchio bug
+// (staScrivendoInCampoProtetto: vedi il commento sopra).
+let __ultimaAperturaTendinaVotiEpoch = 0;
+const DURATA_PROTEZIONE_TENDINA_VOTI_MS = 4000;
+function segnaAperturaTendinaVoti(){ __ultimaAperturaTendinaVotiEpoch = Date.now(); }
+function tendinaVotiRecentementeAperta(){ return (Date.now() - __ultimaAperturaTendinaVotiEpoch) < DURATA_PROTEZIONE_TENDINA_VOTI_MS; }
 // Segna che l'amministratore ha appena interagito col riquadro Presidente/Segretario: usata
 // dalla stessa logica "non ridisegnare se ci si sta scrivendo dentro" già in uso altrove.
 function segnaScritturaCaricaAssemblea(){ /* la protezione vera è già in staScrivendoInCampoProtetto() via il focus reale */ }
@@ -6933,6 +6945,12 @@ function renderTabellaVotiSondaggio(){
   const assemblea=getAssembleaInCorso(b);
   const tbody=document.getElementById('poll-voti-tbody');
   if(!tbody || !assemblea) return;
+  // Se un menu a tendina di QUESTA tabella è stato aperto negli ultimi secondi, saltiamo il
+  // ridisegno: ricostruire la tabella ora chiuderebbe la tendina appena aperta, interrompendo
+  // la scelta dell'amministratore. Il blocco è breve e scade da solo (vedi il commento sopra la
+  // funzione): non impedisce agli aggiornamenti degli altri di comparire per sempre, solo per
+  // il tempo in cui la tendina resta davvero aperta.
+  if(tendinaVotiRecentementeAperta()) return;
   normalizzaDelegheVersoIPrimari(b, assemblea);
   tbody.innerHTML='';
   // Riga di voto di una persona esterna che ha ricevuto una delega: indentata, mostrata subito
@@ -6944,12 +6962,23 @@ function renderTabellaVotiSondaggio(){
     tdNome.innerHTML=`${escapeHtml(est.nome)} <span class="muted">(esterno delegato)</span>`;
     tr.appendChild(tdNome);
     const tdMillEst=document.createElement('td'); tdMillEst.innerHTML='<span class="muted">—</span>'; tr.appendChild(tdMillEst);
-    const tdStato=document.createElement('td'); tdStato.innerHTML='<span class="badge">📥 Riceve deleghe</span>'; tr.appendChild(tdStato);
+    // Come per la riga principale: se questo delegato esterno sta votando in autonomia tramite
+    // il proprio link "solo voto" (o è online), mostriamo lo stato reale invece del generico
+    // "Riceve deleghe" fisso — prima non veniva mai controllato, quindi non compariva mai.
+    const attivoEst = recordAttivo(assemblea, est.id);
+    const tdStato=document.createElement('td');
+    if(attivoEst && attivoEst.tipo==='voto-autonomo') tdStato.innerHTML='<span class="badge" style="background:#1F4D33;color:#B9E6C9;">🟢 Voto autonomo</span>';
+    else if(attivoEst && attivoEst.tipo==='online') tdStato.innerHTML='<span class="badge">🟢 Online</span>';
+    else tdStato.innerHTML='<span class="badge">📥 Riceve deleghe</span>';
+    tr.appendChild(tdStato);
     const tdVoto=document.createElement('td');
     const sel=document.createElement('select');
     sel.style.width='auto'; sel.style.display='inline-block';
     sel.innerHTML = '<option value="">— nessun voto —</option>' + activePoll.options.map(o=>`<option value="${o.id}" ${activePoll.scelte[est.id]===o.id?'selected':''}>${o.label}</option>`).join('');
+    sel.onmousedown = segnaAperturaTendinaVoti;
+    sel.onfocus = segnaAperturaTendinaVoti;
     sel.onchange=()=>{
+      __ultimaAperturaTendinaVotiEpoch = 0; // la scelta è stata fatta: il ridisegno può avvenire subito, non deve aspettare
       const posizioneScorrimento = window.scrollY;
       const val=sel.value;
       if(!val){ delete activePoll.scelte[est.id]; activePoll.voted.delete(est.id); activePoll.votatoInBlocco.delete(est.id); }
@@ -6959,7 +6988,30 @@ function renderTabellaVotiSondaggio(){
       // istante: ripristiniamo subito la posizione di prima, così il salto non è mai visibile.
       window.scrollTo(0, posizioneScorrimento);
     };
-    tdVoto.appendChild(sel);
+    // Come per la riga principale: se sta votando in autonomia (o è online), il select resta
+    // bloccato dietro lo stesso meccanismo di sblocco temporaneo — evita di correggere per
+    // sbaglio il voto di chi sta votando autonomamente in questo preciso momento.
+    if(attivoEst && (attivoEst.tipo==='online' || attivoEst.tipo==='voto-autonomo')){
+      const bloccato = votoDeleganteBloccato(est.id);
+      sel.disabled = bloccato;
+      if(bloccato) sel.style.opacity = '0.45';
+      const wrap=document.createElement('span'); wrap.style.cssText='position:relative;display:inline-block;';
+      wrap.appendChild(sel);
+      if(bloccato){
+        const overlay=document.createElement('span');
+        overlay.style.cssText='position:absolute;inset:0;cursor:pointer;';
+        overlay.title = attivoEst.tipo==='voto-autonomo' ? 'Questa persona sta votando in autonomia dal link "solo voto" — clicca per correggere il suo voto' : 'Questa persona è online e vota in autonomia — clicca per correggere il suo voto';
+        overlay.onclick=()=>richiediSbloccoVotoDelegante(est.id, 'online');
+        wrap.appendChild(overlay);
+      }
+      tdVoto.appendChild(wrap);
+      if(!bloccato){
+        const note=document.createElement('span'); note.className='muted'; note.style.marginLeft='6px'; note.textContent='(sbloccato per pochi secondi)';
+        tdVoto.appendChild(note);
+      }
+    }else{
+      tdVoto.appendChild(sel);
+    }
     tr.appendChild(tdVoto);
     return tr;
   }
@@ -7003,7 +7055,10 @@ function renderTabellaVotiSondaggio(){
     const sel=document.createElement('select');
     sel.style.width='auto'; sel.style.display='inline-block';
     sel.innerHTML = '<option value="">— nessun voto —</option>' + activePoll.options.map(o=>`<option value="${o.id}" ${activePoll.scelte[c.id]===o.id?'selected':''}>${o.label}</option>`).join('');
+    sel.onmousedown = segnaAperturaTendinaVoti;
+    sel.onfocus = segnaAperturaTendinaVoti;
     sel.onchange=()=>{
+      __ultimaAperturaTendinaVotiEpoch = 0; // la scelta è stata fatta: il ridisegno può avvenire subito, non deve aspettare
       const posizioneScorrimento = window.scrollY;
       const val=sel.value;
       if(!val){
@@ -8164,7 +8219,14 @@ function renderCvPollArea_interno(){
   // assemblea: altrimenti potrebbe trattarsi di un sondaggio aperto altrove dall'amministratore,
   // su un'assemblea diversa da quella collegata al link di questo condòmino.
   const inOrizzontaleControllo = document.body.classList.contains('cv-layout-orizzontale');
-  const giaVotatoControllo = !!(currentCondomino && activePoll && activePoll.voted.has(currentCondomino.id));
+  // L'identità VERA di chi sta votando: per chi vota come delegato di qualcun altro (esterno,
+  // o un condòmino che ha ricevuto una delega), è DIVERSA dal proprietario del link/token —
+  // vedi identitaVotanteCv(). Va usata per ogni controllo di idoneità/già-votato qui sotto,
+  // MAI currentCondomino.id da solo (quello è sempre il proprietario del link, non chi vota
+  // davvero in questo momento).
+  const votanteCorrenteCv = (currentCondomino && activePoll) ? identitaVotanteCv(assembleaCorrente, b) : null;
+  const idVotanteCorrenteCv = votanteCorrenteCv && votanteCorrenteCv.id!=null ? votanteCorrenteCv.id : (currentCondomino ? currentCondomino.id : null);
+  const giaVotatoControllo = !!(idVotanteCorrenteCv!=null && activePoll && activePoll.voted.has(idVotanteCorrenteCv));
   // In verticale, dopo aver votato, la schermata di conferma resta in primo piano solo 4
   // secondi: passato questo tempo, ci comportiamo come se il sondaggio non ci fosse più (anche
   // se in realtà è ancora aperto, in attesa degli altri) e torniamo alla vista normale, in
@@ -8174,7 +8236,7 @@ function renderCvPollArea_interno(){
   const sondaggioAppartieneAQuestaAssemblea = activePoll && !confermaScadutaInVerticale && (assembleaCorrente.odg||[]).some(p=>p.id===activePollOdgId);
   if(sondaggioAppartieneAQuestaAssemblea){
     const inOrizzontale = document.body.classList.contains('cv-layout-orizzontale');
-    const giaVotatoAdesso = !!(currentCondomino && activePoll.voted.has(currentCondomino.id));
+    const giaVotatoAdesso = giaVotatoControllo;
     if(inOrizzontale && giaVotatoAdesso){
       // In layout orizzontale, dopo aver votato: il sondaggio si restringe (mostra solo la
       // conferma del voto, in attesa degli altri) e torna a coesistere con ordine del giorno
@@ -8207,7 +8269,7 @@ function renderCvPollArea_interno(){
     // sondaggio aperto (su una pagina diversa) — in quel caso non dobbiamo assolutamente
     // muovere la sua finestra reale, che non c'entra nulla con questa vista.
     if(!inOrizzontale && currentPage==='vista-condomino') window.scrollTo({top:0, behavior:'smooth'});
-    if(currentCondomino && !activePoll.voted.has(currentCondomino.id) && recordAttivo(assembleaCorrente, currentCondomino.id)){
+    if(idVotanteCorrenteCv!=null && !activePoll.voted.has(idVotanteCorrenteCv) && recordAttivo(assembleaCorrente, idVotanteCorrenteCv)){
       sceltaVotoCorrente = null;
       collegaInterazioneSondaggioAttivo();
     }
@@ -8334,8 +8396,9 @@ function confermaVotoCondomino(){
 // dal fatto che il testo narrativo del verbale sia generato con IA o con il modello fisso.
 function costruisciTabellaPresentiVerbale(building, assemblea){
   const tabellaRif = tabellaQuorum(assemblea, building);
-  const righe = [];
-  building.condomini.filter(c=>assemblea.convocati.selezionati.includes(c.id)).forEach(c=>{
+  const convocatiIds = new Set(assemblea.convocati.selezionati);
+  const righePerPrimario = {}; // id primario -> riga (accumula i millesimi delle unità secondarie)
+  building.condomini.filter(c=>convocatiIds.has(c.id)).forEach(c=>{
     const attivo = recordAttivoConSecondarieSenzaVotoAutonomo(building, assemblea, c.id);
     const delegatoId = assemblea.appello.deleghe[c.id];
     let stato;
@@ -8347,18 +8410,30 @@ function costruisciTabellaPresentiVerbale(building, assemblea){
       stato = 'Delega a '+(delegato?nomeCompletoCondomino(delegato):(esterno?esterno.nome:'—'));
     }
     else return; // assente: non partecipa, non entra nell'elenco presenti
-    righe.push({nome:nomeCompletoCondomino(c), stato, millesimi: c.millesimi[tabellaRif]||0});
+    // Le unità SECONDARIE (stesso proprietario di un'altra unità) non hanno una riga propria:
+    // stessa esclusione standard già usata ovunque nel resto del codice per questo scopo — qui
+    // in più sommiamo anche i loro millesimi nella riga del proprietario, invece di scartarli e
+    // basta, così il totale in fondo resta corretto.
+    const idPrimario = (c.unificatoCon!=null && convocatiIds.has(c.unificatoCon)) ? c.unificatoCon : c.id;
+    const millesimiQuestaUnita = c.millesimi[tabellaRif]||0;
+    if(righePerPrimario[idPrimario]){
+      righePerPrimario[idPrimario].millesimi = arrotondaMillesimi(righePerPrimario[idPrimario].millesimi + millesimiQuestaUnita);
+    }else{
+      const primario = idPrimario===c.id ? c : building.condomini.find(x=>x.id===idPrimario) || c;
+      righePerPrimario[idPrimario] = {nome:nomeCompletoCondomino(primario), stato, millesimi: millesimiQuestaUnita};
+    }
   });
+  const righe = Object.values(righePerPrimario);
   const totaleMillesimi = arrotondaMillesimi(righe.reduce((s,r)=>s+r.millesimi,0));
-  const righeHtml = righe.map(r=>`<tr><td>${escapeHtml(r.nome)}</td><td>${escapeHtml(r.stato)}</td><td>${r.millesimi}</td></tr>`).join('');
+  const righeHtml = righe.map(r=>`<tr><td>${escapeHtml(r.nome)}</td><td>${escapeHtml(r.stato)}</td><td style="text-align:right;">${r.millesimi}</td><td style="text-align:right;">1</td></tr>`).join('');
   const html = `<h4 style="margin-top:20px;">Elenco presenti (tabella di riferimento: ${escapeHtml(tabellaRif)})</h4>
     <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
-      <thead><tr><th style="text-align:left;border-bottom:1px solid var(--line);padding:4px 6px;">Nome</th><th style="text-align:left;border-bottom:1px solid var(--line);padding:4px 6px;">Stato</th><th style="text-align:right;border-bottom:1px solid var(--line);padding:4px 6px;">Millesimi</th></tr></thead>
+      <thead><tr><th style="text-align:left;border-bottom:1px solid var(--line);padding:4px 6px;">Nome</th><th style="text-align:left;border-bottom:1px solid var(--line);padding:4px 6px;">Stato</th><th style="text-align:right;border-bottom:1px solid var(--line);padding:4px 6px;">Millesimi</th><th style="text-align:right;border-bottom:1px solid var(--line);padding:4px 6px;">Teste</th></tr></thead>
       <tbody>${righeHtml}</tbody>
-      <tfoot><tr style="font-weight:700;"><td style="padding:6px;" colspan="2">Totale (${righe.length} teste)</td><td style="text-align:right;padding:6px;">${totaleMillesimi}</td></tr></tfoot>
+      <tfoot><tr style="font-weight:700;"><td style="padding:6px;" colspan="3">Totale (${righe.length} teste)</td><td style="text-align:right;padding:6px;">${totaleMillesimi}</td></tr></tfoot>
     </table>`;
   const testoPiano = `ELENCO PRESENTI (tabella di riferimento: ${tabellaRif})\n` +
-    righe.map(r=>`- ${r.nome} — ${r.stato} — ${r.millesimi} millesimi`).join('\n') +
+    righe.map(r=>`- ${r.nome} — ${r.stato} — ${r.millesimi} millesimi — 1 testa`).join('\n') +
     `\nTOTALE: ${totaleMillesimi} millesimi — ${righe.length} teste`;
   return {html, testoPiano};
 }
