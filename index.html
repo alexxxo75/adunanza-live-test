@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-199 — creata il 26/08/2026 alle 18:39
+  Versione: LT-200 — creata il 26/08/2026 alle 19:01
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -652,7 +652,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 26/08/2026 alle 18:39">LT-199</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 26/08/2026 alle 19:01">LT-200</span>
   </div>
 
   <!-- MAIN -->
@@ -3566,31 +3566,45 @@ function mostraPopupDuplicatiNome(building, gruppi){
 }
 function confermaCollegamentoDuplicati(){
   const gruppi = window.__gruppiDuplicatiInSospeso || [];
+  // BUG CORRETTO: i condòmini dentro "gruppi" sono gli oggetti reali al momento in cui è stato
+  // aperto questo popup — ma se nel frattempo (mentre l'amministratore lo guarda) arriva un
+  // aggiornamento dal database condiviso, applicaDatiRicevuti SOSTITUISCE interamente
+  // "buildings" con oggetti nuovi (stessi dati, ma istanze diverse in memoria): gli oggetti
+  // catturati qui restano "orfani", scollegati dallo stato vero. Confermare il popup mutava
+  // quegli oggetti ormai abbandonati — sembrava funzionare (nessun errore, popup che si
+  // chiude) ma il collegamento non risultava mai da nessuna parte, sparendo in silenzio.
+  // Soluzione: non usare mai l'oggetto catturato all'apertura per scriverci sopra — ritrovare
+  // sempre il condòmino CORRISPONDENTE (stesso id) nello stato attuale, appena letto qui,
+  // e modificare quello.
+  const buildingAttuale = getWorkingBuilding();
+  const trovaAttuale = (id)=> buildingAttuale && buildingAttuale.condomini.find(x=>x.id===id);
   gruppi.forEach((g,i)=>{
     const idsDelGruppo = new Set(g.map(c=>c.id));
     // Il "primario" di questo gruppo non è più fisso sulla prima riga: è la PRIMA riga che ha
     // ancora il flag attivo, in ordine dall'alto. Se quella riga (magari proprio la prima) non
     // ha il flag perché è una persona diversa, il primario diventa semplicemente la successiva
     // riga con il flag ancora attivo — così le righe rimaste possono comunque unirsi tra loro.
-    let primario = null;
+    let primarioId = null;
     g.forEach((c,j)=>{
       const flag = document.getElementById(`popup-dup-flag-${i}-${j}`);
-      if(!primario && flag && flag.checked) primario = c;
+      if(primarioId==null && flag && flag.checked) primarioId = c.id;
     });
     g.forEach((c,j)=>{
+      const attuale = trovaAttuale(c.id);
+      if(!attuale) return; // il condòmino non esiste più (es. rimosso nel frattempo): salta
       const flag = document.getElementById(`popup-dup-flag-${i}-${j}`);
       const spuntata = !!(flag && flag.checked);
-      if(!primario || c.id===primario.id){
+      if(primarioId==null || c.id===primarioId){
         // Il primario di sé stesso non punta a nessuno; stessa cosa se il gruppo, alla fine,
         // non ha nessuna riga spuntata (nessuna unione da fare).
-        if(c.unificatoCon!=null && idsDelGruppo.has(c.unificatoCon)) c.unificatoCon = null;
+        if(attuale.unificatoCon!=null && idsDelGruppo.has(attuale.unificatoCon)) attuale.unificatoCon = null;
       }else if(spuntata){
-        c.unificatoCon = primario.id;
-      }else if(c.unificatoCon!=null && idsDelGruppo.has(c.unificatoCon)){
+        attuale.unificatoCon = primarioId;
+      }else if(attuale.unificatoCon!=null && idsDelGruppo.has(attuale.unificatoCon)){
         // Aveva un collegamento precedente verso qualcuno di QUESTO gruppo, ma ora il flag è
         // stato tolto: lo rimuoviamo. Un eventuale collegamento verso un condòmino di un
         // gruppo diverso (improbabile ma non impossibile) resta invece intatto.
-        c.unificatoCon = null;
+        attuale.unificatoCon = null;
       }
     });
   });
@@ -5585,7 +5599,15 @@ function mostraPopupUnioneSpeciale(coppie){
 }
 function confermaUnioneSpeciale(){
   const coppie = window.__unioneSpecialeInSospeso || [];
-  coppie.forEach(cp=>{ cp.secondario.unificatoCon = cp.primario.id; });
+  // Stessa correzione di confermaCollegamentoDuplicati: non scrivere sugli oggetti catturati
+  // all'apertura del popup (potrebbero essere stati sostituiti nel frattempo da un
+  // aggiornamento in arrivo dal database condiviso) — ritrova sempre il condòmino
+  // corrispondente nello stato attuale e modifica quello.
+  const b = getActiveBuilding();
+  coppie.forEach(cp=>{
+    const secondarioAttuale = b && b.condomini.find(x=>x.id===cp.secondario.id);
+    if(secondarioAttuale) secondarioAttuale.unificatoCon = cp.primario.id;
+  });
   window.__unioneSpecialeInSospeso = null;
   document.getElementById('modal-unione-speciale').classList.add('hidden');
   salvaStato();
