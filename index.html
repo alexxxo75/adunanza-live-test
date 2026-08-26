@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-193 — creata il 26/08/2026 alle 13:12
+  Versione: LT-194 — creata il 26/08/2026 alle 13:38
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -652,7 +652,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 26/08/2026 alle 13:12">LT-193</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 26/08/2026 alle 13:38">LT-194</span>
   </div>
 
   <!-- MAIN -->
@@ -842,7 +842,7 @@
         <span class="step-icon hidden" id="wiz-icon-3"></span>
         <div style="flex:1;">
           <label>3. Carica da Excel i dati dei condòmini</label>
-          <p class="muted" style="margin-bottom:8px;">Colonne riconosciute: Nome, Cognome (opzionale), Unità immobiliare (opzionale), Email, e una o più colonne "Millesimi ..." (es. "Millesimi Proprietà", "Millesimi Giardino"). Se il file non ha titoli riconoscibili, viene letto per posizione: Cognome (e Nome, se insieme) — Nome — Interno — Unità immobiliare — Email — Millesimi proprietà — altri millesimi.</p>
+          <p class="muted" style="margin-bottom:8px;">Colonne riconosciute: Cognome, Nome (opzionale), Interno (opzionale), Unità immobiliare (opzionale), Email, e una o più colonne "Millesimi ..." (es. "Millesimi Proprietà", "Millesimi Giardino"). Se il file non ha titoli riconoscibili, viene letto per posizione: Cognome (e Nome, se insieme) — Nome — Interno — Unità immobiliare — Email — Millesimi proprietà — altri millesimi.</p>
           <input type="file" id="excel-input" accept=".xlsx,.xls,.csv" onchange="handleExcelUpload(event)">
           <div id="excel-feedback" class="muted" style="margin-top:8px;"></div>
         </div>
@@ -3209,9 +3209,9 @@ function rilevaColonneAnagrafica(headers){
     const haNome = low.replace(/cognome/g,'').includes('nome'); // evita che "Cognome" (che contiene "nome") sia scambiato per nome+cognome combinati
     if((haNome && haCognome) || low.includes('nominativo')) keyNomeCompleto=h;
     else if(haCognome) keyCognome=h;
-    else if(low.includes('unit')) keyUnita=h;
+    else if(low.includes('unit') || /\bum\b/.test(low)) keyUnita=h;
     else if(haNome) keyNome=h;
-    else if(low.includes('intern')) keyInterno=h;
+    else if(low.includes('intern') || /\bint\.?\b/.test(low)) keyInterno=h;
     else if(low.includes('mail')) keyEmail=h;
     else if(low.includes('millesim')||low.includes('peso')){
       let tabellaNome = h.replace(/millesim[ie]?/i,'').replace(/peso/i,'').trim().replace(/^[-:\s]+/,'');
@@ -3610,11 +3610,11 @@ function renderCondomini(){
     const tr=document.createElement('tr');
 
     const tdCognome=document.createElement('td');
-    const inCognome=document.createElement('input'); inCognome.value=c.cognome||''; inCognome.oninput=()=>c.cognome=inCognome.value; inCognome.onblur=()=>salvaStato();
+    const inCognome=document.createElement('input'); inCognome.value=c.cognome||''; inCognome.oninput=()=>c.cognome=inCognome.value; inCognome.onblur=()=>renderCondomini();
     tdCognome.appendChild(inCognome); tr.appendChild(tdCognome);
 
     const tdNome=document.createElement('td');
-    const inNome=document.createElement('input'); inNome.className='cell-nome'; inNome.value=c.nome; inNome.oninput=()=>c.nome=inNome.value; inNome.onblur=()=>salvaStato();
+    const inNome=document.createElement('input'); inNome.className='cell-nome'; inNome.value=c.nome; inNome.oninput=()=>c.nome=inNome.value; inNome.onblur=()=>renderCondomini();
     tdNome.appendChild(inNome); tr.appendChild(tdNome);
 
     const tdInterno=document.createElement('td');
