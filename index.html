@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-191 — creata il 26/08/2026 alle 06:39
+  Versione: LT-197 — creata il 26/08/2026 alle 17:54
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -23,6 +23,9 @@
 <meta name="author" content="Alessandro Castiglioni">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Adunanza — Assemblee condominiali online</title>
+<link rel="icon" type="image/png" sizes="32x32" href="data:image/png;base64,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">
+<link rel="icon" type="image/png" sizes="64x64" href="data:image/png;base64,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">
+<link rel="apple-touch-icon" sizes="180x180" href="data:image/png;base64,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">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap" rel="stylesheet">
@@ -649,7 +652,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 26/08/2026 alle 06:39">LT-191</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 26/08/2026 alle 17:54">LT-197</span>
   </div>
 
   <!-- MAIN -->
@@ -839,7 +842,7 @@
         <span class="step-icon hidden" id="wiz-icon-3"></span>
         <div style="flex:1;">
           <label>3. Carica da Excel i dati dei condòmini</label>
-          <p class="muted" style="margin-bottom:8px;">Colonne riconosciute: Nome, Cognome (opzionale), Unità immobiliare (opzionale), Email, e una o più colonne "Millesimi ..." (es. "Millesimi Proprietà", "Millesimi Giardino").</p>
+          <p class="muted" style="margin-bottom:8px;">Colonne riconosciute: Cognome, Nome (opzionale), Interno (opzionale), Unità immobiliare (opzionale), Email, e una o più colonne "Millesimi ..." (es. "Millesimi Proprietà", "Millesimi Giardino"). Se il file non ha titoli riconoscibili, viene letto per posizione: Cognome (e Nome, se insieme) — Nome — Interno — Unità immobiliare — Email — Millesimi proprietà — altri millesimi.</p>
           <input type="file" id="excel-input" accept=".xlsx,.xls,.csv" onchange="handleExcelUpload(event)">
           <div id="excel-feedback" class="muted" style="margin-top:8px;"></div>
         </div>
@@ -1014,7 +1017,7 @@
             <button class="btn small secondary" style="flex:0;white-space:nowrap;" onclick="document.getElementById('ca-excel-convocati').click()">Da file Excel</button>
             <input type="file" id="ca-excel-convocati" accept=".xlsx,.xls,.csv" onchange="handleExcelConvocati(event)">
           </div>
-          <p class="muted" style="margin:-4px 0 12px;">Stesso formato usato in Dashboard: Nome, Cognome, Interno, Unità immobiliare, Email, e opzionalmente una colonna Peso/Millesimi.</p>
+          <p class="muted" style="margin:-4px 0 12px;">Stesso formato usato in Dashboard: Cognome, Nome, Interno, Unità immobiliare, Email, e opzionalmente una colonna Peso/Millesimi. L'Email è consigliata ma non obbligatoria: se manca, il condòmino viene comunque riconosciuto da Cognome/Nome (+ Interno/Unità se il nome non basta da solo). Se il file non ha titoli riconoscibili, viene letto per posizione: Cognome (e Nome, se insieme) — Nome — Interno — Unità immobiliare — Email — Millesimi.</p>
 
           <div class="row-inline" style="margin-bottom:0;align-items:center;">
             <button class="btn small secondary" style="flex:0;white-space:nowrap;" onclick="impostaConvocatiManualeVuoto()">Scegli a mano</button>
@@ -1901,6 +1904,13 @@ let buildings = [
   {id:1, nome:'Via delle Querce 12', denominazione:'', via:'', cap:'', comune:'', provincia:'', cf:'', tabelleMillesimali:['Proprietà'], condomini:[], assemblee:[], assembleaInCorsoId:null, attivo:true}
 ];
 let activeBuildingId = null;
+// Id dei condòmìni ELIMINATI in questa sessione (pulsante "Elimina condominio"): un
+// aggiornamento in tempo reale arrivato subito dopo la cancellazione potrebbe ancora
+// contenere lo stato di POCO PRIMA (scrittura asincrona su Firebase più lenta della lettura
+// in tempo reale) — senza questa lista, quell'eco tardivo rimetterebbe dentro il condominio
+// appena eliminato, facendolo ricomparire nell'elenco nonostante la conferma. Vale solo per
+// questa sessione/scheda: dopo un ricaricamento della pagina, i dati arrivano già corretti.
+let __idBuildingEliminatiSessione = new Set();
 let idCounter = 1;
 let odgIdCounter = 1;
 let currentPage = 'home';
@@ -3143,6 +3153,7 @@ function avviaEliminazioneCondominio(id){
   if(!confirm(`⚠️⚠️ ATTENZIONE: l'eliminazione cancellerà TUTTE le informazioni e gli archivi di "${b.nome}" — anagrafica condòmini, assemblee, verbali, registrazioni. Sei sicuro? (2 di 3 conferme)`)) return;
   const conferma = prompt(`Ultima conferma (3 di 3): scrivi ELIMINA in maiuscolo per cancellare definitivamente "${b.nome}".`);
   if(conferma !== 'ELIMINA'){ toast('Eliminazione annullata: testo di conferma non corretto.'); return; }
+  __idBuildingEliminatiSessione.add(id);
   buildings = buildings.filter(x=>x.id!==id);
   if(activeBuildingId===id && buildings.length) activeBuildingId=buildings[0].id;
   salvaStato();
@@ -3206,9 +3217,9 @@ function rilevaColonneAnagrafica(headers){
     const haNome = low.replace(/cognome/g,'').includes('nome'); // evita che "Cognome" (che contiene "nome") sia scambiato per nome+cognome combinati
     if((haNome && haCognome) || low.includes('nominativo')) keyNomeCompleto=h;
     else if(haCognome) keyCognome=h;
-    else if(low.includes('unit')) keyUnita=h;
+    else if(low.includes('unit') || /\bum\b/.test(low)) keyUnita=h;
     else if(haNome) keyNome=h;
-    else if(low.includes('intern')) keyInterno=h;
+    else if(low.includes('intern') || /\bint\.?\b/.test(low)) keyInterno=h;
     else if(low.includes('mail')) keyEmail=h;
     else if(low.includes('millesim')||low.includes('peso')){
       let tabellaNome = h.replace(/millesim[ie]?/i,'').replace(/peso/i,'').trim().replace(/^[-:\s]+/,'');
@@ -3216,6 +3227,31 @@ function rilevaColonneAnagrafica(headers){
       millesimiCols.push({header:h, tabella:tabellaNome});
     }
   });
+
+  // Ripiego per posizione (LT-192): se dal TITOLO delle colonne non risulta né un nome
+  // né un'email, il file probabilmente usa intestazioni che l'app non riconosce (o non ne ha
+  // affatto). In questo caso si ignorano i titoli e si legge il file per posizione fissa,
+  // sempre nello stesso ordine: 1. Cognome (e nome, se scritti insieme nella stessa cella) —
+  // 2. Nome (facoltativo, può restare vuoto) — 3. Interno — 4. Unità immobiliare — 5. Email —
+  // 6. Millesimi proprietà — 7. altre eventuali colonne di millesimi. Non tocca in alcun modo
+  // il caso normale (titoli riconosciuti): qui il file continua a essere letto come sempre.
+  const trovatoNome = keyNome || keyCognome || keyNomeCompleto;
+  if(!trovatoNome || !keyEmail){
+    if(headers.length>=5){
+      keyCognome = headers[0];      // 1ª colonna: cognome, oppure "Cognome Nome" scritti insieme
+      keyNome = headers[1];         // 2ª colonna: nome, può essere vuota
+      keyNomeCompleto = null;
+      keyInterno = headers[2];
+      keyUnita = headers[3];
+      keyEmail = headers[4];
+      millesimiCols.length = 0;
+      headers.slice(5).forEach((h,i)=>{
+        const nomeTabella = String(h||'').trim() || (i===0 ? 'Proprietà' : `Millesimi ${i+1}`);
+        millesimiCols.push({header:h, tabella:nomeTabella});
+      });
+    }
+  }
+
   return {keyNome, keyCognome, keyNomeCompleto, keyEmail, keyInterno, keyUnita, millesimiCols};
 }
 // Normalizza un nome per il confronto: minuscolo, senza accenti, parole riordinate
@@ -3288,8 +3324,11 @@ function handleExcelUpload(evt){
       // Prima passata: leggo i valori grezzi di ogni riga valida (nome ed email presenti)
       const righeValide = [];
       rows.forEach(r=>{
-        const nome = keyNomeCompleto ? String(r[keyNomeCompleto]||'').trim() : String(r[keyNome]||'').trim();
-        const cognome = keyNomeCompleto ? '' : (keyCognome? String(r[keyCognome]||'').trim() : '');
+        // Se cognome e nome sono scritti insieme in un'unica colonna (keyNomeCompleto), il
+        // testo va nel campo Cognome (non Nome): il resto dell'app mostra sempre il cognome
+        // per primo, ed è così che appare comunque nel testo stesso ("Cognome Nome").
+        const nome = keyNomeCompleto ? '' : String(r[keyNome]||'').trim();
+        const cognome = keyNomeCompleto ? String(r[keyNomeCompleto]||'').trim() : (keyCognome? String(r[keyCognome]||'').trim() : '');
         const email=String(r[keyEmail]||'').trim();
         const interno=keyInterno? String(r[keyInterno]||'').trim() : '';
         const unita=keyUnita? String(r[keyUnita]||'').trim() : '';
@@ -3582,11 +3621,11 @@ function renderCondomini(){
     const tr=document.createElement('tr');
 
     const tdCognome=document.createElement('td');
-    const inCognome=document.createElement('input'); inCognome.value=c.cognome||''; inCognome.oninput=()=>c.cognome=inCognome.value; inCognome.onblur=()=>salvaStato();
+    const inCognome=document.createElement('input'); inCognome.value=c.cognome||''; inCognome.oninput=()=>c.cognome=inCognome.value; inCognome.onblur=()=>renderCondomini();
     tdCognome.appendChild(inCognome); tr.appendChild(tdCognome);
 
     const tdNome=document.createElement('td');
-    const inNome=document.createElement('input'); inNome.className='cell-nome'; inNome.value=c.nome; inNome.oninput=()=>c.nome=inNome.value; inNome.onblur=()=>salvaStato();
+    const inNome=document.createElement('input'); inNome.className='cell-nome'; inNome.value=c.nome; inNome.oninput=()=>c.nome=inNome.value; inNome.onblur=()=>renderCondomini();
     tdNome.appendChild(inNome); tr.appendChild(tdNome);
 
     const tdInterno=document.createElement('td');
@@ -4743,15 +4782,19 @@ function renderAppello(){
     tr.appendChild(tdBusta);
 
     // Se questo condòmino ha una o più unità unificate a lui (stesso proprietario, collegate
-    // col nuovo meccanismo), la riga principale NON mostra un peso in millesimi proprio —
-    // sarebbe fuorviante, dato che rappresenta più di una proprietà insieme: il peso di
-    // ciascuna proprietà si vede nelle righe sottostanti, dove compaiono tutte, compresa
-    // quella di questo stesso condòmino.
+    // col nuovo meccanismo), la riga principale mostra il TOTALE dei millesimi di tutte le sue
+    // unità insieme (la propria + quelle unificate) — il dettaglio di ciascuna resta comunque
+    // visibile nelle righe sottostanti. Prima qui compariva un semplice "—": poteva sembrare che
+    // il condòmino non pesasse nulla nel quorum, mentre invece pesava (correttamente) come
+    // somma delle sue unità — solo che quella somma non si vedeva da nessuna parte in questa
+    // tabella. Il calcolo del quorum in cima alla pagina non cambia: sommava già, riga per riga,
+    // il peso di ogni singola unità (comprese quelle unificate) esattamente come ora.
     const unitaUnificateAnticipo = b.condomini.filter(x=>x.unificatoCon===c.id && convocatiIds.includes(x.id));
     const rappresentatoRiga = convocatoRappresentato(c, assemblea, b);
     const tdMill=document.createElement('td');
     if(unitaUnificateAnticipo.length>0){
-      tdMill.innerHTML = '<span class="muted">—</span>';
+      const millTotaleGruppo = arrotondaMillesimi(pesoConvocato(c, assemblea, b) + unitaUnificateAnticipo.reduce((s,u)=>s+pesoConvocato(u, assemblea, b),0));
+      tdMill.innerHTML = rappresentatoRiga ? `<b>${millTotaleGruppo}</b>` : `${millTotaleGruppo}`;
     }else{
       const millRiga = pesoConvocato(c, assemblea, b);
       tdMill.innerHTML = rappresentatoRiga ? `<b>${millRiga}</b>` : `${millRiga}`;
@@ -5596,39 +5639,59 @@ function handleExcelConvocati(evt){
       const b=getActiveBuilding(); const a=workingAssembly;
       const headers=Object.keys(rows[0]);
       const {keyNome, keyCognome, keyNomeCompleto, keyEmail, keyUnita, keyInterno, millesimiCols} = rilevaColonneAnagrafica(headers);
-      if(!keyEmail){ toast('Il file deve avere una colonna Email (stesso formato usato per l\'anagrafica in Dashboard).'); return; }
+      if(!keyEmail && !(keyNome||keyCognome||keyNomeCompleto)){
+        toast('Il file deve avere una colonna Email oppure Cognome/Nome per riconoscere i condòmini.'); return;
+      }
       const nonTrovati=[]; const ambigui=[]; const selezionati=[];
       // Un condòmino trovato per ogni riga, e i valori grezzi di OGNI colonna millesimi/peso
       // presente nel file (non solo la prima): pesiGrezziPerTabella['Box'][condominoId] = 45.6
       const pesiGrezziPerTabella = {};
       millesimiCols.forEach(mc=>{ pesiGrezziPerTabella[mc.tabella] = {}; });
       rows.forEach(r=>{
-        const email=String(r[keyEmail]||'').trim().toLowerCase();
-        if(!email) return;
+        const email = keyEmail ? String(r[keyEmail]||'').trim().toLowerCase() : '';
+        // Nome/cognome della riga (chiave normalizzata per il confronto) e Interno/Unità:
+        // servono sia per disambiguare un'email condivisa, sia — se l'email manca del tutto
+        // in questa riga o nel file — come UNICO criterio per trovare il condòmino giusto
+        // (utile per un file "solo millesimi" senza colonna Email, es. per un'assemblea
+        // straordinaria che aggiunge una nuova tabella millesimale).
+        const chiaveRiga = chiaveNomeRiga(r, keyNome, keyCognome, keyNomeCompleto);
+        const rigaUnita = normalizzaTesto(keyUnita?r[keyUnita]:'') || normalizzaTesto(keyInterno?r[keyInterno]:'');
         const riferimento = (keyNomeCompleto && r[keyNomeCompleto]) ? r[keyNomeCompleto]
           : (keyNome && r[keyNome]) ? (r[keyNome] + (keyCognome && r[keyCognome] ? ' '+r[keyCognome] : ''))
           : (keyUnita && r[keyUnita]) ? r[keyUnita] : email;
-        const candidati = b.condomini.filter(c=>c.email.trim().toLowerCase()===email);
+        if(!email && !chiaveRiga) return; // riga senza email e senza nome: niente per riconoscerla, ignorata in silenzio
+
+        // Punto di partenza: chi corrisponde per email, se la riga ne ha una — altrimenti si
+        // parte da TUTTI i condòmini del condominio e si disambigua solo per nome/unità.
+        const candidati = email ? b.condomini.filter(c=>c.email.trim().toLowerCase()===email) : b.condomini;
         if(candidati.length===0){ nonTrovati.push(riferimento); return; }
         let cond;
-        if(candidati.length===1){
+        if(candidati.length===1 && email){
           cond = candidati[0];
         }else{
-          // Stessa email condivisa da più condòmini (es. un familiare gestisce più unità):
-          // disambigua per nome e cognome, indipendentemente dall'ordine o dal fatto che
+          // Serve disambiguare per nome: sempre quando non c'è email (si parte da tutti i
+          // condòmini), oppure quando l'email è condivisa da più condòmini (es. un familiare
+          // gestisce più unità) — indipendentemente dall'ordine cognome/nome o dal fatto che
           // siano in un'unica cella o in due celle separate.
-          const chiaveRiga = chiaveNomeRiga(r, keyNome, keyCognome, keyNomeCompleto);
-          let candidatiPerNome = chiaveRiga ? candidati.filter(c=>chiaveNomeCondomino(c)===chiaveRiga) : [];
+          if(!chiaveRiga){
+            if(email){ ambigui.push(`<b>${riferimento}</b>: l'email è condivisa con altri condòmini (es. familiare che gestisce più unità) e la riga non ha un nome/cognome per disambiguare. Aggiungi Cognome/Nome nel file.`); }
+            else{ nonTrovati.push(riferimento); }
+            return;
+          }
+          const candidatiPerNome = candidati.filter(c=>chiaveNomeCondomino(c)===chiaveRiga);
           if(candidatiPerNome.length===1){ cond = candidatiPerNome[0]; }
           else if(candidatiPerNome.length>1){
-            // Stesso nome, stessa email, più righe: è lo stesso proprietario con più unità
-            // (es. più immobili nello stesso condominio). Disambigua con Unità/Interno.
-            const rigaUnita = normalizzaTesto(keyUnita?r[keyUnita]:'') || normalizzaTesto(keyInterno?r[keyInterno]:'');
+            // Stesso nome, più righe: è lo stesso proprietario con più unità (es. più immobili
+            // nello stesso condominio). Disambigua con Unità/Interno.
             const candidatiPerUnita = rigaUnita ? candidatiPerNome.filter(c=>normalizzaTesto(c.unita)===rigaUnita || normalizzaTesto(c.interno)===rigaUnita) : [];
             if(candidatiPerUnita.length===1){ cond = candidatiPerUnita[0]; }
-            else{ ambigui.push(`<b>${riferimento}</b>: stessa email e stesso nome di più condòmini in Dashboard (proprietario con più unità) — aggiungi o correggi la colonna Unità/Interno nel file per distinguere a quale unità si riferisce questa riga.`); return; }
+            else{ ambigui.push(`<b>${riferimento}</b>: ${email?'stessa email e stesso nome':'stesso nome'} di più condòmini in Dashboard (proprietario con più unità) — aggiungi o correggi la colonna Unità/Interno nel file per distinguere a quale unità si riferisce questa riga.`); return; }
           }
-          else{ ambigui.push(`<b>${riferimento}</b>: l'email è condivisa con altri condòmini (es. familiare che gestisce più unità) e nome/cognome nel file non corrispondono esattamente a quelli in Dashboard, quindi non è stato incluso automaticamente. Controlla e correggi nome/cognome nel file o in Dashboard.`); return; }
+          else{
+            if(email){ ambigui.push(`<b>${riferimento}</b>: l'email è condivisa con altri condòmini (es. familiare che gestisce più unità) e nome/cognome nel file non corrispondono esattamente a quelli in Dashboard, quindi non è stato incluso automaticamente. Controlla e correggi nome/cognome nel file o in Dashboard.`); }
+            else{ nonTrovati.push(riferimento); }
+            return;
+          }
         }
         selezionati.push(cond.id);
         millesimiCols.forEach(mc=>{
@@ -9151,7 +9214,15 @@ function eseguiConUnioneSuServer(azione){
     __transazioneMergeInCorso = true;
     try{
       buildings = statoServer.buildings.map(miglioraSchemaBuilding);
-      activePoll = deserializzaPoll(statoServer.activePoll);
+      // Se il sondaggio è stato aperto DA POCO su questo stesso dispositivo, la scrittura su
+      // Firebase è asincrona e potrebbe non essere ancora arrivata quando parte questa
+      // transazione: statoServer.activePoll risulterebbe ancora null, mentre in realtà un
+      // sondaggio è aperto (lo sappiamo perché esiste in locale). Senza questo ripiego,
+      // un'azione come "Tutti favorevole" premuta subito dopo l'apertura leggerebbe
+      // activePoll=null e andrebbe in errore (Cannot read properties of null). Usiamo quindi
+      // la nostra copia locale come base quando il server non ne ha ancora una — la
+      // transazione la scriverà comunque sul server subito dopo, sanando il ritardo.
+      activePoll = deserializzaPoll(statoServer.activePoll) || activePollLocaleDiBackup;
       // Se sul server questo campo non è mai stato scritto (il caso normale quando nessun
       // sondaggio è in corso), leggerlo dà "undefined", non "null" — e Firebase RIFIUTA in
       // blocco qualunque scrittura che contenga "undefined" da qualche parte. Qui lo
@@ -9279,7 +9350,7 @@ function applicaDatiRicevuti(parsed, aggiornaAncheNavigazioneLocale){
   // server, ignorando questo controllo. Il database condiviso (Firebase) consegna sempre lo
   // stato più recente confermato: non serve un controllo di "vecchiaia" lato client.
   if(typeof parsed.__versione === 'number'){ __versioneStatoLocale = parsed.__versione; }
-  buildings = parsed.buildings.map(miglioraSchemaBuilding);
+  buildings = parsed.buildings.map(miglioraSchemaBuilding).filter(b=>!__idBuildingEliminatiSessione.has(b.id));
   // currentCondomino (chi è "autenticato" nella pagina personale, lato cellulare) punta a un
   // preciso oggetto in memoria: dopo aver sostituito "buildings" con i dati appena arrivati,
   // quel riferimento resterebbe "staccato" dai nuovi oggetti — cosa che succede in
