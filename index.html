@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-194 — creata il 26/08/2026 alle 13:38
+  Versione: LT-195 — creata il 26/08/2026 alle 13:44
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -652,7 +652,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 26/08/2026 alle 13:38">LT-194</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 26/08/2026 alle 13:44">LT-195</span>
   </div>
 
   <!-- MAIN -->
@@ -3316,8 +3316,11 @@ function handleExcelUpload(evt){
       // Prima passata: leggo i valori grezzi di ogni riga valida (nome ed email presenti)
       const righeValide = [];
       rows.forEach(r=>{
-        const nome = keyNomeCompleto ? String(r[keyNomeCompleto]||'').trim() : String(r[keyNome]||'').trim();
-        const cognome = keyNomeCompleto ? '' : (keyCognome? String(r[keyCognome]||'').trim() : '');
+        // Se cognome e nome sono scritti insieme in un'unica colonna (keyNomeCompleto), il
+        // testo va nel campo Cognome (non Nome): il resto dell'app mostra sempre il cognome
+        // per primo, ed è così che appare comunque nel testo stesso ("Cognome Nome").
+        const nome = keyNomeCompleto ? '' : String(r[keyNome]||'').trim();
+        const cognome = keyNomeCompleto ? String(r[keyNomeCompleto]||'').trim() : (keyCognome? String(r[keyCognome]||'').trim() : '');
         const email=String(r[keyEmail]||'').trim();
         const interno=keyInterno? String(r[keyInterno]||'').trim() : '';
         const unita=keyUnita? String(r[keyUnita]||'').trim() : '';
