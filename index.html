@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-200 — creata il 26/08/2026 alle 19:01
+  Versione: LT-201 — creata il 26/08/2026 alle 19:28
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -652,7 +652,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 26/08/2026 alle 19:01">LT-200</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 26/08/2026 alle 19:28">LT-201</span>
   </div>
 
   <!-- MAIN -->
@@ -6234,21 +6234,30 @@ let jitsiApi = null;
 let liveParticipants = []; // {id, displayName}
 
 function startVideo(){
-  // Stessa stanza fissa Digital Samba usata dalla vista condòmino (LINK_STANZA_DIGITAL_SAMBA):
-  // prima usavamo Jitsi con una stanza generata a caso ogni volta, tenuta solo nella memoria di
-  // questo browser — un condòmino su un altro dispositivo non aveva alcun modo di saperla, e la
-  // videochiamata restava scollegata. Con una stanza fissa e uguale per tutti, il problema
-  // sparisce da solo: non serve nessuna sincronizzazione apposta.
-  document.getElementById('video-box').innerHTML = `<iframe src="${LINK_STANZA_DIGITAL_SAMBA}"
-    allow="camera; microphone; fullscreen; display-capture; autoplay; clipboard-write"
-    allowfullscreen style="width:100%;height:100%;border:0;"></iframe>`;
-
-  // Vista condòmino (anteprima locale, solo per mostrare il layout mentre si lavora qui):
-  // la vera videochiamata del condòmino parte dalla sua pagina, non da qui.
+  // NOTA: da questa versione, invece del link fisso uguale per tutti, si chiede al server
+  // (funzione /api/video-token su Vercel) un link con ruolo "moderatore" per l'amministratore
+  // — dà accesso ai controlli di moderazione dentro il riquadro video (mutare tutti, ecc.),
+  // cosa impossibile con il vecchio link fisso dove tutti entravano con lo stesso ruolo.
+  document.getElementById('video-box').innerHTML = '<p class="muted" style="padding:16px;">⏳ Preparazione videoconferenza...</p>';
   const cvBox = document.getElementById('cv-video-box');
-  if(cvBox && cvBox.style.display!=='none') cvBox.innerHTML = `<iframe src="${LINK_STANZA_DIGITAL_SAMBA}" allow="camera; microphone; fullscreen; display-capture"></iframe>`;
+  const mostraCvBox = cvBox && cvBox.style.display!=='none';
 
-  toast('Videoconferenza avviata (Digital Samba) — stessa stanza per tutti i dispositivi collegati.');
+  const nomeAmministratore = [amministratore.nome, amministratore.cognome].filter(Boolean).join(' ') || amministratore.ragioneSociale || 'Amministratore';
+  richiediLinkVideoConRuolo('moderatore', nomeAmministratore).then(url=>{
+    document.getElementById('video-box').innerHTML = `<iframe src="${url}"
+      allow="camera; microphone; fullscreen; display-capture; autoplay; clipboard-write"
+      allowfullscreen style="width:100%;height:100%;border:0;"></iframe>`;
+    // Vista condòmino (anteprima locale, solo per mostrare il layout mentre si lavora qui):
+    // la vera videochiamata del condòmino parte dalla sua pagina, non da qui.
+    if(mostraCvBox) cvBox.innerHTML = `<iframe src="${url}" allow="camera; microphone; fullscreen; display-capture"></iframe>`;
+    toast('Videoconferenza avviata (Digital Samba) — entri con i controlli da moderatore.');
+  }).catch(err=>{
+    document.getElementById('video-box').innerHTML = `<iframe src="${LINK_STANZA_DIGITAL_SAMBA}"
+      allow="camera; microphone; fullscreen; display-capture; autoplay; clipboard-write"
+      allowfullscreen style="width:100%;height:100%;border:0;"></iframe>`;
+    if(mostraCvBox) cvBox.innerHTML = `<iframe src="${LINK_STANZA_DIGITAL_SAMBA}" allow="camera; microphone; fullscreen; display-capture"></iframe>`;
+    toast('Non sono riuscito a generare il link con ruolo di moderatore ('+err.message+') — entrato con il link normale, senza controlli di moderazione.');
+  });
 }
 
 function muteAllMics(){
@@ -7764,14 +7773,40 @@ function adjustFontScale(dir){
 // stesso momento, i partecipanti finirebbero tutti nella stessa videochiamata — per un singolo
 // test con famiglia/amici va benissimo così com'è.
 const LINK_STANZA_DIGITAL_SAMBA = "https://Adunanza.digitalsamba.com/demo-room";
+// Chiede al server (funzione /api/video-token su Vercel) un link di ingresso alla
+// videochiamata con il ruolo giusto — "moderatore" per l'amministratore, "partecipante" per
+// i condòmini — invece del vecchio link fisso uguale per tutti, che non permetteva di
+// distinguere chi ha i controlli di moderazione (mutare tutti, ecc.) da chi no. Le credenziali
+// vere restano sul server (mai in questo file, che chiunque può leggere aprendo la pagina):
+// qui si manda solo il ruolo desiderato e si riceve indietro un link già pronto da usare.
+async function richiediLinkVideoConRuolo(ruolo, nome){
+  const risposta = await fetch('/api/video-token', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ruolo, nome})
+  });
+  const dati = await risposta.json().catch(()=>({}));
+  if(!risposta.ok || !dati.url) throw new Error(dati.error || 'risposta non valida dal server');
+  return dati.url;
+}
 function entraInVideochiamataCondomino(){
   document.getElementById('cv-pre-ingresso').style.display = 'none';
   const cont = document.getElementById('cv-video-box');
   cont.style.display = 'block';
-  cont.innerHTML = `<iframe src="${LINK_STANZA_DIGITAL_SAMBA}"
-    allow="camera; microphone; fullscreen; display-capture; autoplay; clipboard-write"
-    allowfullscreen></iframe>
-    <div id="cv-poll-video-scroll-hint"><span>⌄</span></div>`;
+  cont.innerHTML = '<p class="muted" style="padding:16px;text-align:center;">⏳ Preparazione videoconferenza...</p>';
+  const nomeCond = currentCondomino ? nomeCompletoCondomino(currentCondomino) : 'Condòmino';
+  richiediLinkVideoConRuolo('partecipante', nomeCond).then(url=>{
+    cont.innerHTML = `<iframe src="${url}"
+      allow="camera; microphone; fullscreen; display-capture; autoplay; clipboard-write"
+      allowfullscreen></iframe>
+      <div id="cv-poll-video-scroll-hint"><span>⌄</span></div>`;
+  }).catch(err=>{
+    cont.innerHTML = `<iframe src="${LINK_STANZA_DIGITAL_SAMBA}"
+      allow="camera; microphone; fullscreen; display-capture; autoplay; clipboard-write"
+      allowfullscreen></iframe>
+      <div id="cv-poll-video-scroll-hint"><span>⌄</span></div>`;
+    toast('Non sono riuscito a generare il link personalizzato ('+err.message+') — entrato con il link normale.');
+  });
 }
 
 // ---------- CHAT A COMPARSA IN PRIMO PIANO (sostituisce il video, non lo affianca) ----------
