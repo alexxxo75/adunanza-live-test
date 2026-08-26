@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-198 — creata il 26/08/2026 alle 18:29
+  Versione: LT-199 — creata il 26/08/2026 alle 18:39
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -652,7 +652,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 26/08/2026 alle 18:29">LT-198</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 26/08/2026 alle 18:39">LT-199</span>
   </div>
 
   <!-- MAIN -->
@@ -3332,10 +3332,15 @@ function handleExcelUpload(evt){
         const email=String(r[keyEmail]||'').trim();
         const interno=keyInterno? String(r[keyInterno]||'').trim() : '';
         const unita=keyUnita? String(r[keyUnita]||'').trim() : '';
-        // Il nome è l'unico dato davvero indispensabile: l'email può mancare (es. condòmini
-        // anziani senza indirizzo email) — vengono comunque creati, semplicemente non
-        // riceveranno le convocazioni via email finché non gliene viene aggiunta una a mano.
-        if(!nome) return;
+        // Il nome (o il cognome, o il testo combinato "Cognome Nome" appena estratto sopra) è
+        // l'unico dato davvero indispensabile per riconoscere la riga — l'email può mancare
+        // (es. condòmini anziani senza indirizzo email): vengono comunque creati, semplicemente
+        // non riceveranno le convocazioni via email finché non gliene viene aggiunta una a mano.
+        // BUG CORRETTO: qui si controllava solo "nome", ma dopo la correzione qui sopra che
+        // sposta il testo combinato "Cognome e Nome" nel campo Cognome, "nome" resta SEMPRE
+        // vuoto per quelle righe — il controllo le scartava tutte in silenzio, svuotando
+        // l'anagrafica invece di aggiornarla.
+        if(!nome && !cognome) return;
         const millesimiGrezzi={};
         millesimiCols.forEach(mc=>{ millesimiGrezzi[mc.tabella] = parseNumeroDecimale(r[mc.header]); });
         righeValide.push({nome, cognome, email, interno, unita, millesimiGrezzi});
