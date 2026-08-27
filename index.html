@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-202 — creata il 26/08/2026 alle 20:26
+  Versione: LT-203 — creata il 27/08/2026 alle 06:59
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -652,7 +652,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 26/08/2026 alle 20:26">LT-202</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 27/08/2026 alle 06:59">LT-203</span>
   </div>
 
   <!-- MAIN -->
@@ -2550,7 +2550,20 @@ function goPage(name){
   }
   if(name==='dashboard') renderDashboard();
   if(name==='crea-assemblea') renderCreaAssemblea();
-  if(name==='assemblea'){ aggiornaTitoloAssemblea(); renderHandsList(); renderChat('admin-chat-log'); renderOdgBlocks(); renderAppello(); renderFloatingActivePoll(); renderCaricheAssemblea(); }
+  if(name==='assemblea'){
+    aggiornaTitoloAssemblea(); renderHandsList(); renderChat('admin-chat-log'); renderOdgBlocks(); renderAppello(); renderFloatingActivePoll(); renderCaricheAssemblea();
+    // Stessa rete di sicurezza di iniziaAssemblea(): se il riquadro video è rimasto bloccato
+    // sul testo fisso "Videoconferenza non attiva" (assemblea precedente terminata senza
+    // successiva collegata) e non c'è già una videochiamata in corso qui dentro, lo
+    // riportiamo allo stato "pronto per essere avviato" invece di lasciarlo bloccato.
+    const videoBoxEntrata = document.getElementById('video-box');
+    if(videoBoxEntrata && !videoBoxEntrata.querySelector('iframe') && !videoBoxEntrata.querySelector('button')){
+      videoBoxEntrata.innerHTML = `<div class="video-off">
+        <div>La videoconferenza non è ancora avviata</div>
+        <button class="btn brass" onclick="startVideo()">Avvia videoconferenza</button>
+      </div>`;
+    }
+  }
   if(name==='registrazioni') renderRegistrazioni();
   renderNavSubmenu();
 }
@@ -4556,6 +4569,18 @@ function iniziaAssemblea(){
   assemblea.iniziata=true;
   assemblea.oraInizio=oraAdesso();
   assemblea.oraInizioEpoch=Date.now(); // orario preciso, usato per la schermata "chi c'è" dei primi 30 secondi lato cellulare
+  // BUG CORRETTO: se l'assemblea PRECEDENTE era stata terminata senza una successiva
+  // collegata, il riquadro video restava spento con un testo fisso ("Videoconferenza non
+  // attiva") SENZA il pulsante per riavviarlo — l'unico modo per uscirne era ricaricare tutta
+  // la pagina. Qui riportiamo sempre il riquadro allo stato iniziale ("pronto per essere
+  // avviato", con il pulsante) all'inizio di ogni nuova assemblea, anche senza refresh.
+  const videoBox = document.getElementById('video-box');
+  if(videoBox && !videoBox.querySelector('iframe')){
+    videoBox.innerHTML = `<div class="video-off">
+      <div>La videoconferenza non è ancora avviata</div>
+      <button class="btn brass" onclick="startVideo()">Avvia videoconferenza</button>
+    </div>`;
+  }
   // Rete di sicurezza: la registrazione parte da sola all'inizio dell'assemblea, così non
   // capita che l'amministratore se ne dimentichi nel caos dell'appello. Resta comunque
   // possibile fermarla a mano, se non la si vuole.
