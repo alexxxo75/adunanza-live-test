@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-204 — creata il 27/08/2026 alle 13:11
+  Versione: LT-205 — creata il 27/08/2026 alle 13:56
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -652,7 +652,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 27/08/2026 alle 13:11">LT-204</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 27/08/2026 alle 13:56">LT-205</span>
   </div>
 
   <!-- MAIN -->
@@ -4741,14 +4741,18 @@ function renderAppello(){
   // Riga di una persona esterna: riusata sia indentata sotto chi l'ha delegata (con
   // l'indicazione "esterno delegato"), sia in fondo alla tabella per chi è nel gruppo delle
   // persone esterne ma al momento non ha una delega attiva da nessuno.
-  function costruisciRigaEsterno(est, indentata){
+  function costruisciRigaEsterno(est, indentata, nomeDelegante){
     const attivoEst = statoRealeSenzaVotoAutonomo(assemblea, est.id);
     const tr=document.createElement('tr');
     tr.style.background='var(--paper)';
     const semEst = (attivoEst && attivoEst.tipo==='online') ? 'verde' : (attivoEst && attivoEst.rec.online) ? 'rosa' : attivoEst ? 'blu' : 'grigio';
     const tdNome=document.createElement('td');
     tdNome.className='appello-nome-cella';
-    tdNome.innerHTML=semaforoAppello(semEst)+`${est.nome} <span class="muted">${indentata?'(esterno delegato)':'(persona esterna)'}</span>`;
+    // Etichetta esplicita "delega di ..." (non solo l'indentazione visiva sotto il delegante):
+    // così si capisce chi rappresenta questa persona anche fuori contesto (es. nel nome mostrato
+    // dentro la videochiamata, dove non esiste alcuna gerarchia/indentazione).
+    const etichetta = indentata ? `(delega di ${escapeHtml(nomeDelegante||'')})` : '(persona esterna)';
+    tdNome.innerHTML=semaforoAppello(semEst)+`${est.nome} <span class="muted">${etichetta}</span>`;
     tr.appendChild(tdNome);
     const tdBustaEst=document.createElement('td'); tr.appendChild(tdBustaEst);
     const tdMillEst=document.createElement('td'); tdMillEst.innerHTML='<span class="muted">—</span>'; tr.appendChild(tdMillEst);
@@ -5013,7 +5017,7 @@ function renderAppello(){
     // sotto ciascuno di loro, sempre con lo stesso stato (è la stessa presenza, ovunque compaia).
     if(typeof delegatoId==='string' && delegatoId.startsWith('ext-')){
       const estDelegato = (assemblea.deleghiEsterni||[]).find(e=>e.id===delegatoId);
-      if(estDelegato) tbody.appendChild(costruisciRigaEsterno(estDelegato, true));
+      if(estDelegato) tbody.appendChild(costruisciRigaEsterno(estDelegato, true, nomeCompletoCondomino(c)));
     }
   });
 
@@ -7811,6 +7815,23 @@ function adjustFontScale(dir){
 // stesso momento, i partecipanti finirebbero tutti nella stessa videochiamata — per un singolo
 // test con famiglia/amici va benissimo così com'è.
 const LINK_STANZA_DIGITAL_SAMBA = "https://Adunanza.digitalsamba.com/demo-room";
+// Il nome da usare in videochiamata: normalmente quello del condòmino il cui link è stato
+// aperto — MA se quel condòmino ha delegato il voto a una persona esterna (l'unico modo per
+// lei di entrare è comunque usare il link del delegante, non avendone uno proprio), mostriamo
+// il nome della persona esterna con l'indicazione di chi rappresenta, così in videochiamata non
+// compare per sbaglio il nome del delegante al posto di chi sta davvero parlando.
+function nomeDaMostrareInVideochiamata(){
+  if(!currentCondomino) return 'Condòmino';
+  const assembleaVideo = getAssembleaContestualizzataCondomino(getActiveBuilding());
+  if(assembleaVideo){
+    const delegatoIdVideo = assembleaVideo.appello.deleghe[currentCondomino.id];
+    if(typeof delegatoIdVideo==='string' && delegatoIdVideo.startsWith('ext-')){
+      const est = (assembleaVideo.deleghiEsterni||[]).find(e=>e.id===delegatoIdVideo);
+      if(est) return `${est.nome} (delega di ${nomeCompletoCondomino(currentCondomino)})`;
+    }
+  }
+  return nomeCompletoCondomino(currentCondomino);
+}
 // Chiede al server (funzione /api/video-token su Vercel) un link di ingresso alla
 // videochiamata con il ruolo giusto — "moderatore" per l'amministratore, "partecipante" per
 // i condòmini — invece del vecchio link fisso uguale per tutti, che non permetteva di
@@ -7839,7 +7860,7 @@ function entraInVideochiamataCondomino(){
     allowfullscreen></iframe>
     <div id="cv-poll-video-scroll-hint"><span>⌄</span></div>`;
 
-  const nomeCond = currentCondomino ? nomeCompletoCondomino(currentCondomino) : 'Condòmino';
+  const nomeCond = nomeDaMostrareInVideochiamata();
   richiediLinkVideoConRuolo('partecipante', nomeCond).then(url=>{
     const box = document.getElementById('cv-video-box');
     if(box && box.style.display!=='none' && box.querySelector('iframe')){
