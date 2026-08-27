@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-203 — creata il 27/08/2026 alle 06:59
+  Versione: LT-204 — creata il 27/08/2026 alle 13:11
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -652,7 +652,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 27/08/2026 alle 06:59">LT-203</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 27/08/2026 alle 13:11">LT-204</span>
   </div>
 
   <!-- MAIN -->
@@ -9569,16 +9569,50 @@ window.addEventListener('storage', (e)=>{
 const __paramsIniziali = new URLSearchParams(window.location.search);
 const __haTokenNelLink = !!__paramsIniziali.get('token');
 
+let __tentativiInstradamentoToken = 0;
 function instradamentoIniziale(){
   if(initFromUrlToken()){
+    rimuoviMessaggioAttesaLinkPersonale();
     if(contestoDelegaAssembleaId){ goPage('delega-condomino'); }
     else{ goPage('vista-condomino'); }
-  }else{
-    activeBuildingId = null;
-    draftBuilding = null;
-    goPage('home');
-    renderNavSubmenu();
+    return;
   }
+  if(__haTokenNelLink){
+    // BUG CORRETTO: un link personale di un condòmino non ancora riconosciuto (dati non
+    // ancora arrivati dal database condiviso, o connessione lenta/fallita) faceva ricadere
+    // qui sotto, mostrando per sbaglio la Dashboard dell'amministratore — pensata per
+    // l'amministratore stesso, MAI per un condòmino con un link personale. Ora, finché i dati
+    // non arrivano, si mostra un messaggio di attesa e si riprova automaticamente per qualche
+    // secondo, senza mai mostrare la Dashboard a chi ha aperto un link personale.
+    __tentativiInstradamentoToken++;
+    if(__tentativiInstradamentoToken <= 8){
+      mostraMessaggioAttesaLinkPersonale();
+      setTimeout(instradamentoIniziale, 1000);
+    }else{
+      mostraMessaggioAttesaLinkPersonale(true);
+    }
+    return;
+  }
+  activeBuildingId = null;
+  draftBuilding = null;
+  goPage('home');
+  renderNavSubmenu();
+}
+function mostraMessaggioAttesaLinkPersonale(erroreDefinitivo){
+  let box = document.getElementById('overlay-attesa-link-personale');
+  if(!box){
+    box = document.createElement('div');
+    box.id = 'overlay-attesa-link-personale';
+    box.style.cssText = 'position:fixed;inset:0;background:#1b1b1c;color:#eee;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;z-index:99999;font-family:inherit;';
+    document.body.appendChild(box);
+  }
+  box.innerHTML = erroreDefinitivo
+    ? `<div style="max-width:360px;"><div style="font-size:32px;margin-bottom:12px;">⚠️</div><div style="font-size:15px;margin-bottom:16px;">Non riesco a collegarmi al database condiviso. Controlla la connessione internet e ricarica questa pagina.</div><button class="btn brass" onclick="location.reload()">Ricarica la pagina</button></div>`
+    : `<div style="max-width:320px;"><div style="font-size:28px;margin-bottom:12px;">⏳</div><div style="font-size:14px;">Un attimo, sto caricando i tuoi dati...</div></div>`;
+}
+function rimuoviMessaggioAttesaLinkPersonale(){
+  const box = document.getElementById('overlay-attesa-link-personale');
+  if(box) box.remove();
 }
 
 let __primoDatoFirebaseGestito = false;
