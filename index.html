@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-205 — creata il 27/08/2026 alle 13:56
+  Versione: LT-206 — creata il 27/08/2026 alle 14:24
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -652,7 +652,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 27/08/2026 alle 13:56">LT-205</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 27/08/2026 alle 14:24">LT-206</span>
   </div>
 
   <!-- MAIN -->
@@ -4745,7 +4745,15 @@ function renderAppello(){
     const attivoEst = statoRealeSenzaVotoAutonomo(assemblea, est.id);
     const tr=document.createElement('tr');
     tr.style.background='var(--paper)';
-    const semEst = (attivoEst && attivoEst.tipo==='online') ? 'verde' : (attivoEst && attivoEst.rec.online) ? 'rosa' : attivoEst ? 'blu' : 'grigio';
+    // BUG CORRETTO: mancava del tutto il controllo "è entrato/a e poi uscito/a" per la persona
+    // esterna — appena il suo record online/presenza smetteva di essere "attivo", la riga
+    // tornava a "Non ancora presente" come se non si fosse mai collegata, anche se in realtà
+    // era stata online (o in presenza) e poi era uscita. Stesso identico controllo già usato
+    // per i condòmini normali, applicato qui a est.id.
+    const rOnUscitoEst = assemblea.appello.online.find(r=>r.condominoId===est.id && r.uscita);
+    const rPresUscitoEst = assemblea.appello.presenzeFisiche.find(r=>r.condominoId===est.id && r.uscita);
+    const uscitoEst = (!attivoEst) && (rOnUscitoEst||rPresUscitoEst);
+    const semEst = (attivoEst && attivoEst.tipo==='online') ? 'verde' : (attivoEst && attivoEst.rec.online) ? 'rosa' : attivoEst ? 'blu' : uscitoEst ? 'nero' : 'grigio';
     const tdNome=document.createElement('td');
     tdNome.className='appello-nome-cella';
     // Etichetta esplicita "delega di ..." (non solo l'indentazione visiva sotto il delegante):
@@ -4760,6 +4768,10 @@ function renderAppello(){
     if(attivoEst && attivoEst.tipo==='online') tdStato.innerHTML = `<span class="badge">🟢 Online (dalle ${attivoEst.rec.entrata})</span>`;
     else if(attivoEst && attivoEst.tipo==='presenza' && attivoEst.rec.online) tdStato.innerHTML = `<span class="badge" style="background:#F3D6E4;color:#9B2C63;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#9B2C63;margin-right:5px;vertical-align:middle;"></span>Online (a mano, dalle ${attivoEst.rec.entrata})</span>`;
     else if(attivoEst) tdStato.innerHTML = `<span class="badge pending">🏠 In presenza (dalle ${attivoEst.rec.entrata})</span>`;
+    else if(uscitoEst){
+      const etichettaUscitaEst = uscitoEst.usciteAutomatica ? '🟡 Offline dalle' : '🚪 Uscito/a alle';
+      tdStato.innerHTML = `<span class="muted">${etichettaUscitaEst} ${uscitoEst.uscita}</span>`;
+    }
     else tdStato.innerHTML = '<span class="muted">⚪ Non ancora presente</span>';
     tr.appendChild(tdStato);
     const tdAz=document.createElement('td');
@@ -4850,10 +4862,17 @@ function renderAppello(){
     tr.appendChild(tdMill);
 
     const tdStato=document.createElement('td');
+    const rOnUscito = assemblea.appello.online.find(r=>r.condominoId===c.id && r.uscita);
+    const rPresUscito = assemblea.appello.presenzeFisiche.find(r=>r.condominoId===c.id && r.uscita);
+    const uscito = (!attivo) && (rOnUscito||rPresUscito);
     if(attivo && attivo.tipo==='online'){
       if(delegatoId!=null){
+        // BUG CORRETTO: il delegante non ha MAI un proprio orario da mostrare (non è mai stato
+        // lui online, è il suo delegato) — prima qui compariva "presente online (dalle HH:MM)"
+        // con l'orario di ingresso del DELEGATO, che sembrava (a torto) l'orario del delegante
+        // stesso. Ora la riga dice solo che è rappresentato per delega, senza alcun orario.
         const nomeDelegato = nomePersonaAppello(b, assemblea, delegatoId);
-        tdStato.innerHTML = `<span class="badge">🟢 Delega a ${nomeDelegato} — presente online (dalle ${attivo.rec.entrata})</span>`;
+        tdStato.innerHTML = `<span class="badge">🟢 Presente per delega a ${nomeDelegato}</span>`;
       }else{
         tdStato.innerHTML=`<span class="badge">🟢 Online (dalle ${attivo.rec.entrata})</span>`;
       }
@@ -4861,33 +4880,29 @@ function renderAppello(){
     else if(attivo && attivo.tipo==='presenza' && attivo.rec.online) tdStato.innerHTML=`<span class="badge" style="background:#F3D6E4;color:#9B2C63;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#9B2C63;margin-right:5px;vertical-align:middle;"></span>Online (a mano, dalle ${attivo.rec.entrata})</span>`;
     else if(attivo && attivo.tipo==='presenza') tdStato.innerHTML=`<span class="badge pending">🏠 In presenza (dalle ${attivo.rec.entrata})</span>`;
     else if(delegatoId!=null){
+      // Stessa correzione: il delegante mostra sempre e solo "Delega a ..." (o "Presente per
+      // delega a ...", se il delegato è attivo in questo momento) — MAI un orario, nemmeno
+      // quando il delegato è entrato e poi uscito: quell'informazione, con l'orario giusto,
+      // sta sulla riga del delegato stesso, non qui. Per questo il controllo "uscito" (subito
+      // sotto) non si applica mai a una riga con delega: il delegante stesso non è mai stato
+      // "online" o "in presenza" in prima persona, quindi non ha un proprio orario di uscita.
       const nomeDelegato = nomePersonaAppello(b, assemblea, delegatoId);
-      if(delegatoAttivo){
-        const doveE = delegatoAttivo.tipo==='online' ? 'online' : 'fisicamente';
-        tdStato.innerHTML=`<span class="badge">📝 Delega a ${nomeDelegato} — presente ${doveE} (dalle ${delegatoAttivo.rec.entrata})</span>`;
-      }else{
-        tdStato.innerHTML=`<span class="badge">📝 Delega a ${nomeDelegato}</span>`;
-      }
+      tdStato.innerHTML = delegatoAttivo
+        ? `<span class="badge">📝 Presente per delega a ${nomeDelegato}</span>`
+        : `<span class="badge">📝 Delega a ${nomeDelegato}</span>`;
+    }
+    else if(uscito){
+      // BUG CORRETTO: prima qui compariva "⚪ Assente" seguito, a capo, da "uscito/a alle
+      // HH:MM" — due informazioni in contraddizione (non è "assente", è uscito). Ora la riga
+      // dice solo "Uscito/a alle HH:MM", senza il fuorviante "Assente" davanti.
+      const etichettaUscita = uscito.usciteAutomatica ? '🟡 Offline dalle' : '🚪 Uscito/a alle';
+      tdStato.innerHTML = `<span class="muted">${etichettaUscita} ${uscito.uscita}</span>`;
     }
     else if(collegatoIdAttivo){
       const cAlt = b.condomini.find(x=>x.id===collegatoIdAttivo);
       tdStato.innerHTML=`<span class="badge">🔗 Rappresentato tramite ${cAlt?nomeCompletoCondomino(cAlt):'—'} (stesso proprietario)</span>`;
     }
     else tdStato.innerHTML='<span class="muted">⚪ Assente</span>';
-    // se è uscito anticipatamente lo segnaliamo comunque, indipendentemente dallo stato sopra
-    const rOnUscito = assemblea.appello.online.find(r=>r.condominoId===c.id && r.uscita);
-    const rPresUscito = assemblea.appello.presenzeFisiche.find(r=>r.condominoId===c.id && r.uscita);
-    const uscito = (!attivo) && (rOnUscito||rPresUscito);
-    if(uscito){
-      const etichettaUscita = uscito.usciteAutomatica ? '🟡 offline dalle' : '🚪 uscito/a alle';
-      tdStato.innerHTML += `<br><span class="muted" style="font-size:11px;">${etichettaUscita} ${uscito.uscita}</span>`;
-    }else if(delegatoUscitoSem){
-      // Ha delegato, e il delegato — che prima risultava presente — si è disconnesso: la
-      // delega non conta più per il quorum finché non torna, ma lo segnaliamo chiaramente
-      // invece di lasciare la riga come "semplicemente assente".
-      const etichettaUscitaDelegato = delegatoUscitoSem.usciteAutomatica ? '🟡 il delegato è offline dalle' : '🚪 il delegato è uscito alle';
-      tdStato.innerHTML += `<br><span class="muted" style="font-size:11px;">${etichettaUscitaDelegato} ${delegatoUscitoSem.uscita}</span>`;
-    }
     tr.appendChild(tdStato);
 
     const tdAz=document.createElement('td');
