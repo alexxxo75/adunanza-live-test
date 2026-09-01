@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-235 — creata il 01/09/2026 alle 21:11
+  Versione: LT-236 — creata il 01/09/2026 alle 21:20
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -687,7 +687,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 21:11">LT-235</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 21:20">LT-236</span>
   </div>
 
   <!-- MAIN -->
@@ -6496,7 +6496,13 @@ function staScrivendoInCampoProtetto(){
 // continuano ad arrivare normalmente, non restano bloccati per sempre come nel vecchio bug
 // (staScrivendoInCampoProtetto: vedi il commento sopra).
 let __ultimaAperturaTendinaVotiEpoch = 0;
-const DURATA_PROTEZIONE_TENDINA_VOTI_MS = 4000;
+// Finestra di protezione per la tendina del voto manuale: 20 secondi (non 4 come prima) — con
+// meno aggiornamenti in arrivo grazie alle due correzioni precedenti (battiti su canale
+// separato, niente più scritture inutili ad ogni giro di controllo) è un margine ampio, pensato
+// per coprire comodamente il tempo reale che serve per aprire la tendina, leggere le opzioni e
+// scegliere, anche con qualche istante di esitazione — la protezione si annulla comunque subito
+// (onchange) appena la scelta è fatta, quindi non rallenta nulla nel caso normale.
+const DURATA_PROTEZIONE_TENDINA_VOTI_MS = 20000;
 function segnaAperturaTendinaVoti(){ __ultimaAperturaTendinaVotiEpoch = Date.now(); }
 function tendinaVotiRecentementeAperta(){ return (Date.now() - __ultimaAperturaTendinaVotiEpoch) < DURATA_PROTEZIONE_TENDINA_VOTI_MS; }
 // Segna che l'amministratore ha appena interagito col riquadro Presidente/Segretario: usata
