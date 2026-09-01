@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-219 — creata il 01/09/2026 alle 14:13
+  Versione: LT-220 — creata il 01/09/2026 alle 14:36
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -671,7 +671,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 14:13">LT-219</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 14:36">LT-220</span>
   </div>
 
   <!-- MAIN -->
@@ -1066,9 +1066,8 @@
           <div class="field" id="ca-luogo-wrap">
             <label>Luogo di svolgimento dell'assemblea in presenza (seconda convocazione)</label>
             <input type="text" id="ca-luogo" placeholder="Es. Sala condominiale, Via Roma 5, Milano">
-            <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-weight:400;">
-              <input type="checkbox" id="ca-luogo-studio-flag" onchange="applicaLuogoStudioAmministratore()">
-              Presso lo studio dell'Amministratore (indirizzo preso dal tuo profilo)
+            <label style="display:flex;align-items:center;gap:12px;margin-top:12px;margin-bottom:4px;padding:14px 16px;background:var(--paper);border-radius:4px;font-weight:700;font-size:15px;">
+              <input type="checkbox" id="ca-luogo-studio-flag" onchange="applicaLuogoStudioAmministratore()" style="width:20px;height:20px;flex-shrink:0;"> Presso lo studio dell'Amministratore (indirizzo preso dal tuo profilo)
             </label>
             <p class="muted" style="margin-top:4px;">La prima convocazione si tiene sempre presso lo Studio dell'Amministratore (indirizzo preso dal tuo profilo); questo campo serve solo per la seconda convocazione, di solito in un locale più capiente.</p>
           </div>
@@ -8370,7 +8369,7 @@ function costruisciBloccoSondaggioAttivo(assembleaCorrente, b){
   const indicePunto = (assembleaCorrente.odg||[]).findIndex(p=>p.id===activePollOdgId);
   const puntoCorrente = indicePunto>=0 ? assembleaCorrente.odg[indicePunto] : null;
   const etichettaPunto = puntoCorrente
-    ? `<p class="muted" style="color:#C4BCA5;font-weight:700;margin-bottom:2px;">Punto ${indicePunto+1} — ${escapeHtml(puntoCorrente.testo||'(oggetto non indicato)')}</p>`
+    ? `<p style="color:#F2F0EC;font-weight:700;font-size:20px;text-align:center;margin-bottom:10px;">Punto ${indicePunto+1} dell'O.d.g. - ${escapeHtml(puntoCorrente.testo||'(oggetto non indicato)')}</p>`
     : '';
   if(!currentCondomino){
     return `<div class="assist-panel" style="border-left:4px solid var(--brass);margin-bottom:18px;"><h3>Votazione in corso</h3>${etichettaPunto}<p class="sub">${escapeHtml(activePoll.question)}</p><p class="muted" style="color:#A39C88;">Non riconosco chi sei in questa anteprima: non posso farti votare senza sapere quali millesimi usare.</p></div>`;
@@ -8394,7 +8393,7 @@ function costruisciBloccoSondaggioAttivo(assembleaCorrente, b){
     // cambiare la propria scelta con il tasto qui sotto.
     return `<div class="assist-panel" id="cv-sondaggio-attivo-blocco" style="border-left:4px solid var(--brass);margin-bottom:18px;">
       ${etichettaPunto}
-      <p class="sub" style="margin-bottom:4px;font-weight:700;font-size:16px;color:#F2F0EC;">${escapeHtml(activePoll.question)}</p>
+      <p class="sub" style="margin-bottom:4px;font-weight:700;font-size:18px;color:#F2F0EC;">${escapeHtml(activePoll.question)}</p>
       <p style="font-size:20px;font-weight:700;color:#F2F0EC;margin-bottom:8px;">Tutti: ${escapeHtml(etichetta)}</p>
       <p class="muted" style="color:#A39C88;margin-bottom:14px;">Voto impostato dall'amministratore per tutti — puoi cambiarlo in qualsiasi momento finché il sondaggio resta aperto.</p>
       <div class="cv-btn-modifica-scelta-wrap"><button class="btn small cv-btn-modifica-scelta" onclick="modificaSceltaVotoBloccoCv()">Modifica scelta</button></div>
@@ -8412,13 +8411,23 @@ function costruisciBloccoSondaggioAttivo(assembleaCorrente, b){
   if(votante.estera){
     return `<div class="assist-panel" id="cv-sondaggio-attivo-blocco" style="border-left:4px solid var(--brass);margin-bottom:18px;">
       ${etichettaPunto}
-      <p class="sub" style="margin-bottom:4px;font-weight:700;font-size:16px;color:#F2F0EC;">${escapeHtml(activePoll.question)}</p>
+      <p class="sub" style="margin-bottom:4px;font-weight:700;font-size:18px;color:#F2F0EC;">${escapeHtml(activePoll.question)}</p>
       <p class="muted" style="color:#A39C88;margin-bottom:12px;">Stai votando come delegato/a: userai i ${mieiMillesimi} millesimi di chi ti ha delegato (tabella: ${escapeHtml(activePoll.tabella)})</p>
       <div id="cv-lista-opzioni"></div>
       <button id="cv-btn-conferma-voto" onclick="confermaVotoCondomino()" disabled>Conferma il voto</button>
     </div>`;
   }
-  const attivo = recordAttivoConSecondarie(b, assembleaCorrente, currentCondomino.id);
+  // BUG DI SICUREZZA CORRETTO: prima, chi apriva il link "solo voto" risultava sempre idoneo a
+  // votare per il solo fatto di averlo aperto (il canale voto-autonomo, da solo, bastava a farlo
+  // risultare "attivo") — anche se non era realmente né in presenza né online per altra via, e
+  // anche se aveva delegato il voto a un altro condòmino. Usiamo qui la stessa idoneità "reale"
+  // già usata altrove per l'Appello/Partecipanti/Verbale (che ignora apposta il voto-autonomo):
+  // così il link "solo voto" resta un semplice canale di INPUT per chi è già legittimamente
+  // presente/online per altra via, non una prova di presenza a sé stante. Chi ha delegato ad un
+  // altro condòmino (non esterno) ricade correttamente nel ramo "Hai delegato" qui sotto, invece
+  // di poter votare comunque; chi ha delegato a una persona esterna non passa nemmeno da qui
+  // (gestito prima, nel ramo "votante.estera").
+  const attivo = recordAttivoConSecondarieSenzaVotoAutonomo(b, assembleaCorrente, currentCondomino.id);
   if(!attivo){
     const delegatoIdCv = assembleaCorrente.appello.deleghe[currentCondomino.id];
     if(delegatoIdCv != null){
@@ -8434,7 +8443,7 @@ function costruisciBloccoSondaggioAttivo(assembleaCorrente, b){
   }
   return `<div class="assist-panel" id="cv-sondaggio-attivo-blocco" style="border-left:4px solid var(--brass);margin-bottom:18px;">
     ${etichettaPunto}
-    <p class="sub" style="margin-bottom:4px;font-weight:700;font-size:16px;color:#F2F0EC;">${escapeHtml(activePoll.question)}</p>
+    <p class="sub" style="margin-bottom:4px;font-weight:700;font-size:18px;color:#F2F0EC;">${escapeHtml(activePoll.question)}</p>
     <p class="muted" style="color:#A39C88;margin-bottom:12px;">Voterai con i tuoi ${mieiMillesimi} millesimi (tabella: ${escapeHtml(activePoll.tabella)})</p>
     <div id="cv-lista-opzioni"></div>
     <button id="cv-btn-conferma-voto" onclick="confermaVotoCondomino()" disabled>Conferma il voto</button>
