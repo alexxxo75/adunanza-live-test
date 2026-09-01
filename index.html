@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-218 — creata il 01/09/2026 alle 13:45
+  Versione: LT-219 — creata il 01/09/2026 alle 14:13
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -671,7 +671,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 13:45">LT-218</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 14:13">LT-219</span>
   </div>
 
   <!-- MAIN -->
@@ -1057,8 +1057,8 @@
           <h3 style="margin-bottom:4px;">Ordine del giorno</h3>
           <p class="muted" style="margin-bottom:14px;">Un riquadro per ogni punto: puoi predisporre già qui la votazione, scegliendo la tabella millesimale corretta.</p>
           <div id="ca-odg-list"></div>
-          <button class="btn small secondary" onclick="addOdgPoint()">+ Aggiungi punto all'ordine del giorno</button>
-          <button class="btn small secondary" onclick="addOdgPointVarieEventuali()">+ Varie ed eventuali</button>
+          <button class="btn small secondary" id="ca-btn-add-odg-point" onclick="addOdgPoint()">+ Aggiungi punto all'ordine del giorno</button>
+          <button class="btn small secondary" id="ca-btn-add-odg-varie" onclick="addOdgPointVarieEventuali()">+ Varie ed eventuali</button>
         </div>
 
         <div class="card assemblea-row-card" style="margin-bottom:18px;">
@@ -1247,8 +1247,9 @@
       <div class="card hidden" id="active-poll" style="margin-bottom:18px;border-left:4px solid var(--brass);">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:6px;">
           <div style="flex:1;min-width:240px;">
-            <label>Domanda (modificabile durante la discussione)</label>
-            <input type="text" id="active-poll-title-input" oninput="modificaDomandaSondaggio(this.value)">
+            <label>Domanda</label>
+            <p id="active-poll-title-display" style="font-weight:700;font-size:15px;margin:4px 0 2px;"></p>
+            <p class="muted" style="font-size:12px;margin-bottom:8px;">🔒 Non più modificabile: il sondaggio è già avviato.</p>
             <label style="margin-top:10px;display:block;">Tabella millesimale usata per pesare il voto</label>
             <select id="active-poll-tabella-select" onchange="cambiaTabellaSondaggioAttivo(this.value)" style="margin-top:2px;"></select>
           </div>
@@ -1268,11 +1269,8 @@
         <div class="grid grid-2" style="margin-top:20px;">
           <div>
             <div class="section-title" style="font-size:14px;">Opzioni</div>
+            <p class="muted" style="font-size:12px;margin-bottom:6px;">🔒 Non più modificabili: il sondaggio è già avviato.</p>
             <div id="active-poll-options-edit"></div>
-            <div class="row-inline" style="margin-top:8px;">
-              <input id="active-poll-new-option" placeholder="Aggiungi opzione...">
-              <button class="btn small secondary" onclick="aggiungiOpzioneSondaggio()">+ Aggiungi</button>
-            </div>
 
             <div class="section-title" style="font-size:14px;margin-top:20px;">Voto unanime dei presenti</div>
             <p class="muted" style="margin-bottom:8px;">Assegna in un colpo solo il voto a tutti i presenti che non hanno ancora votato.</p>
@@ -5873,13 +5871,13 @@ function tabelleDisponibiliPerVoto(assemblea, building){
 function addOdgPoint(){
   const b=getActiveBuilding();
   const tabelleVoto = tabelleDisponibiliPerVoto(workingAssembly, b);
-  workingAssembly.odg.push({id:odgIdCounter++, testo:'', sondaggioAbilitato:false, opzioni:'Favorevole\nContrario\nAstenuto', tabella:tabelleVoto[0], storicoSondaggi:[]});
+  workingAssembly.odg.push({id:odgIdCounter++, testo:'', domandaSondaggio:'', sondaggioAbilitato:false, opzioni:'Favorevole\nContrario\nAstenuto', tabella:tabelleVoto[0], storicoSondaggi:[]});
   renderOdgList();
 }
 function addOdgPointVarieEventuali(){
   const b=getActiveBuilding();
   const tabelleVoto = tabelleDisponibiliPerVoto(workingAssembly, b);
-  workingAssembly.odg.push({id:odgIdCounter++, testo:'Varie ed eventuali', sondaggioAbilitato:false, opzioni:'Favorevole\nContrario\nAstenuto', tabella:tabelleVoto[0], storicoSondaggi:[]});
+  workingAssembly.odg.push({id:odgIdCounter++, testo:'Varie ed eventuali', domandaSondaggio:'', sondaggioAbilitato:false, opzioni:'Favorevole\nContrario\nAstenuto', tabella:tabelleVoto[0], storicoSondaggi:[]});
   renderOdgList();
 }
 function removeOdgPoint(id){
@@ -5892,6 +5890,16 @@ function renderOdgList(){
   const odg = workingAssembly.odg;
   const el=document.getElementById('ca-odg-list');
   el.innerHTML='';
+  // Dopo l'invio della convocazione, i punti dell'ordine del giorno (testo, aggiunta/rimozione)
+  // non si possono più toccare: è quello che è stato comunicato ai condòmini. La domanda del
+  // sondaggio e le sue opzioni restano invece modificabili finché quello specifico sondaggio non
+  // viene avviato — sono due cose diverse (l'argomento in agenda vs. come viene formulato il
+  // voto su quell'argomento).
+  const puntiBloccati = !!(workingAssembly && workingAssembly.invitiInviati);
+  ['ca-btn-add-odg-point','ca-btn-add-odg-varie'].forEach(id=>{
+    const btn=document.getElementById(id);
+    if(btn) btn.classList.toggle('hidden', puntiBloccati);
+  });
   if(odg.length===0){ el.innerHTML='<div class="muted" style="margin-bottom:12px;">Nessun punto aggiunto ancora.</div>'; return; }
   odg.forEach((p,i)=>{
     const box=document.createElement('div');
@@ -5899,23 +5907,33 @@ function renderOdgList(){
     box.innerHTML = `
       <div class="odg-box-head">
         <span class="odg-num">Punto ${i+1}</span>
-        <span class="tag-close" data-act="rm">Rimuovi punto</span>
+        ${puntiBloccati ? '' : '<span class="tag-close" data-act="rm">Rimuovi punto</span>'}
       </div>
-      <input type="text" class="odg-testo" placeholder="Es. Approvazione bilancio consuntivo 2025" value="${(p.testo||'').replace(/"/g,'&quot;')}">
+      <input type="text" class="odg-testo" placeholder="Es. Approvazione bilancio consuntivo 2025" value="${(p.testo||'').replace(/"/g,'&quot;')}" ${puntiBloccati?'readonly title="Non modificabile: la convocazione è già stata inviata."':''}>
+      ${puntiBloccati ? '<p class="muted" style="margin-top:4px;font-size:12px;">🔒 Convocazione già inviata: il testo del punto non è più modificabile.</p>' : ''}
       <div style="text-align:left;margin-top:10px;">
         <button type="button" class="btn small ${p.sondaggioAbilitato?'secondary':'brass'} odg-poll-btn">${p.sondaggioAbilitato?'✕ Rimuovi votazione':'+ Crea Votazione'}</button>
         <div class="muted" style="margin-top:7px;font-size:12px;">Prepara già le opzioni di voto per questo punto: potrai avviarlo durante l'assemblea.</div>
       </div>
       <div class="odg-poll-config ${p.sondaggioAbilitato?'show':''}">
+        <div class="field"><label>Domanda del sondaggio</label><input type="text" class="odg-domanda-sondaggio" placeholder="Es. Approvi il bilancio consuntivo 2025 così come presentato?" value="${escapeHtml(p.domandaSondaggio||p.testo||'')}"></div>
         <div class="field"><label>Opzioni di voto (una per riga)</label><textarea class="odg-opzioni" rows="3">${p.opzioni}</textarea></div>
         <div class="field"><label>Tabella millesimale da usare per il voto</label><select class="odg-tabella">${tabelleVoto.map(t=>`<option value="${t}" ${t===p.tabella?'selected':''}>${t}</option>`).join('')}</select></div>
       </div>`;
-    box.querySelector('[data-act="rm"]').onclick=()=>removeOdgPoint(p.id);
-    box.querySelector('.odg-testo').oninput=(e)=>{ p.testo=e.target.value; };
-    box.querySelector('.odg-testo').onblur=()=>salvaStato();
+    if(!puntiBloccati){
+      const rmBtn = box.querySelector('[data-act="rm"]');
+      if(rmBtn) rmBtn.onclick=()=>removeOdgPoint(p.id);
+    }
+    const testoInput = box.querySelector('.odg-testo');
+    if(!puntiBloccati){
+      testoInput.oninput=(e)=>{ p.testo=e.target.value; };
+      testoInput.onblur=()=>salvaStato();
+    }
     const pollBtn = box.querySelector('.odg-poll-btn');
     const configEl = box.querySelector('.odg-poll-config');
     pollBtn.onclick=()=>{ p.sondaggioAbilitato=!p.sondaggioAbilitato; renderOdgList(); };
+    box.querySelector('.odg-domanda-sondaggio').oninput=(e)=>{ p.domandaSondaggio=e.target.value; };
+    box.querySelector('.odg-domanda-sondaggio').onblur=()=>salvaStato();
     box.querySelector('.odg-opzioni').oninput=(e)=>{ p.opzioni=e.target.value; };
     box.querySelector('.odg-opzioni').onblur=()=>salvaStato();
     box.querySelector('.odg-tabella').onchange=(e)=>{ p.tabella=e.target.value; salvaStato(); };
@@ -6254,6 +6272,7 @@ async function salvaESpedisciAssemblea(){
   tuttiIConvocati.forEach(c=>{ c.invitato=true; });
   renderAnteprimeEmailConvocazione(a, b);
   renderCondomini();
+  renderOdgList(); // i punti dell'ordine del giorno si bloccano subito, senza aspettare un ricaricamento
   const salvataggioRiuscito = salvaStato();
 
   if(!inviareDavvero){
@@ -6580,6 +6599,29 @@ function renderOdgBlocks(){
     const mostraAvvia = !(activePollOdgId===p.id) && (!p.storicoSondaggi || p.storicoSondaggi.length===0);
     const avviaEUnNuovoSondaggio = mostraAvvia && !p.sondaggioAbilitato;
 
+    // Per un punto già preparato in fase di creazione (sondaggioAbilitato) ma non ancora
+    // avviato, la domanda e le opzioni restano modificabili anche qui, dal vivo — utile per
+    // aggiustare la formulazione dopo aver sentito la discussione in aula. Una volta avviato il
+    // sondaggio, questo editor sparisce: da lì in poi domanda e opzioni sono fisse (vedi
+    // #active-poll, reso di sola lettura).
+    if(p.sondaggioAbilitato && mostraAvvia){
+      const editorPreAvvio=document.createElement('div');
+      editorPreAvvio.style.cssText='background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:14px 16px;margin-top:8px;';
+      const tabelleVotoPreAvvio = tabelleDisponibiliPerVoto(assemblea, b);
+      editorPreAvvio.innerHTML = `
+        <div class="field"><label>Domanda del sondaggio</label><input type="text" class="odg-domanda-sondaggio-live" value="${escapeHtml(p.domandaSondaggio||p.testo||'')}"></div>
+        <div class="field"><label>Opzioni di voto (una per riga)</label><textarea class="odg-opzioni-live" rows="3">${escapeHtml(p.opzioni||'')}</textarea></div>
+        <div class="field"><label>Tabella millesimale da usare per il voto</label><select class="odg-tabella-live">${tabelleVotoPreAvvio.map(t=>`<option value="${escapeHtml(t)}" ${t===p.tabella?'selected':''}>${escapeHtml(t)}</option>`).join('')}</select></div>`;
+      const domandaLiveInput = editorPreAvvio.querySelector('.odg-domanda-sondaggio-live');
+      domandaLiveInput.oninput=(e)=>{ p.domandaSondaggio=e.target.value; };
+      domandaLiveInput.onblur=()=>salvaStato();
+      const opzioniLiveInput = editorPreAvvio.querySelector('.odg-opzioni-live');
+      opzioniLiveInput.oninput=(e)=>{ p.opzioni=e.target.value; };
+      opzioniLiveInput.onblur=()=>salvaStato();
+      editorPreAvvio.querySelector('.odg-tabella-live').onchange=(e)=>{ p.tabella=e.target.value; salvaStato(); };
+      block.appendChild(editorPreAvvio);
+    }
+
     const actions=document.createElement('div');
     actions.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;align-items:center;';
     if(mostraAvvia){
@@ -6641,7 +6683,7 @@ function avviaSondaggioPerPunto(odgId, prefill){
     }
     const p=assemblea.odg.find(x=>x.id===odgId);
     if(!p) return;
-    const domanda = (prefill && prefill.question) || p.testo || 'Votazione';
+    const domanda = (prefill && prefill.question) || p.domandaSondaggio || p.testo || 'Votazione';
     // La tabella del punto può essere rimasta "congelata" su una scelta precedente (es. se è
     // stata cambiata la tabella di convocazione dopo aver già creato il punto): validiamo
     // sempre contro le tabelle davvero valide per QUESTA assemblea, correggendo se serve.
@@ -6712,7 +6754,7 @@ function duplicaSondaggio(odgId, storicoIndex){
   const numero = p.prossimoNumeroDuplicato++;
   p.sondaggiPreparati.push({
     id: 'prep-'+odgIdCounter++,
-    question: p.testo + ' - ' + etichettaVotazioneSondaggio(numero),
+    question: (p.domandaSondaggio || p.testo) + ' - ' + etichettaVotazioneSondaggio(numero),
     tabella: p.tabella,
     opzioniTesto: p.opzioni
   });
@@ -6818,7 +6860,13 @@ function cambiaTabellaSondaggioAttivo(nuovaTabella){
   // I millesimi non vengono "congelati" al momento del voto: si ricalcolano sempre dalla
   // tabella corrente, quindi cambiare tabella a sondaggio già iniziato aggiorna da solo anche
   // i voti già dati, senza bisogno di nessuna migrazione.
-  sincronizzaPuntoConSondaggioAttivo();
+  // Aggiorniamo anche il punto O.d.G. (solo la tabella, non più domanda/opzioni: quelle sono
+  // fisse una volta avviato il sondaggio), così un eventuale "Duplica" riparte dall'ultima
+  // tabella davvero usata.
+  const bTab=getActiveBuilding();
+  const assembleaTab=getAssembleaInCorso(bTab);
+  const pTab=assembleaTab && assembleaTab.odg.find(x=>x.id===activePollOdgId);
+  if(pTab) pTab.tabella = nuovaTabella;
   renderPollResults();
   renderTabellaVotiSondaggio();
   renderCvPollArea();
@@ -6853,8 +6901,8 @@ function showActivePoll(){
     return;
   }
   activePollEl.classList.remove('hidden');
-  const titleInputEl = document.getElementById('active-poll-title-input');
-  if(titleInputEl) titleInputEl.value=activePoll.question;
+  const titleDisplayEl = document.getElementById('active-poll-title-display');
+  if(titleDisplayEl) titleDisplayEl.textContent = activePoll.question;
   renderSelettoreTabellaSondaggio();
   renderActivePollOptionsEdit();
   renderUnanimeButtons();
@@ -6881,87 +6929,24 @@ function showActivePoll(){
     }, 60);
   }
 }
-// Tiene sincronizzata la configurazione "preset" del punto O.d.G. (domanda e opzioni) con
-// eventuali modifiche fatte al sondaggio mentre è aperto (domanda cambiata, opzioni aggiunte,
-// rimosse o rinominate): così una successiva "Duplica" riprende sempre l'ultima versione
-// realmente usata, non solo quella impostata prima di avviarlo.
-function sincronizzaPuntoConSondaggioAttivo(){
-  if(!activePoll || !activePollOdgId) return;
-  const b=getActiveBuilding();
-  const assemblea=getAssembleaInCorso(b);
-  const p=assemblea && assemblea.odg.find(x=>x.id===activePollOdgId);
-  if(!p) return;
-  p.testo = activePoll.question;
-  p.opzioni = activePoll.options.map(o=>o.label).join('\n');
-  p.tabella = activePoll.tabella;
-}
-function modificaDomandaSondaggio(v){
-  if(!activePoll) return;
-  activePoll.question=v;
-  sincronizzaPuntoConSondaggioAttivo();
-  salvaStato();
-}
+// NOTA (fix bug "il sondaggio scompare da pag cell"): prima domanda e opzioni restavano
+// modificabili anche a sondaggio avviato, salvando ad ogni carattere digitato — quella raffica
+// di salvataggi ravvicinati era la causa del bug. Ora, una volta avviato, il sondaggio è di
+// sola lettura (domanda e opzioni si fissano PRIMA di avviarlo — vedi il nuovo campo "Domanda
+// del sondaggio" in Crea assemblea e nell'editor pre-avvio dal vivo): le funzioni di modifica
+// live (modificaDomandaSondaggio, aggiungiOpzioneSondaggio, rimuoviOpzioneSondaggio) e la loro
+// sincronizzazione col punto O.d.G. non servono più e sono state rimosse.
 function renderActivePollOptionsEdit(){
   const el=document.getElementById('active-poll-options-edit');
-  // Se l'amministratore ha il cursore dentro uno di questi campi in questo momento, non
-  // ricostruiamo tutto: perderebbe il focus e, soprattutto, qualsiasi lettera appena scritta
-  // che un aggiornamento arrivato nel frattempo (es. un voto in arrivo) non ha ancora fatto in
-  // tempo a salvare sui dati.
-  if(el.contains(document.activeElement)) return;
+  if(!el) return;
   el.innerHTML='';
   activePoll.options.forEach(o=>{
     const row=document.createElement('div');
     row.className='row-inline';
     row.style.marginBottom='6px';
-    const inp=document.createElement('input');
-    inp.value=o.label;
-    inp.oninput=()=>{ o.label=inp.value; sincronizzaPuntoConSondaggioAttivo(); renderUnanimeButtons(); renderTabellaVotiSondaggio(); renderCvPollArea(); salvaStato(); };
-    row.appendChild(inp);
-    if(activePoll.options.length>2){
-      const rm=document.createElement('button'); rm.className='btn small secondary'; rm.textContent='×'; rm.style.flex='0';
-      rm.onclick=()=>rimuoviOpzioneSondaggio(o.id);
-      row.appendChild(rm);
-    }
+    row.textContent = o.label;
     el.appendChild(row);
   });
-}
-function aggiungiOpzioneSondaggio(){
-  const inp=document.getElementById('active-poll-new-option');
-  const val=inp.value.trim();
-  if(!val) return;
-  activePoll.options.push({id:pollOptIdCounter++, label:val});
-  inp.value='';
-  sincronizzaPuntoConSondaggioAttivo();
-  renderActivePollOptionsEdit();
-  renderUnanimeButtons();
-  renderPollResults();
-  renderTabellaVotiSondaggio();
-  renderCvPollArea();
-  salvaStato();
-}
-function rimuoviOpzioneSondaggio(optId){
-  const haVoti = Object.values(activePoll.scelte).includes(optId);
-  if(haVoti && !confirm('Alcuni condòmini hanno già votato questa opzione: rimuovendola i loro voti verranno annullati e dovranno votare di nuovo. Continuare?')) return;
-  activePoll.options = activePoll.options.filter(o=>o.id!==optId);
-  Object.keys(activePoll.scelte).forEach(condId=>{
-    if(activePoll.scelte[condId]===optId){
-      delete activePoll.scelte[condId];
-      activePoll.voted.delete(parseInt(condId));
-      activePoll.overridden.delete(parseInt(condId));
-    }
-  });
-  sincronizzaPuntoConSondaggioAttivo();
-  // Il pulsante "×" appena premuto è ancora "a fuoco" in questo istante: la protezione che
-  // evita di ridisegnare mentre l'amministratore sta scrivendo lo scambierebbe per un campo
-  // ancora in uso, bloccando il ridisegno e lasciando l'opzione rimossa visibile per errore.
-  // Togliamo il focus prima di ridisegnare, così la lista si aggiorna correttamente.
-  if(document.activeElement && document.activeElement.blur) document.activeElement.blur();
-  renderActivePollOptionsEdit();
-  renderUnanimeButtons();
-  renderPollResults();
-  renderTabellaVotiSondaggio();
-  renderCvPollArea();
-  salvaStato();
 }
 function renderUnanimeButtons(){
   const el=document.getElementById('unanime-buttons');
@@ -9462,6 +9447,7 @@ function miglioraSchemaBuilding(b){
     if(!Array.isArray(a.convocati.selezionati)) a.convocati.selezionati = [];
     if(!Array.isArray(a.convocati.tabelle)) a.convocati.tabelle = [];
     if(!Array.isArray(a.odg)) a.odg = [];
+    a.odg.forEach(p=>{ if(p.domandaSondaggio===undefined) p.domandaSondaggio = ''; });
     if(!Array.isArray(a.programmati)) a.programmati = [];
     if(!Array.isArray(a.deleghiEsterni)) a.deleghiEsterni = [];
     if(!Array.isArray(a.nonRiconosciuti)) a.nonRiconosciuti = [];
