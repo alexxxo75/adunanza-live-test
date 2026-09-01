@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-224 — creata il 01/09/2026 alle 15:48
+  Versione: LT-225 — creata il 01/09/2026 alle 16:05
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -671,7 +671,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 15:48">LT-224</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 16:05">LT-225</span>
   </div>
 
   <!-- MAIN -->
@@ -9890,7 +9890,18 @@ function eseguiCicloPing(){
         if(!eraOnlineAttivo && !eraUscitoVolontario){
           // Non era online/in voto autonomo (mai stato, o era uscito in automatico): lo
           // rimettiamo attivo — anche se è il suo primissimo battito in assoluto.
-          (inSoloVoto ? daSegnareVotoAutonomo : daSegnareOnline).push({buildingId: bb.id, assembleaId: a.id, condominoId: id});
+          // BUG DI SICUREZZA CORRETTO: per il "solo voto", non basta più il solo battito per
+          // risultare "voto autonomo" — deve risultare anche già online o in presenza per
+          // altra via (stessa regola già usata per bloccare l'accesso lato condòmino). Senza
+          // questo controllo, anche se la pagina di chi si collega mostra "Accesso non
+          // disponibile", il segnale di presenza arrivava comunque e lo faceva comparire come
+          // "voto autonomo" nella tabella voti del sondaggio — un'incoerenza reale segnalata
+          // dall'utente: bloccato in un punto, ma risultava comunque presente in un altro.
+          if(inSoloVoto){
+            if(statoRealeSenzaVotoAutonomo(a, id)) daSegnareVotoAutonomo.push({buildingId: bb.id, assembleaId: a.id, condominoId: id});
+          }else{
+            daSegnareOnline.push({buildingId: bb.id, assembleaId: a.id, condominoId: id});
+          }
         }
         // Se era uscito VOLONTARIAMENTE (ha premuto "Lascia l'assemblea"), non lo rimettiamo
         // online da soli nemmeno se un battito residuo dovesse ancora arrivare: serve un suo
