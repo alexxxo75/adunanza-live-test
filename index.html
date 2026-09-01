@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-225 — creata il 01/09/2026 alle 16:05
+  Versione: LT-226 — creata il 01/09/2026 alle 16:27
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -671,7 +671,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 16:05">LT-225</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 16:27">LT-226</span>
   </div>
 
   <!-- MAIN -->
@@ -3857,20 +3857,30 @@ function unitaUnificateDi(building, condominoId){
   return building.condomini.filter(x=>x.unificatoCon===condominoId);
 }
 function segnaPresenteInAula(condominoId){
-  const b=getActiveBuilding();
-  const assemblea=getAssembleaInCorso(b);
-  if(!assemblea) return;
-  [condominoId, ...unitaUnificateDi(b,condominoId).map(u=>u.id)].forEach(id=>{
-    const rec = assemblea.appello.presenzeFisiche.find(r=>r.condominoId===id);
-    if(!rec) assemblea.appello.presenzeFisiche.push({condominoId:id, entrata:oraAdesso(), uscita:null});
-    else if(rec.uscita) rec.uscita=null;
-    // Se questa persona aveva già dato una delega, essendo ora presente di persona la delega
-    // non ha più senso: la rimuoviamo, altrimenti resterebbe un riferimento "fantasma" — una
-    // delega che risulta ancora ricevuta da qualcuno, ma che in realtà nessuno sta più dando.
-    if(assemblea.appello.deleghe[id]!=null) delete assemblea.appello.deleghe[id];
+  // BUG REALE CORRETTO (segnalato con "uscita anticipata", ma il problema riguardava allo
+  // stesso modo tutte le azioni qui sotto): scrivevano solo sulla copia locale
+  // dell'amministratore e poi salvavano — se nel frattempo arrivava una sincronizzazione da un
+  // altro dispositivo (es. il battito periodico di un condòmino, molto frequente durante
+  // un'assemblea con molti collegati), quella scrittura concorrente poteva sovrascrivere la
+  // modifica appena fatta, che quindi sembrava "non essersi salvata" — da qui il bisogno di
+  // premere due volte. eseguiConUnioneSuServer() applica la modifica sui dati più recenti del
+  // server (non sulla copia locale, che nel frattempo potrebbe essere invecchiata), come già
+  // fatto correttamente altrove nel codice per lo stesso tipo di rischio.
+  eseguiConUnioneSuServer(()=>{
+    const b=getActiveBuilding();
+    const assemblea=getAssembleaInCorso(b);
+    if(!assemblea) return;
+    [condominoId, ...unitaUnificateDi(b,condominoId).map(u=>u.id)].forEach(id=>{
+      const rec = assemblea.appello.presenzeFisiche.find(r=>r.condominoId===id);
+      if(!rec) assemblea.appello.presenzeFisiche.push({condominoId:id, entrata:oraAdesso(), uscita:null});
+      else if(rec.uscita) rec.uscita=null;
+      // Se questa persona aveva già dato una delega, essendo ora presente di persona la delega
+      // non ha più senso: la rimuoviamo, altrimenti resterebbe un riferimento "fantasma" — una
+      // delega che risulta ancora ricevuta da qualcuno, ma che in realtà nessuno sta più dando.
+      if(assemblea.appello.deleghe[id]!=null) delete assemblea.appello.deleghe[id];
+    });
   });
   renderAppello();
-  salvaStato();
 }
 // Per chi si collega online ma senza usare il proprio link personale (es. più condòmini
 // riuniti attorno a un solo dispositivo): l'amministratore lo segna a mano. Ai fini del voto
@@ -3878,41 +3888,44 @@ function segnaPresenteInAula(condominoId){
 // conto suo), ma viene mostrato con un colore diverso (rosa) per non confonderlo con chi è
 // online tramite il proprio link, né con chi è fisicamente in sala.
 function segnaOnlineAMano(condominoId){
-  const b=getActiveBuilding();
-  const assemblea=getAssembleaInCorso(b);
-  if(!assemblea) return;
-  [condominoId, ...unitaUnificateDi(b,condominoId).map(u=>u.id)].forEach(id=>{
-    const rec = assemblea.appello.presenzeFisiche.find(r=>r.condominoId===id);
-    if(!rec) assemblea.appello.presenzeFisiche.push({condominoId:id, entrata:oraAdesso(), uscita:null, online:true});
-    else{ rec.online=true; if(rec.uscita) rec.uscita=null; }
-    if(assemblea.appello.deleghe[id]!=null) delete assemblea.appello.deleghe[id];
+  eseguiConUnioneSuServer(()=>{
+    const b=getActiveBuilding();
+    const assemblea=getAssembleaInCorso(b);
+    if(!assemblea) return;
+    [condominoId, ...unitaUnificateDi(b,condominoId).map(u=>u.id)].forEach(id=>{
+      const rec = assemblea.appello.presenzeFisiche.find(r=>r.condominoId===id);
+      if(!rec) assemblea.appello.presenzeFisiche.push({condominoId:id, entrata:oraAdesso(), uscita:null, online:true});
+      else{ rec.online=true; if(rec.uscita) rec.uscita=null; }
+      if(assemblea.appello.deleghe[id]!=null) delete assemblea.appello.deleghe[id];
+    });
   });
   renderAppello();
-  salvaStato();
 }
 function rimuoviPresenzaInAula(condominoId){
   // correzione di un errore prima che l'assemblea sia iniziata: rimuove del tutto la presenza
-  const b=getActiveBuilding();
-  const assemblea=getAssembleaInCorso(b);
-  if(!assemblea) return;
-  const idsDaRimuovere = [condominoId, ...unitaUnificateDi(b,condominoId).map(u=>u.id)];
-  assemblea.appello.presenzeFisiche = assemblea.appello.presenzeFisiche.filter(r=>!idsDaRimuovere.includes(r.condominoId));
-  renderAppello();
-  salvaStato();
-}
-function usciteAnticipata(condominoId){
-  const b=getActiveBuilding();
-  const assemblea=getAssembleaInCorso(b);
-  if(!assemblea) return;
-  const attivo = recordAttivo(assemblea, condominoId);
-  if(!attivo) return;
-  attivo.rec.uscita = oraAdesso();
-  unitaUnificateDi(b,condominoId).forEach(u=>{
-    const attivoUnita = recordAttivo(assemblea, u.id);
-    if(attivoUnita) attivoUnita.rec.uscita = oraAdesso();
+  eseguiConUnioneSuServer(()=>{
+    const b=getActiveBuilding();
+    const assemblea=getAssembleaInCorso(b);
+    if(!assemblea) return;
+    const idsDaRimuovere = [condominoId, ...unitaUnificateDi(b,condominoId).map(u=>u.id)];
+    assemblea.appello.presenzeFisiche = assemblea.appello.presenzeFisiche.filter(r=>!idsDaRimuovere.includes(r.condominoId));
   });
   renderAppello();
-  salvaStato();
+}
+function usciteAnticipata(condominoId){
+  eseguiConUnioneSuServer(()=>{
+    const b=getActiveBuilding();
+    const assemblea=getAssembleaInCorso(b);
+    if(!assemblea) return;
+    const attivo = recordAttivo(assemblea, condominoId);
+    if(!attivo) return;
+    attivo.rec.uscita = oraAdesso();
+    unitaUnificateDi(b,condominoId).forEach(u=>{
+      const attivoUnita = recordAttivo(assemblea, u.id);
+      if(attivoUnita) attivoUnita.rec.uscita = oraAdesso();
+    });
+  });
+  renderAppello();
   toast('Uscita registrata. Se vuole delegare il voto a chi resta, usa il menù qui sotto.');
 }
 // Verifica il limite di legge (art. 67 disp. att. c.c.): nei condomìni con più di 20
@@ -4552,16 +4565,19 @@ function aggiungiPersonaEsterna(){
   toast('Persona esterna aggiunta: ora è selezionabile nel menù "Registra delega".');
 }
 function rimuoviPersonaEsterna(id){
-  const assemblea=getAssembleaInCorso(getActiveBuilding());
-  if(!assemblea) return;
-  const deleganti = Object.keys(assemblea.appello.deleghe).filter(k=>assemblea.appello.deleghe[k]===id);
+  const assembleaPerConferma=getAssembleaInCorso(getActiveBuilding());
+  if(!assembleaPerConferma) return;
+  const deleganti = Object.keys(assembleaPerConferma.appello.deleghe).filter(k=>assembleaPerConferma.appello.deleghe[k]===id);
   if(deleganti.length>0 && !confirm(`Questa persona ha ${deleganti.length} delega/deleghe registrata/e: rimuovendola, quelle deleghe verranno annullate (chi aveva delegato tornerà a risultare online/in presenza, se ancora collegato). Continuare?`)) return;
-  // Annulliamo davvero le deleghe (non le lasciamo "appese" a un id che non esiste più): così
-  // chi aveva delegato torna da solo a comparire come online/in presenza, come già avviene
-  // togliendo una delega singola con "Annulla delega".
-  deleganti.forEach(k=>{ delete assemblea.appello.deleghe[k]; });
-  assemblea.deleghiEsterni = assemblea.deleghiEsterni.filter(e=>e.id!==id);
-  salvaStato();
+  eseguiConUnioneSuServer(()=>{
+    const assemblea=getAssembleaInCorso(getActiveBuilding());
+    if(!assemblea) return;
+    // Annulliamo davvero le deleghe (non le lasciamo "appese" a un id che non esiste più): così
+    // chi aveva delegato torna da solo a comparire come online/in presenza, come già avviene
+    // togliendo una delega singola con "Annulla delega".
+    Object.keys(assemblea.appello.deleghe).filter(k=>assemblea.appello.deleghe[k]===id).forEach(k=>{ delete assemblea.appello.deleghe[k]; });
+    assemblea.deleghiEsterni = assemblea.deleghiEsterni.filter(e=>e.id!==id);
+  });
   renderAppello();
 }
 // Titolo della Sala assemblea: oggetto + tipo, sempre — non solo per le concatenate, così è
