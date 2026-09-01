@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-206 — creata il 27/08/2026 alle 14:24
+  Versione: LT-211 — creata il 01/09/2026 alle 10:11
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -329,6 +329,12 @@
   .building-wrapper{margin-bottom:28px;}
   .building-wrapper:last-child{margin-bottom:0;}
   .building-nome-fuori{font-size:17px;font-weight:700;margin-bottom:7px;padding-left:2px;color:var(--ink);}
+  .card-assemblee-programma{background:var(--ink);color:#fff;border-radius:6px;}
+  .card-assemblee-programma h3{text-align:center;color:#fff;}
+  .card-assemblee-programma .building-nome-fuori{color:#fff;font-size:15px;}
+  .card-assemblee-programma > .muted{color:rgba(255,255,255,.65);}
+  .card-assemblee-programma .building-row{color:var(--text);border-radius:6px;}
+  .card-assemblee-programma .building-row:hover{background:#FCFAF6;border-color:var(--brass);}
   #ca-assemblee-list, #ca-assemblee-chiuse-list{background:var(--paper);padding:16px;border-radius:4px;}
   #ca-assemblee-list:empty, #ca-assemblee-chiuse-list:empty{padding:0;background:transparent;}
   .assemblea-row-card{transition:.12s;}
@@ -652,7 +658,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 27/08/2026 alle 14:24">LT-206</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 10:11">LT-211</span>
   </div>
 
   <!-- MAIN -->
@@ -689,9 +695,8 @@
           <div class="calendar-detail hidden" id="calendar-detail"></div>
         </div>
 
-        <div class="card">
+        <div class="card card-assemblee-programma">
           <h3 style="margin-bottom:12px;">Assemblee in programma</h3>
-          <p class="muted" style="margin-bottom:10px;">Le prossime in ordine di data.</p>
           <div id="assemblee-in-programma" class="muted">Nessuna assemblea con data impostata.</div>
           <div id="assemblee-in-programma-altre" class="hidden" style="margin-top:10px;"></div>
         </div>
@@ -2696,17 +2701,16 @@ function raccogliAssembleeInProgramma(){
 function rigaAssembleaInProgrammaHtml(r){
   const dataMostrata = r.data ? r.data : 'data da definire';
   const avviso = r.invitiInviati ? '' : ' <span class="badge-convocazione-non-inviata">CONVOCAZIONE NON INVIATA</span>';
-  const etichettaOggetto = r.oggetto ? escapeHtml(r.oggetto) : '<span class="muted">(oggetto non indicato)</span>';
-  return '<div class="list-row">' +
-      '<span>' +
-        '<b>'+dataMostrata+'</b> ore '+r.ora+avviso+'<br>' +
-        '- '+r.buildingName+'<br>' +
-        '- <b>Ogg.</b> '+etichettaOggetto+' <span class="muted">('+r.tipo+')</span>' +
-      '</span>' +
-      '<span style="display:flex;gap:8px;flex-shrink:0;">' +
-        '<button class="btn small secondary btn-fisso" onclick="apriAssembleaDaCalendario('+r.buildingId+','+r.assembleaId+')">Modifica</button>' +
-        '<button class="btn small brass btn-fisso" onclick="accediAssembleaDaHome('+r.buildingId+','+r.assembleaId+')">Accedi<br>all\'assemblea</button>' +
-      '</span>' +
+  const etichettaTipo = r.tipo==='straordinaria' ? 'Assemblea Straordinaria' : 'Assemblea Ordinaria';
+  return '<div class="building-wrapper">' +
+      '<div class="building-nome-fuori">'+escapeHtml(r.buildingName)+'</div>' +
+      '<div class="list-row building-row" style="flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:10px;">' +
+        '<span><b>'+dataMostrata+'</b> ore '+r.ora+' - '+etichettaTipo+avviso+'</span>' +
+        '<span style="display:flex;gap:8px;">' +
+          '<button class="btn small secondary btn-fisso" onclick="apriAssembleaDaCalendario('+r.buildingId+','+r.assembleaId+')">Modifica</button>' +
+          '<button class="btn small brass btn-fisso" onclick="accediAssembleaDaHome('+r.buildingId+','+r.assembleaId+')">Accedi<br>all\'assemblea</button>' +
+        '</span>' +
+      '</div>' +
     '</div>';
 }
 function renderAssembleeInProgramma(){
@@ -2719,7 +2723,7 @@ function renderAssembleeInProgramma(){
     el.innerHTML = 'Nessuna assemblea con data impostata.';
     return;
   }
-  const LIMITE_VISIBILI = 5;
+  const LIMITE_VISIBILI = 3;
   const principali = elenco.slice(0, LIMITE_VISIBILI);
   const altre = elenco.slice(LIMITE_VISIBILI);
   el.innerHTML = principali.map(rigaAssembleaInProgrammaHtml).join('');
