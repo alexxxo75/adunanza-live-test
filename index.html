@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-211 — creata il 01/09/2026 alle 10:11
+  Versione: LT-214 — creata il 01/09/2026 alle 11:43
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -334,7 +334,7 @@
   .card-assemblee-programma .building-nome-fuori{color:#fff;font-size:15px;}
   .card-assemblee-programma > .muted{color:rgba(255,255,255,.65);}
   .card-assemblee-programma .building-row{color:var(--text);border-radius:6px;}
-  .card-assemblee-programma .building-row:hover{background:#FCFAF6;border-color:var(--brass);}
+  .card-assemblee-programma .building-row:hover{background:#F2ECDF;border-color:var(--brass);}
   #ca-assemblee-list, #ca-assemblee-chiuse-list{background:var(--paper);padding:16px;border-radius:4px;}
   #ca-assemblee-list:empty, #ca-assemblee-chiuse-list:empty{padding:0;background:transparent;}
   .assemblea-row-card{transition:.12s;}
@@ -658,7 +658,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 10:11">LT-211</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 11:43">LT-214</span>
   </div>
 
   <!-- MAIN -->
@@ -2707,8 +2707,7 @@ function rigaAssembleaInProgrammaHtml(r){
       '<div class="list-row building-row" style="flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:10px;">' +
         '<span><b>'+dataMostrata+'</b> ore '+r.ora+' - '+etichettaTipo+avviso+'</span>' +
         '<span style="display:flex;gap:8px;">' +
-          '<button class="btn small secondary btn-fisso" onclick="apriAssembleaDaCalendario('+r.buildingId+','+r.assembleaId+')">Modifica</button>' +
-          '<button class="btn small brass btn-fisso" onclick="accediAssembleaDaHome('+r.buildingId+','+r.assembleaId+')">Accedi<br>all\'assemblea</button>' +
+          '<button class="btn small brass" style="white-space:nowrap;" onclick="accediAssembleaDaHome('+r.buildingId+','+r.assembleaId+')">Entra in assemblea</button>' +
         '</span>' +
       '</div>' +
     '</div>';
@@ -2730,7 +2729,7 @@ function renderAssembleeInProgramma(){
   window._altreAssembleeInProgramma = altre;
   if(altreEl && altre.length > 0){
     altreEl.classList.remove('hidden');
-    altreEl.innerHTML = `<button class="btn small secondary" onclick="espandiAltreAssembleeInProgramma()">+ ${altre.length} altre nei prossimi mesi…</button>`;
+    altreEl.innerHTML = `<button class="btn small on-dark" onclick="espandiAltreAssembleeInProgramma()">+ ${altre.length} altre nei prossimi mesi…</button>`;
   }
 }
 function espandiAltreAssembleeInProgramma(){
