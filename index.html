@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-215 — creata il 01/09/2026 alle 13:10
+  Versione: LT-218 — creata il 01/09/2026 alle 13:45
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -478,6 +478,18 @@
   #cv-col-destra::-webkit-scrollbar{ width:10px; }
   #cv-col-destra::-webkit-scrollbar-track{ background:#1C1C1D; }
   #cv-col-destra::-webkit-scrollbar-thumb{ background:#5E5439; border-radius:5px; }
+  /* SOLO VOTO in orizzontale: niente video/chat/mano alzata, quindi la colonna sinistra (che
+     conterrebbe solo il video) non ha più motivo di esistere — resta solo il riquadro con
+     ordine del giorno/voto, centrato invece di stare compresso in 3/8 di schermo, e allargato
+     un po'. Qui la pagina può anche scorrere normalmente (a differenza del layout col video, che
+     resta fisso a schermo intero apposta): non c'è nulla che debba restare sempre visibile per
+     forza, quindi lasciamo che si allunghi invece di tagliare il fondo — era proprio questo il
+     bug segnalato (il riquadro diagnostico restava coperto perché il pannello superiore fisso
+     "rubava" spazio a un contenitore di altezza bloccata a 100vh). */
+  body.cv-layout-orizzontale.cv-solo-voto-orizz{ overflow:visible; height:auto; }
+  body.cv-layout-orizzontale.cv-solo-voto-orizz .condomino-shell{ height:auto; min-height:100vh; min-height:100dvh; overflow:visible; }
+  body.cv-layout-orizzontale.cv-solo-voto-orizz #cv-col-destra{ flex:none; width:min(680px, 94vw); height:auto; overflow-y:visible; margin:0 auto; }
+  body.cv-layout-orizzontale.cv-solo-voto-orizz #cv-esci-btn{ margin-bottom:14px; flex-shrink:0; }
   body.cv-layout-orizzontale #condomino-view-box{ display:flex; flex-direction:row; align-items:flex-start; gap:0; }
   /* Il pannello "Assemblea del..." + "Condominio/Accesso come..." resta fisso in cima, ma qui
      diventa una singola riga sottile, a tutta larghezza dello schermo (sopra a entrambi i
@@ -643,7 +655,8 @@
     <div class="topbar-nav">
       <div class="nav-item" onclick="vaiAllaHomeSenzaSelezione()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M12 2v7"/><path d="M18.36 6.64a9 9 0 1 1-12.72 0"/></svg>Planning</div>
       <div class="nav-item" id="nav-condomini" data-page="condomini"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M12 1.5v4"/><path d="M9.8 6 12 5l2.2 1L15 21H9z"/><path d="M9 21V11.5L3.5 14v7z"/><path d="M10.4 9.5h3.2M10.2 13h3.6M10 16.5h4M9.8 20h4.4"/><path d="M5 16.5h1.2M5 19h1.2"/></svg>Condomìni</div>
-      <div class="nav-item" id="nav-profilo" data-page="profilo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c1.2-4 4.2-6 7.5-6s6.3 2 7.5 6"/></svg>Preferenze</div>
+      <div class="nav-item" id="nav-profilo" data-page="profilo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c1.2-4 4.2-6 7.5-6s6.3 2 7.5 6"/></svg>Profilo</div>
+      <div class="nav-item" id="nav-preferenze" data-page="preferenze"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="3"/><path d="M19.4 13.5c.04-.5.04-1 0-1.5l1.8-1.4c.2-.15.25-.4.13-.62l-1.7-2.94a.5.5 0 0 0-.6-.22l-2.12.85a7.4 7.4 0 0 0-1.3-.75l-.32-2.25A.5.5 0 0 0 14.8 4h-3.4a.5.5 0 0 0-.5.43l-.32 2.25c-.47.2-.9.45-1.3.75l-2.12-.85a.5.5 0 0 0-.6.22L4.86 9.74a.5.5 0 0 0 .13.62l1.8 1.4c-.04.5-.04 1 0 1.5l-1.8 1.4a.5.5 0 0 0-.13.62l1.7 2.94c.12.2.37.3.6.22l2.12-.85c.4.3.83.55 1.3.75l.32 2.25c.04.25.25.43.5.43h3.4c.25 0 .46-.18.5-.43l.32-2.25c.47-.2.9-.45 1.3-.75l2.12.85c.23.08.48-.02.6-.22l1.7-2.94a.5.5 0 0 0-.13-.62z"/></svg>Preferenze</div>
       <div class="nav-item hidden" id="topbar-assemblea-label" style="cursor:default;font-weight:600;color:#fff;">Assemblea</div>
       <div class="nav hidden" id="nav-assemblea-sezioni">
         <div class="nav-item" onclick="scrollToSezione('sezione-video-chat')">Video &amp; Chat</div>
@@ -658,7 +671,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 13:10">LT-215</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 13:45">LT-218</span>
   </div>
 
   <!-- MAIN -->
@@ -726,7 +739,7 @@
     <!-- PAGE: PROFILO AMMINISTRATORE -->
     <div class="page hidden" id="page-profilo">
       <div class="page-head">
-        <div><h1>Preferenze</h1></div>
+        <div><h1>Profilo</h1></div>
       </div>
 
       <div class="card" style="margin-bottom:18px;">
@@ -739,10 +752,22 @@
           <div class="field"><label>Numero iscrizione Registro Amministratori</label><input type="text" id="prof-numero-registro"></div>
           <div class="field"><label>Codice fiscale</label><input type="text" id="prof-codice-fiscale"></div>
           <div class="field"><label>Partita IVA</label><input type="text" id="prof-partita-iva"></div>
+          <div class="field"><label>Indirizzo studio</label><input type="text" id="prof-indirizzo-studio"></div>
           <div class="field"><label>Email di contatto</label><input type="email" id="prof-email-contatto"></div>
           <div class="field"><label>Telefono</label><input type="text" id="prof-telefono"></div>
           <div class="field"><label>Metodo di pagamento</label><input type="text" id="prof-metodo-pagamento" placeholder="Es. Carta che termina per 1234"></div>
         </div>
+      </div>
+
+      <button class="btn brass" onclick="salvaProfiloAmministratore()">Salva profilo</button>
+
+      <p class="muted" style="text-align:center;margin-top:24px;font-size:12px;">Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026</p>
+    </div>
+
+    <!-- PAGE: PREFERENZE -->
+    <div class="page hidden" id="page-preferenze">
+      <div class="page-head">
+        <div><h1>Preferenze</h1></div>
       </div>
 
       <div class="card" style="margin-bottom:18px;">
@@ -762,10 +787,7 @@
           </select>
           <p class="muted" id="prof-testo-base-hint" style="margin-bottom:8px;"></p>
           <textarea id="prof-testo-base" rows="10" placeholder="Lascia vuoto per usare il testo predefinito dell'app per questa modalità. Puoi usare gli stessi segnaposto disponibili nel testo di ogni singola assemblea: {{nome}}, {{nomecondominio}}, {{comune}}, {{tipo}}, {{modalita}}, {{data_prima}}, {{ora_prima}}, {{data_seconda}}, {{ora_seconda}}, {{luogo}}, {{indirizzostudio}}, {{link_accesso}}, {{link_delega}}, {{link_solo_voto}}, {{allegati}}, {{firma_amministratore}}, {{odg}}."></textarea>
-          <p class="muted" style="margin-top:4px;">{{indirizzostudio}} e {{firma_amministratore}} vengono presi automaticamente dai campi qui sotto. {{luogo}} e gli eventuali documenti da allegare si impostano invece per ogni singola assemblea, non qui.</p>
-        </div>
-        <div class="field">
-          <label>Indirizzo studio</label><input type="text" id="prof-indirizzo-studio">
+          <p class="muted" style="margin-top:4px;">{{indirizzostudio}} e {{firma_amministratore}} vengono presi automaticamente dal tuo Profilo. {{luogo}} e gli eventuali documenti da allegare si impostano invece per ogni singola assemblea, non qui.</p>
         </div>
         <div class="field">
           <label>Firma standard nelle email</label>
@@ -792,8 +814,6 @@
       </div>
 
       <button class="btn brass" onclick="salvaProfiloAmministratore()">Salva preferenze</button>
-
-      <p class="muted" style="text-align:center;margin-top:24px;font-size:12px;">Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026</p>
     </div>
 
     <!-- PAGE: DASHBOARD -->
@@ -1046,6 +1066,10 @@
           <div class="field" id="ca-luogo-wrap">
             <label>Luogo di svolgimento dell'assemblea in presenza (seconda convocazione)</label>
             <input type="text" id="ca-luogo" placeholder="Es. Sala condominiale, Via Roma 5, Milano">
+            <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-weight:400;">
+              <input type="checkbox" id="ca-luogo-studio-flag" onchange="applicaLuogoStudioAmministratore()">
+              Presso lo studio dell'Amministratore (indirizzo preso dal tuo profilo)
+            </label>
             <p class="muted" style="margin-top:4px;">La prima convocazione si tiene sempre presso lo Studio dell'Amministratore (indirizzo preso dal tuo profilo); questo campo serve solo per la seconda convocazione, di solito in un locale più capiente.</p>
           </div>
           <p class="muted" style="margin-bottom:10px;">Segnaposto: <span style="font-family:var(--font-mono);">{{nome}} {{nomecondominio}} {{comune}} {{tipo}} {{modalita}} {{data_prima}} {{ora_prima}} {{data_seconda}} {{ora_seconda}} {{luogo}} {{indirizzostudio}} {{link_accesso}} {{link_delega}} {{link_solo_voto}} {{allegati}} {{firma_amministratore}} {{odg}}</span></p>
@@ -1720,7 +1744,7 @@ function salvaProfiloAmministratore(){
   p.modalitaDefault = document.getElementById('prof-modalita-default').value;
   salvaStato();
   aggiornaNomeStudioTopbar();
-  toast('Preferenze salvate.');
+  toast(currentPage==='preferenze' ? 'Preferenze salvate.' : 'Profilo salvato.');
 }
 function amministratoreVuoto(){
   return {
@@ -2523,6 +2547,9 @@ function goPage(name){
   }else if(name==='profilo'){
     banner.classList.add('hidden');
     renderProfiloAmministratore();
+  }else if(name==='preferenze'){
+    banner.classList.add('hidden');
+    renderProfiloAmministratore();
   }else if(name==='vista-condomino'){
     banner.classList.add('hidden');
     renderVistaCondomino();
@@ -2665,6 +2692,7 @@ function raccogliAssembleeInProgramma(){
         buildingName: b.nome || '(senza nome)',
         oggetto: a.oggetto || '',
         tipo: a.tipo || 'ordinaria',
+        modalita: a.modalita || 'mista',
         data: a.dataSeconda || '',
         ora: a.oraSeconda || '--:--',
         iso: iso,
@@ -2685,10 +2713,12 @@ function rigaAssembleaInProgrammaHtml(r){
   const dataMostrata = r.data ? r.data : 'data da definire';
   const avviso = r.invitiInviati ? '' : ' <span class="badge-convocazione-non-inviata">CONVOCAZIONE NON INVIATA</span>';
   const etichettaTipo = r.tipo==='straordinaria' ? 'Assemblea Straordinaria' : 'Assemblea Ordinaria';
+  const etichetteModalita = {'mista':'Mista','online':'On-line','in-presenza':'Presenza'};
+  const etichettaModalita = etichetteModalita[r.modalita] || 'Mista';
   return '<div class="building-wrapper">' +
       '<div class="building-nome-fuori">'+escapeHtml(r.buildingName)+'</div>' +
       '<div class="list-row building-row" style="flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:10px;">' +
-        '<span><b>'+dataMostrata+'</b> ore '+r.ora+' - '+etichettaTipo+avviso+'</span>' +
+        '<span style="white-space:nowrap;"><b>'+dataMostrata+'</b> ore '+r.ora+' - '+etichettaTipo+' - '+etichettaModalita+avviso+'</span>' +
         '<span style="display:flex;gap:8px;">' +
           '<button class="btn small brass" style="white-space:nowrap;" onclick="accediAssembleaDaHome('+r.buildingId+','+r.assembleaId+')">Entra in assemblea</button>' +
         '</span>' +
@@ -3001,10 +3031,12 @@ function renderNavSubmenu(){
   const sezioniEl = document.getElementById('nav-assemblea-sezioni');
   const navCondomini = document.getElementById('nav-condomini');
   const navProfilo = document.getElementById('nav-profilo');
+  const navPreferenze = document.getElementById('nav-preferenze');
   const labelAssemblea = document.getElementById('topbar-assemblea-label');
   const inAssemblea = currentPage==='assemblea';
   if(navCondomini) navCondomini.classList.toggle('hidden', inAssemblea);
   if(navProfilo) navProfilo.classList.toggle('hidden', inAssemblea);
+  if(navPreferenze) navPreferenze.classList.toggle('hidden', inAssemblea);
   if(labelAssemblea) labelAssemblea.classList.toggle('hidden', !inAssemblea);
   if(sezioniEl) sezioniEl.classList.toggle('hidden', !inAssemblea);
   if(inAssemblea) renderOdgPillsTopbar();
@@ -5242,6 +5274,12 @@ function attivaMaschereDataOra(){
 let workingAssembly = null; // assemblea in modifica/creazione in questo momento
 
 // ---------- VISTA ELENCO ASSEMBLEE ----------
+function applicaLuogoStudioAmministratore(){
+  const flag = document.getElementById('ca-luogo-studio-flag');
+  if(flag && flag.checked){
+    document.getElementById('ca-luogo').value = (amministratore.indirizzoStudio||'').trim();
+  }
+}
 function renderCreaAssemblea(){
   workingAssembly = null;
   document.getElementById('ca-list-view').classList.remove('hidden');
@@ -7647,10 +7685,12 @@ function applicaLayoutOrizzontaleCondomino(){
   }
   __cvLayoutOrizzontaleAttivo = dovrebbeEssereOrizzontale;
   document.body.classList.toggle('cv-layout-orizzontale', dovrebbeEssereOrizzontale);
+  document.body.classList.toggle('cv-solo-voto-orizz', dovrebbeEssereOrizzontale && cvModalitaSoloVoto);
   // Il CSS da solo non basta a bloccare lo scroll di <html>: il selettore "body.cv-layout-
   // orizzontale html" non può funzionare (html non è mai discendente di body), quindi lo
-  // gestiamo qui direttamente sull'elemento.
-  document.documentElement.style.overflow = dovrebbeEssereOrizzontale ? 'hidden' : '';
+  // gestiamo qui direttamente sull'elemento. In modalità solo voto, invece, la pagina DEVE
+  // poter scorrere (vedi CSS): qui non blocchiamo nulla.
+  document.documentElement.style.overflow = (dovrebbeEssereOrizzontale && !cvModalitaSoloVoto) ? 'hidden' : '';
 
   const pannelloSuperiore = document.getElementById('cv-pannello-superiore');
   const videoWrap = document.getElementById('cv-video-wrap');
@@ -7663,21 +7703,31 @@ function applicaLayoutOrizzontaleCondomino(){
   const diagnosticaBattito = document.getElementById('cv-diagnostica-battito-wrap');
 
   if(dovrebbeEssereOrizzontale){
-    colSinistra.style.display = '';
-    colDestra.style.display = '';
     // Il pannello "Assemblea del..." / "Condominio..." NON entra più nella colonna sinistra:
     // resta a tutta larghezza dello schermo, sopra a entrambi i riquadri, esattamente come
     // richiesto — la sua posizione a livello di pagina non cambia, solo il suo stile in questa
     // modalità (vedi CSS: diventa una riga sola, più bassa, larga quanto tutto lo schermo).
-    if(videoWrap) colSinistra.appendChild(videoWrap);
-    if(btnChat) colSinistra.appendChild(btnChat);
-    if(handBtn) colSinistra.appendChild(handBtn);
-    if(esciBtn) colSinistra.appendChild(esciBtn);
+    if(cvModalitaSoloVoto){
+      // Niente video/chat/mano alzata in questa modalità: la colonna sinistra (che servirebbe
+      // solo a contenerli) resta nascosta del tutto, non solo vuota — il tasto di uscita va
+      // invece in cima alla colonna destra, sopra l'ordine del giorno.
+      colSinistra.style.display = 'none';
+      colDestra.style.display = '';
+      if(esciBtn) colDestra.appendChild(esciBtn);
+    }else{
+      colSinistra.style.display = '';
+      colDestra.style.display = '';
+      if(videoWrap) colSinistra.appendChild(videoWrap);
+      if(btnChat) colSinistra.appendChild(btnChat);
+      if(handBtn) colSinistra.appendChild(handBtn);
+      if(esciBtn) colSinistra.appendChild(esciBtn);
+    }
     // La chat va SEMPRE per prima nella colonna destra: quando compare, spinge in basso
     // l'ordine del giorno e "chi c'è", che vengono sempre dopo di lei nel flusso normale.
     if(chatSezione) colDestra.appendChild(chatSezione);
     if(tornaSuBar) colDestra.appendChild(tornaSuBar);
     if(diagnosticaBattito) colDestra.appendChild(diagnosticaBattito);
+    if(cvModalitaSoloVoto && esciBtn) colDestra.insertBefore(esciBtn, colDestra.firstChild);
     posizionaPollAreaInLayoutOrizzontale();
   }else{
     // Torniamo tutto alla posizione originale nel flusso normale verticale, nello stesso ordine
@@ -7786,6 +7836,11 @@ function renderVistaCondomino(){
     // "Lascia l'assemblea" resta apposta VISIBILE anche qui, su richiesta esplicita: premerlo
     // chiude solo il canale di voto autonomo (vedi confermaEsciAssemblea), segnalando che da
     // quel momento il voto di questa persona sarà gestito manualmente dall'amministratore.
+    // In questa modalità il tasto si chiama "Esci dalla votazione" (più corretto: qui non si è
+    // mai "in assemblea" in senso pieno, niente video/chat) — stesso comportamento, solo testo
+    // diverso.
+    const esciBtnTesto = document.getElementById('cv-esci-btn');
+    if(esciBtnTesto) esciBtnTesto.innerHTML = '🚪 Esci dalla votazione';
     [document.getElementById('cv-video-wrap'), document.getElementById('cv-chat-sezione'), document.getElementById('cv-btn-chat-toggle'), document.getElementById('cv-hand-btn')].forEach(el=>{ if(el) el.classList.add('hidden'); });
   }
   const tipoAssembleaEl = document.getElementById('cv-tipo-assemblea');
