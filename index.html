@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-231 — creata il 01/09/2026 alle 20:10
+  Versione: LT-232 — creata il 01/09/2026 alle 20:30
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -671,7 +671,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 20:10">LT-231</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 20:30">LT-232</span>
   </div>
 
   <!-- MAIN -->
@@ -6968,8 +6968,15 @@ function cambiaTabellaSondaggioAttivo(nuovaTabella){
   toast('Tabella millesimale del sondaggio aggiornata a "'+nuovaTabella+'".');
 }
 let __ultimoPollOdgIdMostratoAdmin = null; // per accorgerci se è un sondaggio appena aperto/riaperto, o solo un aggiornamento di uno già visibile
+// Tiene traccia di QUALE sondaggio (per id del punto O.d.G.) ha già lampeggiato una volta,
+// così anche se showActivePoll() venisse richiamata più volte per lo stesso sondaggio ancora
+// aperto (es. per via delle sincronizzazioni frequenti, una ogni pochi secondi con più
+// condòmini collegati), il lampeggio non riparte ad ogni chiamata. Si resetta solo quando il
+// sondaggio viene davvero chiuso (closePoll), così un sondaggio DAVVERO nuovo lampeggia
+// comunque regolarmente.
+let __pollIdGiaLampeggiato = null;
 function showActivePoll(){
-  const eSondaggioAppenaAperto = (activePollOdgId !== __ultimoPollOdgIdMostratoAdmin);
+  const eSondaggioAppenaAperto = (activePollOdgId !== __ultimoPollOdgIdMostratoAdmin) && (activePollOdgId !== __pollIdGiaLampeggiato);
   __ultimoPollOdgIdMostratoAdmin = activePollOdgId;
   const liveNode=document.getElementById('active-poll');
   // Come in renderOdgBlocks: blocchiamo il ridisegno SOLO se l'amministratore sta scrivendo in
@@ -7012,6 +7019,7 @@ function showActivePoll(){
   // Il piccolo ritardo lascia al browser il tempo di calcolare le posizioni reali dopo che il
   // blocco è stato appena ricreato/spostato nel DOM, altrimenti lo scroll può risultare impreciso.
   if(eSondaggioAppenaAperto){
+    __pollIdGiaLampeggiato = activePollOdgId;
     setTimeout(()=>{
       const el=document.getElementById('active-poll');
       if(el){
@@ -7535,6 +7543,7 @@ function closePoll(){
   });
   document.getElementById('active-poll').classList.add('hidden');
   __ultimoPollOdgIdMostratoAdmin = null;
+  __pollIdGiaLampeggiato = null;
   renderOdgBlocks();
   renderFloatingActivePoll();
   toast('Sondaggio chiuso. Il risultato resta visibile nel blocco e sarà incluso nel verbale.');
