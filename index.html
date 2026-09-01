@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-226 — creata il 01/09/2026 alle 16:27
+  Versione: LT-227 — creata il 01/09/2026 alle 16:40
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -247,8 +247,8 @@
   .calendar-cell.has-assembly-noninvitata{background:#F0A24A;color:var(--ink);cursor:pointer;}
   .calendar-cell.has-assembly-noninvitata:hover{background:#E08A2C;}
   .calendar-cell.has-assembly:hover{background:var(--brass);}
-  .calendar-detail{margin-top:12px;background:rgba(255,255,255,.08);border-radius:4px;padding:10px 12px;}
-  .calendar-detail-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.12);font-size:13.5px;flex-wrap:wrap;gap:8px;}
+  .calendar-detail{margin-top:12px;background:#fff;color:var(--text);border-radius:4px;padding:10px 12px;}
+  .calendar-detail-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);font-size:13.5px;flex-wrap:wrap;gap:8px;}
   .calendar-detail-row:last-child{border-bottom:none;}
   .calendar-detail-links{display:flex;gap:8px;}
   .calendar-detail-links a, .calendar-detail-links button{font-size:12px;padding:6px 12px;}
@@ -671,7 +671,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 16:27">LT-226</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 16:40">LT-227</span>
   </div>
 
   <!-- MAIN -->
@@ -2840,14 +2840,14 @@ function renderCalendar(){
 function mostraDettaglioCalendario(dataKey, assemblee){
   const el=document.getElementById('calendar-detail');
   const [y,m,g]=dataKey.split('-');
-  el.innerHTML = `<div style="font-family:var(--font-mono);font-size:11.5px;color:rgba(255,255,255,.55);margin-bottom:8px;">Assemblee del ${g}/${m}/${y}</div>` +
+  el.innerHTML = `<div style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-soft);margin-bottom:8px;">Assemblee del ${g}/${m}/${y}</div>` +
     assemblee.map(a=>`
       <div class="calendar-detail-row">
         <span><b>${a.buildingName}</b> — ${a.tipo} ore ${a.ora}${a.archiviata?' <span class="badge">Conclusa</span>':(a.invitiInviati?' <span class="badge-convocazione-inviata">CONVOCAZIONE INVIATA</span>':' <span class="badge-convocazione-non-inviata">CONVOCAZIONE NON INVIATA</span>')}</span>
         <span class="calendar-detail-links">
           ${a.archiviata
             ? `<button class="btn small brass" onclick="vaiArchivio(${a.buildingId})">Vedi archivio</button>`
-            : `<button class="btn small on-dark" onclick="apriAssembleaDaCalendario(${a.buildingId},${a.assembleaId})">Modifica</button><button class="btn small brass" onclick="accediAssembleaDaHome(${a.buildingId},${a.assembleaId})">Entra in assemblea</button>`}
+            : `<button class="btn small secondary" onclick="apriAssembleaDaCalendario(${a.buildingId},${a.assembleaId})">Modifica</button><button class="btn small brass" onclick="accediAssembleaDaHome(${a.buildingId},${a.assembleaId})">Entra in assemblea</button>`}
         </span>
       </div>`).join('');
   el.classList.remove('hidden');
