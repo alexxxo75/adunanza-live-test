@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-227 — creata il 01/09/2026 alle 16:40
+  Versione: LT-229 — creata il 01/09/2026 alle 19:42
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -671,7 +671,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 16:40">LT-227</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 19:42">LT-229</span>
   </div>
 
   <!-- MAIN -->
@@ -6648,11 +6648,41 @@ function renderOdgBlocks(){
         <div class="field"><label>Tabella millesimale da usare per il voto</label><select class="odg-tabella-live">${tabelleVotoPreAvvio.map(t=>`<option value="${escapeHtml(t)}" ${t===p.tabella?'selected':''}>${escapeHtml(t)}</option>`).join('')}</select></div>`;
       const domandaLiveInput = editorPreAvvio.querySelector('.odg-domanda-sondaggio-live');
       domandaLiveInput.oninput=(e)=>{ p.domandaSondaggio=e.target.value; };
-      domandaLiveInput.onblur=()=>salvaStato();
+      // Stesso identico problema di avviaSondaggioPerPunto/uscita anticipata (una scrittura
+      // diretta può essere sovrascritta da una sincronizzazione concorrente, es. il battito di
+      // un condòmino) — probabile causa reale del "non me lo fa modificare" segnalato: la
+      // modifica sembrava non applicarsi perché veniva silenziosamente ripristinata al valore
+      // precedente pochi istanti dopo.
+      domandaLiveInput.onblur=()=>{
+        const valore = domandaLiveInput.value;
+        eseguiConUnioneSuServer(()=>{
+          const bFresco=getActiveBuilding();
+          const assembleaFresca = bFresco ? getAssembleaInCorso(bFresco) : null;
+          const pFresco = assembleaFresca ? assembleaFresca.odg.find(x=>x.id===p.id) : null;
+          if(pFresco) pFresco.domandaSondaggio = valore;
+        });
+      };
       const opzioniLiveInput = editorPreAvvio.querySelector('.odg-opzioni-live');
       opzioniLiveInput.oninput=(e)=>{ p.opzioni=e.target.value; };
-      opzioniLiveInput.onblur=()=>salvaStato();
-      editorPreAvvio.querySelector('.odg-tabella-live').onchange=(e)=>{ p.tabella=e.target.value; salvaStato(); };
+      opzioniLiveInput.onblur=()=>{
+        const valore = opzioniLiveInput.value;
+        eseguiConUnioneSuServer(()=>{
+          const bFresco=getActiveBuilding();
+          const assembleaFresca = bFresco ? getAssembleaInCorso(bFresco) : null;
+          const pFresco = assembleaFresca ? assembleaFresca.odg.find(x=>x.id===p.id) : null;
+          if(pFresco) pFresco.opzioni = valore;
+        });
+      };
+      editorPreAvvio.querySelector('.odg-tabella-live').onchange=(e)=>{
+        const valore = e.target.value;
+        p.tabella=valore;
+        eseguiConUnioneSuServer(()=>{
+          const bFresco=getActiveBuilding();
+          const assembleaFresca = bFresco ? getAssembleaInCorso(bFresco) : null;
+          const pFresco = assembleaFresca ? assembleaFresca.odg.find(x=>x.id===p.id) : null;
+          if(pFresco) pFresco.tabella = valore;
+        });
+      };
       block.appendChild(editorPreAvvio);
     }
 
@@ -6731,11 +6761,24 @@ function avviaSondaggioPerPunto(odgId, prefill){
     if(!tabelleValide.includes(tabella)) tabella = tabelleValide[0];
     const opzioniTesto = (prefill && prefill.opzioniTesto) || p.opzioni || 'Favorevole\nContrario\nAstenuto';
     const opts = opzioniTesto.split('\n').map(s=>s.trim()).filter(Boolean);
-    activePoll = {question:domanda, tabella, options:opts.map(o=>({id:pollOptIdCounter++, label:o})), voted:new Set(), scelte:{}, overridden:new Set(), votatoInBlocco:new Set()};
-    activePollOdgId = odgId;
+    // Generiamo gli id delle opzioni QUI, una volta sola, PRIMA di eseguiConUnioneSuServer: la
+    // funzione esegue l'azione DUE volte (sulla copia locale e su quella appena letta dal
+    // server) — generare id nuovi dentro l'azione darebbe due risultati diversi tra loro,
+    // disallineando quello che vede l'amministratore da quello davvero salvato e sincronizzato.
+    const opzioniConId = opts.map(o=>({id:pollOptIdCounter++, label:o}));
+    // BUG REALE CORRETTO (sondaggio che "scompare dopo pochi secondi", segnalato dall'utente):
+    // l'apertura scriveva solo sulla copia locale dell'amministratore e poi salvava — se nel
+    // frattempo arrivava una sincronizzazione concorrente (es. il battito periodico di un
+    // condòmino, molto probabile con più persone collegate), quella scrittura poteva
+    // sovrascrivere il sondaggio appena aperto con uno stato precedente (senza sondaggio),
+    // facendolo sparire da solo pochi istanti dopo — stesso meccanismo già risolto altrove nel
+    // codice per un problema gemello (vedi il commento in modificaSceltaVotoBloccoCv).
+    eseguiConUnioneSuServer(()=>{
+      activePoll = {question:domanda, tabella, options:opzioniConId, voted:new Set(), scelte:{}, overridden:new Set(), votatoInBlocco:new Set()};
+      activePollOdgId = odgId;
+    });
     renderOdgBlocks();
     showActivePoll();
-    salvaStato();
     toast('Sondaggio avviato: "'+domanda+'"');
   }catch(err){
     // Includiamo anche la prima riga dello stack nel messaggio: se il problema si ripresenta,
@@ -6758,21 +6801,33 @@ function riapriSondaggio(odgId, storicoIndex){
     if(activePoll && activePollOdgId!==odgId){
       if(!confirm('C\'è già un altro sondaggio aperto su un punto diverso: riaprendo questo, l\'altro resterà aperto in sottofondo finché non lo chiudi. Continuare?')) return;
     }
-    activePoll = {
-      question: s.question,
-      tabella: s.tabella,
-      options: s.options.map(o=>({...o})),
-      voted: new Set(Object.keys(s.scelte||{}).map(k=>parseInt(k))),
-      scelte: {...(s.scelte||{})},
-      overridden: new Set(s.overridden||[]),
-      votatoInBlocco: new Set()
-    };
-    activePollOdgId = odgId;
-    // Tolto dallo storico: lo ritroveremo lì, aggiornato, quando verrà richiuso
-    p.storicoSondaggi.splice(storicoIndex,1);
+    // Stesso identico problema di avviaSondaggioPerPunto, corretto allo stesso modo.
+    eseguiConUnioneSuServer(()=>{
+      activePoll = {
+        question: s.question,
+        tabella: s.tabella,
+        options: s.options.map(o=>({...o})),
+        voted: new Set(Object.keys(s.scelte||{}).map(k=>parseInt(k))),
+        scelte: {...(s.scelte||{})},
+        overridden: new Set(s.overridden||[]),
+        votatoInBlocco: new Set()
+      };
+      activePollOdgId = odgId;
+      // Tolto dallo storico: lo ritroveremo lì, aggiornato, quando verrà richiuso. Rileggiamo
+      // il punto DA CAPO (non fidandoci del riferimento "p" catturato prima, che qui dentro
+      // potrebbe riferirsi alla copia server appena sostituita) e troviamo la voce corretta
+      // confrontando l'orario di chiusura, più affidabile di un indice che potrebbe essere
+      // scivolato se nel frattempo la lista fosse cambiata.
+      const bFresco = getActiveBuilding();
+      const assembleaFresca = bFresco ? getAssembleaInCorso(bFresco) : null;
+      const pFresco = assembleaFresca ? assembleaFresca.odg.find(x=>x.id===odgId) : null;
+      if(pFresco && pFresco.storicoSondaggi){
+        const idxFresco = pFresco.storicoSondaggi.findIndex(x=>x.chiusoEpoch===s.chiusoEpoch && x.question===s.question);
+        if(idxFresco!==-1) pFresco.storicoSondaggi.splice(idxFresco,1);
+      }
+    });
     renderOdgBlocks();
     showActivePoll();
-    salvaStato();
     toast('Sondaggio riaperto con i voti già dati: puoi aggiungerne o correggerli.');
   }catch(err){
     toast('Non sono riuscito a riaprire il sondaggio: '+err.message);
@@ -7001,6 +7056,15 @@ function renderUnanimeButtons(){
   });
 }
 function votoUnanime(optId){
+  // Protezione aggiunta (crash reale segnalato dall'utente: "Cannot read properties of null
+  // (reading 'voted')"): se il sondaggio risultasse chiuso/non ancora arrivato proprio nel
+  // preciso istante del click (per esempio un residuo del bug del sondaggio che scompariva,
+  // già corretto altrove, o un doppio click sul pulsante mentre il sondaggio si sta chiudendo),
+  // meglio avvisare con un messaggio chiaro che far scoppiare un errore incomprensibile.
+  if(!activePoll){
+    toast('Nessun sondaggio aperto in questo momento: ricarica la pagina e riprova.');
+    return;
+  }
   try{
     let count=0;
     let diagnostica = '';
