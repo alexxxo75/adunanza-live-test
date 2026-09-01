@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-229 — creata il 01/09/2026 alle 19:42
+  Versione: LT-230 — creata il 01/09/2026 alle 19:52
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -671,7 +671,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 19:42">LT-229</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 19:52">LT-230</span>
   </div>
 
   <!-- MAIN -->
@@ -9518,7 +9518,7 @@ function esportaDatiDiagnostica(){
   }
 }
 let __versioneStatoLocale = 0;
-function salvaStato(){
+function salvaStato(soloLocale){
   try{
     __versioneStatoLocale++;
     const statoCompleto = {
@@ -9535,7 +9535,9 @@ function salvaStato(){
     // Oltre alla copia locale (immediata, sempre disponibile), scriviamo anche sul database
     // condiviso, così gli altri dispositivi collegati vedono il cambiamento in pochi istanti —
     // stesso identico principio già collaudato nei test separati di voto/regia condominio.
-    if(window.__fbScriviStato){
+    // soloLocale=true (usato da eseguiConUnioneSuServer, vedi sotto) salta questa parte: la
+    // scrittura sul database condiviso in quel caso la fa già, in modo sicuro, la transazione.
+    if(!soloLocale && window.__fbScriviStato){
       window.__fbScriviStato(statoCompleto).catch(e=>console.error('[Adunanza] Scrittura sul database condiviso fallita:', e));
     }
     return true;
@@ -9554,10 +9556,24 @@ function salvaStato(){
 let __transazioneMergeInCorso = false;
 function eseguiConUnioneSuServer(azione){
   // Applichiamo comunque subito l'azione in locale, per una risposta immediata sullo schermo,
-  // e la salviamo come sempre (rete di sicurezza/localStorage) — poi, in aggiunta, la
-  // applichiamo anche direttamente sul server con la transazione di unione.
+  // e la salviamo IN LOCALE come rete di sicurezza — poi, subito dopo, la applichiamo anche
+  // sul server con la transazione di unione qui sotto, che è l'UNICA a scrivere davvero sul
+  // database condiviso.
+  // BUG REALE CORRETTO ("il sondaggio si apre e sparisce da solo dopo pochi secondi", "la
+  // pagina si sposta da sola"): prima, questo punto scriveva SUBITO anche sul database
+  // condiviso con salvaStato() — una scrittura DIRETTA, non protetta, basata sulla copia
+  // locale di QUESTO dispositivo. Il problema: eseguiConUnioneSuServer() viene chiamata
+  // DI CONTINUO da ogni dispositivo collegato (per esempio ad ogni battito periodico di
+  // ciascun condòmino, ogni 15 secondi) — se il battito di un condòmino partiva PRIMA che il
+  // suo dispositivo avesse ancora ricevuto il sondaggio appena aperto dall'amministratore, la
+  // sua scrittura diretta (basata sulla SUA copia locale, ancora senza sondaggio) poteva
+  // arrivare al server DOPO quella, corretta, della transazione dell'amministratore — e la
+  // sovrascriveva silenziosamente, facendo sparire il sondaggio pochi istanti dopo averlo
+  // aperto. È esattamente il problema che la transazione qui sotto è pensata per evitare, ma
+  // questa scrittura diretta la aggirava completamente, rendendola inutile. Ora la scrittura
+  // sul database condiviso la fa SOLO la transazione, mai una scrittura diretta.
   azione();
-  salvaStato();
+  salvaStato(true);
   if(!window.__fbTransazioneMerge) return;
   window.__fbTransazioneMerge((statoServer)=>{
     const buildingsLocaliDiBackup = buildings;
