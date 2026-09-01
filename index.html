@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-233 — creata il 01/09/2026 alle 20:42
+  Versione: LT-234 — creata il 01/09/2026 alle 21:07
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -120,6 +120,22 @@
   };
   window.__fbAscoltaStato = function(callback){
     onValue(statoRef, (snapshot)=>{ callback(snapshot.val()); });
+  };
+  // Canale SEPARATO, isolato dal nodo principale (adunanza_stato_condiviso): qui viaggiano SOLO
+  // i "battiti" grezzi di chi è collegato in questo momento — mai i dati dell'assemblea o del
+  // sondaggio. Scriverli qui invece che nel nodo principale evita che il semplice battito di un
+  // condòmino faccia arrivare un aggiornamento del nodo principale a TUTTI i dispositivi
+  // collegati — ed era proprio quell'aggiornamento, ripetuto in continuazione, a far ridisegnare
+  // (e "sfarfallare") il riquadro del sondaggio lato amministratore.
+  const battitiRef = ref(db, 'adunanza_battiti_condivisi');
+  window.__fbScriviBattito = function(buildingId, assembleaId, condominoId, valore, modalita){
+    const percorso = ref(db, `adunanza_battiti_condivisi/${buildingId}/${assembleaId}/${condominoId}`);
+    const dati = { valore };
+    if(modalita) dati.modalita = modalita;
+    return set(percorso, dati);
+  };
+  window.__fbAscoltaBattiti = function(callback){
+    onValue(battitiRef, (snapshot)=>{ callback(snapshot.val()); });
   };
   // Questo script "a moduli" parte necessariamente dopo il resto del programma (è una regola
   // del browser, non qualcosa che dipende dalla connessione): segnaliamo con un evento preciso
@@ -671,7 +687,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 20:42">LT-233</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 21:07">LT-234</span>
   </div>
 
   <!-- MAIN -->
@@ -1992,6 +2008,17 @@ let usciteVolontariamenteInAttesaDiRientro = false; // true se questo dispositiv
 // Fase di test: un battito ogni 15 secondi. Da allungare quando si uscirà dalla fase di prova.
 const INTERVALLO_PING_MS = 15000;
 const TENTATIVI_PING_PRIMA_DI_USCITA = 3;
+// Dati grezzi dei battiti in arrivo dal canale Firebase separato (vedi __fbAscoltaBattiti):
+// {buildingId: {assembleaId: {condominoId: {valore, modalita}}}}. Aggiornati in tempo reale
+// dall'ascoltatore collegato più sotto; eseguiCicloPing() li legge ad ogni giro.
+let __ultimoDatiBattiti = {};
+// pingUltimoVisto/pingMancate: prima vivevano dentro l'assemblea (nel blob condiviso), quindi
+// venivano sincronizzati inutilmente su tutti i dispositivi ad ogni giro di controllo — sono
+// invece puro "appunto" di lavoro di QUESTO amministratore (quale battito ha già visto, quante
+// volte di fila ne è mancato uno), non dati da condividere. Restano quindi solo qui, in
+// memoria locale, chiave "buildingId:assembleaId:condominoId".
+let __pingUltimoVistoLocale = {};
+let __pingMancateLocale = {};
 
 // --- lato condòmino: manda un segnale di battito ogni 15 secondi, sempre, senza aspettare
 // nulla da Adunanza — è pag cell stessa ad avvisare periodicamente "sono ancora qui", non più
@@ -2000,6 +2027,7 @@ const TENTATIVI_PING_PRIMA_DI_USCITA = 3;
 // singolo identificativo che deve corrispondere esattamente da entrambe le parti.
 let __condominoOriginaleIdPing = null; // id del link davvero usato (non cambia mai per questa sessione): da qui si ricalcola la delega a ogni battito
 let __condominoInAscoltoPing = null; // id RISOLTO sotto cui si sta mandando il battito in questo momento (aggiornato a ogni battito), o null se fermo
+let __contatoreBattitoLocale = 0; // numero che cresce ad ogni battito mandato da QUESTO dispositivo, sul canale separato dei battiti (vedi mandaBattitoPing)
 function mostraStatoPingCondomino(testo){
   const el = document.getElementById('cv-diagnostica-battito');
   if(el) el.textContent = testo;
@@ -2075,20 +2103,21 @@ function mandaBattitoPing(){
   }
   __condominoInAscoltoPing = condominoId; // per riferimento: sotto quale nome sta battendo in questo momento
   try{
-    eseguiConUnioneSuServer(()=>{
-      const bFresco = getActiveBuilding();
-      const aCorrente = bFresco ? getAssembleaContestualizzataCondomino(bFresco) : null;
-      if(!aCorrente) return;
-      aCorrente.pingBattito = aCorrente.pingBattito || {};
-      aCorrente.pingBattito[condominoId] = (aCorrente.pingBattito[condominoId]||0) + 1;
-      // In modalità "solo voto" segniamo anche QUESTO, così il ciclo di controllo periodico sa
-      // di dover tracciare questa persona come "voto autonomo" (semaforo verde scuro, niente
-      // online) invece che come presenza online normale.
-      if(cvModalitaSoloVoto){
-        aCorrente.modalitaPing = aCorrente.modalitaPing || {};
-        aCorrente.modalitaPing[condominoId] = 'soloVoto';
-      }
-    });
+    // BUG REALE CORRETTO (segnalato con due video: il riquadro del sondaggio che "sfarfallava"
+    // e una tendina di voto che si chiudeva da sola): il battito veniva scritto dentro
+    // l'assemblea stessa, nel blob condiviso principale — ogni battito, di QUALSIASI condòmino
+    // collegato, faceva quindi arrivare un aggiornamento del nodo principale a TUTTI i
+    // dispositivi, amministratore compreso, che ridisegnava (e spostava nel documento) il
+    // riquadro del sondaggio anche se nulla di rilevante per lui era davvero cambiato. Il
+    // battito ora viaggia su un canale Firebase completamente separato (vedi
+    // __fbScriviBattito): il nodo principale, e quindi il sondaggio, non vengono più toccati.
+    const bFresco = getActiveBuilding();
+    const aCorrente = bFresco ? getAssembleaContestualizzataCondomino(bFresco) : null;
+    if(!aCorrente) return;
+    __contatoreBattitoLocale++;
+    if(!window.__fbScriviBattito) throw new Error('Canale battiti non disponibile');
+    window.__fbScriviBattito(bFresco.id, aCorrente.id, condominoId, __contatoreBattitoLocale, cvModalitaSoloVoto ? 'soloVoto' : null)
+      .catch(e=>console.error('[Adunanza][ping] Scrittura battito fallita:', e));
     const ora = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
     mostraStatoPingCondomino((cvModalitaSoloVoto ? 'Collegato (solo voto) — ultimo segnale alle ' : 'Online — ultimo segnale alle ') + ora);
   }catch(e){
@@ -9922,12 +9951,15 @@ function collegaAscoltoFirebase(){
     const indicatore = document.getElementById('fb-stato-connessione');
     if(indicatore) indicatore.textContent = '🟢 Connesso al database condiviso';
   });
-  // Solo l'amministratore (chi non ha un link personale con token) manda i numeri di
-  // controllo: è lui che tiene viva l'assemblea da Adunanza, quindi il suo dispositivo —
-  // normalmente un browser vero, non integrato dentro un'altra app — è quello più affidabile
-  // per mantenere un timer attivo. I numeri viaggiano dentro l'assemblea stessa, con lo stesso
-  // meccanismo sicuro già usato per registrare un voto: niente canali Firebase separati.
+  // Solo l'amministratore (chi non ha un link personale con token) ha bisogno di ricevere i
+  // battiti (per sapere chi è online) e di far girare il controllo periodico: è lui che tiene
+  // viva l'assemblea da Adunanza. I battiti viaggiano su un canale Firebase SEPARATO da quello
+  // dei dati dell'assemblea (vedi __fbAscoltaBattiti) — apposta, per non far ridisegnare il
+  // resto della pagina (sondaggio compreso) ad ogni singolo battito in arrivo.
   if(!__haTokenNelLink){
+    if(window.__fbAscoltaBattiti){
+      window.__fbAscoltaBattiti((dati)=>{ __ultimoDatiBattiti = dati || {}; });
+    }
     const indicatorePingIniziale = document.getElementById('fb-ultimo-ping');
     if(indicatorePingIniziale) indicatorePingIniziale.textContent = '📡 Ping: avviato, primo giro tra ' + (INTERVALLO_PING_MS/1000) + 's...';
     const workerAdmin = creaWorkerIntervalloAffidabile(eseguiCicloPing, INTERVALLO_PING_MS, 'ciclo-ping-admin');
@@ -9974,10 +10006,7 @@ function eseguiCicloPing(){
     // destra continuava a mostrare le persone di un'assemblea ormai finita, dando l'impressione
     // di un'attività che in realtà non c'è più.
     if(a.stato==='conclusa') return;
-    const pingBattito = a.pingBattito || {};
-    const pingUltimoVisto = a.pingUltimoVisto || {};
-    const pingMancate = a.pingMancate || {};
-    const modalitaPing = a.modalitaPing || {};
+    const datiBattitoAssemblea = ((__ultimoDatiBattiti[bb.id]||{})[a.id]) || {};
 
     // Ogni identificativo che può davvero mandare un battito: ciascun condòmino convocato, più
     // ciascuna persona esterna che compare tra le deleghe di questa assemblea.
@@ -9985,11 +10014,13 @@ function eseguiCicloPing(){
     Object.values(a.appello.deleghe||{}).forEach(delegatoId=>{ if(typeof delegatoId==='string') idsDaControllare.add(delegatoId); });
 
     idsDaControllare.forEach(id=>{
-      const valoreAttuale = pingBattito[id];
+      const chiaveLocale = bb.id+':'+a.id+':'+id;
+      const recordBattito = datiBattitoAssemblea[id];
+      const valoreAttuale = recordBattito ? recordBattito.valore : null;
       if(valoreAttuale == null) return; // non ha mai mandato un battito: resta "mai collegato", non lo tocchiamo
       quantiControllati++;
-      const valorePrecedente = pingUltimoVisto[id];
-      const inSoloVoto = modalitaPing[id]==='soloVoto';
+      const valorePrecedente = __pingUltimoVistoLocale[chiaveLocale];
+      const inSoloVoto = recordBattito.modalita==='soloVoto';
       const recOnline = inSoloVoto
         ? (a.votoAutonomo||[]).find(r=>r.condominoId===id)
         : (a.appello.online||[]).find(r=>r.condominoId===id);
@@ -10020,7 +10051,7 @@ function eseguiCicloPing(){
         battitiVisti.push({buildingId: bb.id, assembleaId: a.id, condominoId: id, ultimoVisto: valoreAttuale, mancate: 0});
       }else if(eraOnlineAttivo){
         // Era attivo, ma nessun nuovo battito da quando abbiamo controllato l'ultima volta.
-        const mancateAggiornate = (pingMancate[id]||0) + 1;
+        const mancateAggiornate = (__pingMancateLocale[chiaveLocale]||0) + 1;
         if(mancateAggiornate >= TENTATIVI_PING_PRIMA_DI_USCITA){
           (inSoloVoto ? daSegnareVotoAutonomoUsciti : daSegnareUsciti).push({buildingId: bb.id, assembleaId: a.id, condominoId: id});
         }
@@ -10068,17 +10099,13 @@ function eseguiCicloPing(){
       const rec = a.votoAutonomo.find(r=>r.condominoId===condominoId && !r.uscita);
       if(rec){ rec.uscita = oraStr; rec.usciteAutomatica = true; }
     });
-    battitiVisti.forEach(({buildingId, assembleaId, condominoId, ultimoVisto, mancate})=>{
-      const bb = buildings.find(x=>x.id===buildingId);
-      const a = bb ? (bb.assemblee||[]).find(x=>x.id===assembleaId) : null;
-      if(!a) return;
-      a.pingUltimoVisto = a.pingUltimoVisto || {};
-      a.pingMancate = a.pingMancate || {};
-      if(ultimoVisto != null) a.pingUltimoVisto[condominoId] = ultimoVisto;
-      a.pingMancate[condominoId] = mancate;
-    });
   }
   eseguiConUnioneSuServer(applicaPiano);
+  battitiVisti.forEach(({buildingId, assembleaId, condominoId, ultimoVisto, mancate})=>{
+    const chiaveLocale = buildingId+':'+assembleaId+':'+condominoId;
+    if(ultimoVisto != null) __pingUltimoVistoLocale[chiaveLocale] = ultimoVisto;
+    __pingMancateLocale[chiaveLocale] = mancate;
+  });
   if(daSegnareOnline.length || daSegnareUsciti.length || daSegnareVotoAutonomo.length || daSegnareVotoAutonomoUsciti.length) renderAppello(); // aggiorniamo subito la tabella visibile, senza aspettare l'eco di Firebase
   const indicatorePing = document.getElementById('fb-ultimo-ping');
   if(indicatorePing) indicatorePing.textContent = '📡 Giro ' + new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) + ' — ' + quantiControllati + ' persone monitorate';
