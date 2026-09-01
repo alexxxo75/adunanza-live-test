@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-220 — creata il 01/09/2026 alle 14:36
+  Versione: LT-222 — creata il 01/09/2026 alle 15:25
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -671,7 +671,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 14:36">LT-220</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 15:25">LT-222</span>
   </div>
 
   <!-- MAIN -->
@@ -3823,6 +3823,18 @@ function recordAttivoConSecondarieSenzaVotoAutonomo(building, assemblea, condomi
   }
   return null;
 }
+// Un condòmino che ha delegato il voto a UN ALTRO CONDÒMINO (non esterno) e il cui delegato
+// risulta già presente (in un modo qualsiasi: online, in presenza, o anche solo voto — il
+// delegato ha comunque un proprio link pieno a disposizione, la scelta di come collegarsi è
+// sua) NON deve più poter usare il proprio collegamento personale, né quello "pieno" né il
+// "solo voto": è il delegato, con il proprio link, a votare sia per sé sia per il delegante.
+// Se il delegato non è ancora presente, il collegamento del delegante resta invece attivo (per
+// mostrargli lo stato della delega) — vedi costruisciBloccoSondaggioAttivo.
+function haDelegatoAdCondominoPresente(assemblea, condominoId){
+  const delegatoId = assemblea.appello.deleghe[condominoId];
+  if(delegatoId==null || typeof delegatoId === 'string') return false; // nessuna delega, o delega a un esterno: non riguarda questa regola
+  return !!recordAttivo(assemblea, delegatoId);
+}
 function presentiDiretti(building){
   // chi vota "di persona" in questo momento: online oppure presente fisicamente, senza uscita
   // registrata — condòmini E persone esterne (delegati terzi) che risultano presenti, MA solo
@@ -4626,8 +4638,15 @@ function personeCollegate(building, condominoId){
 // Vero e proprio per UN SINGOLO condòmino: è direttamente presente/online, oppure ha delegato
 // qualcuno che lo è. Non considera ancora le unità collegate (stesso proprietario) — quello lo
 // fa convocatoRappresentato, che usa questa funzione come base.
+// NOTA (bug corretto): la presenza DIRETTA di questa persona usa la versione che IGNORA il
+// voto-autonomo (statoRealeSenzaVotoAutonomo) — lo stesso principio già applicato al controllo
+// che decide se può votare: il solo aver aperto il link "solo voto" non deve bastare a farla
+// contare come testa/millesimi rappresentati, se non risulta anche online o in presenza per
+// altra via. Il controllo sul DELEGATO (riga sotto) resta invece invariato: chi ha ricevuto una
+// delega, specie una persona esterna, spesso ha SOLO il canale voto-autonomo a disposizione, ed
+// è corretto che quello basti per lei.
 function rappresentatoDirettamenteOTramiteDelega(c, assemblea){
-  if(recordAttivo(assemblea, c.id)) return true;
+  if(statoRealeSenzaVotoAutonomo(assemblea, c.id)) return true;
   const delegatoId = assemblea.appello.deleghe[c.id];
   return delegatoId!=null && !!recordAttivo(assemblea, delegatoId);
 }
@@ -6636,7 +6655,20 @@ function renderOdgBlocks(){
       // default (il testo del punto come domanda, "Favorevole/Contrario/Astenuto" come opzioni).
       // Per un punto che invece un sondaggio ce l'ha già (sondaggioAbilitato true), il
       // comportamento resta quello di sempre: avvia subito.
-      btnAvvia.onclick = p.sondaggioAbilitato ? (()=>avviaSondaggioPerPunto(p.id)) : (()=>apriModuloNuovoSondaggio(p.id));
+      // NOTA (bottone che "tremola" prima di aprire il sondaggio, segnalato dall'utente):
+      // avviaSondaggioPerPunto() ricostruisce da zero l'intero blocco dei punti O.d.G. (incluso
+      // questo stesso bottone, che sparisce e riappare come sondaggio aperto) — tutto nello
+      // stesso istante del click, così il browser non fa in tempo a mostrare nulla "in mezzo" in
+      // modo pulito. Diamo prima un riscontro immediato (bottone disabilitato, testo "Avvio in
+      // corso...") e rimandiamo il lavoro vero e proprio al giro successivo (setTimeout 0): così
+      // il browser fa in tempo a disegnare lo stato "in corso" prima della ricostruzione, invece
+      // di passare direttamente dal bottone cliccato al sondaggio aperto senza un fotogramma
+      // pulito in mezzo.
+      btnAvvia.onclick = p.sondaggioAbilitato ? (()=>{
+        btnAvvia.disabled = true;
+        btnAvvia.textContent = 'Avvio in corso...';
+        setTimeout(()=>avviaSondaggioPerPunto(p.id), 0);
+      }) : (()=>apriModuloNuovoSondaggio(p.id));
       actions.appendChild(btnAvvia);
     }
     // Pulsante "Crea nuovo sondaggio", disponibile per ogni punto — sia che ci sia già un
@@ -7813,6 +7845,14 @@ function renderVistaCondomino(){
   if(schermataTerminata) schermataTerminata.classList.add('hidden');
   if(schermataRientro) schermataRientro.classList.add('hidden');
   restoContenuto.forEach(el=>{ if(el) el.classList.remove('hidden'); });
+  // Chi ha delegato il voto a un altro condòmino ORMAI PRESENTE non deve più vedere né video né
+  // chat né mano alzata sul proprio collegamento personale — vale sia per il link "pieno" sia
+  // per il "solo voto" (vedi renderCvPollArea_interno per il messaggio "Link non attivo" che
+  // prende il posto dell'ordine del giorno/sondaggio).
+  const linkDisattivatoPerDelega = !!(currentCondomino && haDelegatoAdCondominoPresente(assembleaCorrente, currentCondomino.id));
+  if(linkDisattivatoPerDelega){
+    [document.getElementById('cv-video-wrap'), document.getElementById('cv-chat-sezione'), document.getElementById('cv-btn-chat-toggle'), document.getElementById('cv-hand-btn')].forEach(el=>{ if(el) el.classList.add('hidden'); });
+  }
   // NUOVA FUNZIONALITÀ "solo voto": niente video, niente chat, niente alza-la-mano — questa
   // persona deve poter vedere solo l'ordine del giorno/i presenti e votare quando c'è un
   // sondaggio aperto, esattamente come deciso con l'utente.
@@ -7833,10 +7873,10 @@ function renderVistaCondomino(){
     const dataTesto = assembleaCorrente.dataSeconda || assembleaCorrente.dataPrima || 'data da definire';
     tipoAssembleaEl.textContent = `Assemblea ${tipoTesto} del ${dataTesto} — ${assembleaCorrente.oggetto||'(oggetto non indicato)'}`;
   }
-  if(!cvModalitaSoloVoto) renderChatCondomino();
+  if(!cvModalitaSoloVoto && !linkDisattivatoPerDelega) renderChatCondomino();
   renderCvPollArea();
   const btn=document.getElementById('cv-hand-btn');
-  if(!cvModalitaSoloVoto){
+  if(!cvModalitaSoloVoto && !linkDisattivatoPerDelega){
     if(currentCondomino && handsArr().find(h=>h.condominoId===currentCondomino.id)){
       btn.classList.add('active'); btn.textContent='✋ Mano alzata — tocca per abbassare';
     }else{
@@ -8406,9 +8446,16 @@ function costruisciBloccoSondaggioAttivo(assembleaCorrente, b){
     return `<div id="cv-conferma-voto-box" style="margin-bottom:18px;">${etichettaPunto}Hai votato: ${escapeHtml(etichetta)}<span class="sub">Voto registrato con ${votante.estera?'i millesimi di chi ti ha delegato':'i tuoi'} ${mieiMillesimi} millesimi (${escapeHtml(activePoll.tabella)}). In attesa che l'amministratore chiuda il sondaggio...</span></div>`;
   }
   // Se questo dispositivo sta votando come persona ESTERNA (delegata da uno o più condòmini,
-  // ed è lei stessa a usare il link che le è stato inoltrato), il voto vale già di per sé:
-  // non ha senso mostrarle "hai delegato a...", non è lei ad aver delegato nessuno.
+  // ed è lei stessa a usare il link che le è stato inoltrato): il voto vale di per sé SOLO se
+  // anche lei risulta davvero presente — in aula (segnata dall'amministratore) o online per
+  // davvero (con il link "pieno", non il solo voto). Aprire il solo voto del delegante non
+  // basta più da sola a farla contare come presente.
   if(votante.estera){
+    const attivoEsterno = recordAttivoConSecondarieSenzaVotoAutonomo(b, assembleaCorrente, votante.id);
+    if(!attivoEsterno){
+      return `<div class="assist-panel" style="border-left:4px solid var(--brick);margin-bottom:18px;"><h3>Accesso non disponibile</h3>${etichettaPunto}
+        <p class="sub">Si prega di accedere all'assemblea on-line con apposito link (se l'assemblea è online o mista) oppure in presenza. Se si è presenti avvisare l'amministratore.</p></div>`;
+    }
     return `<div class="assist-panel" id="cv-sondaggio-attivo-blocco" style="border-left:4px solid var(--brass);margin-bottom:18px;">
       ${etichettaPunto}
       <p class="sub" style="margin-bottom:4px;font-weight:700;font-size:18px;color:#F2F0EC;">${escapeHtml(activePoll.question)}</p>
@@ -8424,12 +8471,20 @@ function costruisciBloccoSondaggioAttivo(assembleaCorrente, b){
   // già usata altrove per l'Appello/Partecipanti/Verbale (che ignora apposta il voto-autonomo):
   // così il link "solo voto" resta un semplice canale di INPUT per chi è già legittimamente
   // presente/online per altra via, non una prova di presenza a sé stante. Chi ha delegato ad un
-  // altro condòmino (non esterno) ricade correttamente nel ramo "Hai delegato" qui sotto, invece
-  // di poter votare comunque; chi ha delegato a una persona esterna non passa nemmeno da qui
-  // (gestito prima, nel ramo "votante.estera").
+  // altro condòmino (non esterno) ricade correttamente nel ramo "Link non attivo" qui sotto,
+  // invece di poter votare comunque; chi ha delegato a una persona esterna non passa nemmeno da
+  // qui (gestito sopra, nel ramo "votante.estera").
   const attivo = recordAttivoConSecondarieSenzaVotoAutonomo(b, assembleaCorrente, currentCondomino.id);
   if(!attivo){
     const delegatoIdCv = assembleaCorrente.appello.deleghe[currentCondomino.id];
+    // Delegato a UN ALTRO CONDÒMINO (id numerico, non esterno) GIÀ PRESENTE: questo
+    // collegamento personale non serve più a nulla — può votare solo la persona delegata, con
+    // il proprio link. Se il delegato non è ancora presente, mostriamo invece il messaggio
+    // informativo consueto qui sotto (utile per sapere a che punto è la delega).
+    if(haDelegatoAdCondominoPresente(assembleaCorrente, currentCondomino.id)){
+      return `<div class="assist-panel" style="border-left:4px solid var(--brick);margin-bottom:18px;"><h3>Link non attivo</h3>${etichettaPunto}
+        <p class="sub">Hai delegato il tuo voto a un altro condòmino: questo collegamento personale non è più utilizzabile. Può votare per te solo la persona che hai delegato, con il proprio collegamento.</p></div>`;
+    }
     if(delegatoIdCv != null){
       // Ha delegato: il messaggio "non risulti online" sarebbe fuorviante e sbagliato — il
       // voto di questa persona segue quello del delegato, non serve che sia online lei stessa.
@@ -8491,6 +8546,43 @@ function renderCvPollArea_interno(){
   const b=getActiveBuilding();
   const assembleaCorrente=getAssembleaContestualizzataCondomino(b);
   if(!assembleaCorrente || assembleaCorrente.stato==='conclusa'){ el.innerHTML=''; applicaVisibilitaElementiCondomino('normale'); return; }
+
+  // BUG DI SICUREZZA CORRETTO E AGGIORNATO: il link "solo voto" mostrava questa pagina (ordine
+  // del giorno e, quando aperto, il sondaggio da votare) a chiunque lo aprisse, anche senza
+  // essere realmente presente in aula o online per altra via — bastava aprire il link per
+  // risultare idonei. Blocchiamo qui l'intero contenuto per chi non risulta legittimamente
+  // presente, mostrando solo un messaggio — vale sempre, non solo quando c'è un sondaggio
+  // aperto. Regole: (a) un delegato ESTERNO deve anche lui risultare davvero presente in aula o
+  // online (col link "pieno") — aprire il solo voto non basta più nemmeno per lui, e questo
+  // vale solo per il "solo voto": chi usa il link "pieno" stabilisce già la propria presenza
+  // online semplicemente collegandosi; (b) chi ha delegato il voto a UN ALTRO CONDÒMINO GIÀ
+  // PRESENTE vede il link disattivato del tutto — questo vale per ENTRAMBI i link, "pieno" e
+  // "solo voto": una volta che il delegato si è presentato, è lui solo a votare per sé e per il
+  // delegante, con il proprio collegamento.
+  if(currentCondomino){
+    const votanteBlocco = identitaVotanteCv(assembleaCorrente, b);
+    if(votanteBlocco && !votanteBlocco.disattivato){
+      if(!votanteBlocco.estera && haDelegatoAdCondominoPresente(assembleaCorrente, currentCondomino.id)){
+        el.innerHTML = `<div class="assist-panel" style="border-left:4px solid var(--brick);margin-bottom:18px;">
+          <h3>Link non attivo</h3>
+          <p class="sub">Hai delegato il tuo voto a un altro condòmino: questo collegamento personale non è più utilizzabile. Può votare per te solo la persona che hai delegato, con il proprio collegamento.</p>
+        </div>`;
+        applicaVisibilitaElementiCondomino('normale');
+        return;
+      }
+      if(cvModalitaSoloVoto){
+        const idDaVerificareBlocco = votanteBlocco.estera ? votanteBlocco.id : currentCondomino.id;
+        if(!recordAttivoConSecondarieSenzaVotoAutonomo(b, assembleaCorrente, idDaVerificareBlocco)){
+          el.innerHTML = `<div class="assist-panel" style="border-left:4px solid var(--brick);margin-bottom:18px;">
+            <h3>Accesso non disponibile</h3>
+            <p class="sub">Si prega di accedere all'assemblea on-line con apposito link (se l'assemblea è online o mista) oppure in presenza. Se si è presenti avvisare l'amministratore.</p>
+          </div>`;
+          applicaVisibilitaElementiCondomino('normale');
+          return;
+        }
+      }
+    }
+  }
 
   // IL SONDAGGIO HA SEMPRE LA PRECEDENZA ASSOLUTA su qualsiasi altra schermata: interrompe
   // anche i primi 10 secondi di "chi c'è" (anche se sono appena iniziati) e nasconde il video
