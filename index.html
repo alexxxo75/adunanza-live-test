@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-223 — creata il 01/09/2026 alle 15:36
+  Versione: LT-224 — creata il 01/09/2026 alle 15:48
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -671,7 +671,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 15:36">LT-223</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 15:48">LT-224</span>
   </div>
 
   <!-- MAIN -->
@@ -6655,20 +6655,12 @@ function renderOdgBlocks(){
       // default (il testo del punto come domanda, "Favorevole/Contrario/Astenuto" come opzioni).
       // Per un punto che invece un sondaggio ce l'ha già (sondaggioAbilitato true), il
       // comportamento resta quello di sempre: avvia subito.
-      // NOTA (bottone che "tremola" prima di aprire il sondaggio, segnalato dall'utente):
-      // avviaSondaggioPerPunto() ricostruisce da zero l'intero blocco dei punti O.d.G. (incluso
-      // questo stesso bottone, che sparisce e riappare come sondaggio aperto) — tutto nello
-      // stesso istante del click, così il browser non fa in tempo a mostrare nulla "in mezzo" in
-      // modo pulito. Diamo prima un riscontro immediato (bottone disabilitato, testo "Avvio in
-      // corso...") e rimandiamo il lavoro vero e proprio al giro successivo (setTimeout 0): così
-      // il browser fa in tempo a disegnare lo stato "in corso" prima della ricostruzione, invece
-      // di passare direttamente dal bottone cliccato al sondaggio aperto senza un fotogramma
-      // pulito in mezzo.
-      btnAvvia.onclick = p.sondaggioAbilitato ? (()=>{
-        btnAvvia.disabled = true;
-        btnAvvia.textContent = 'Avvio in corso...';
-        setTimeout(()=>avviaSondaggioPerPunto(p.id), 0);
-      }) : (()=>apriModuloNuovoSondaggio(p.id));
+      // NOTA: un precedente tentativo di attenuare il tremolio visivo di questo bottone
+      // (rimandare l'apertura vera al giro successivo con setTimeout) è stato tolto: causava un
+      // problema funzionale peggiore del difetto estetico che doveva correggere — il sondaggio
+      // a volte non si apriva al primo click, serviva ripremere. Meglio un piccolo tremolio
+      // visivo ma affidabile al primo colpo, come era in origine.
+      btnAvvia.onclick = p.sondaggioAbilitato ? (()=>avviaSondaggioPerPunto(p.id)) : (()=>apriModuloNuovoSondaggio(p.id));
       actions.appendChild(btnAvvia);
     }
     // Pulsante "Crea nuovo sondaggio", disponibile per ogni punto — sia che ci sia già un
