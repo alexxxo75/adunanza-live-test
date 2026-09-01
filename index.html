@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-232 — creata il 01/09/2026 alle 20:30
+  Versione: LT-233 — creata il 01/09/2026 alle 20:42
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -671,7 +671,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 20:30">LT-232</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 20:42">LT-233</span>
   </div>
 
   <!-- MAIN -->
@@ -6528,6 +6528,19 @@ function renderOdgBlocks(){
   // istante. Un semplice focus "di passaggio" (es. un menu a tendina cliccato) NON blocca più
   // il ridisegno: bloccarlo sempre impediva agli aggiornamenti in tempo reale di comparire.
   if(staScrivendoInCampoProtetto()){
+    return;
+  }
+  // BUG REALE CORRETTO (segnalato con un video: la tendina del voto manuale, nella tabella voti
+  // del sondaggio, si chiudeva da sola pochi istanti dopo averla aperta, impedendo di scegliere
+  // un'opzione): quella tabella ha già una sua protezione dedicata (tendinaVotiRecentementeAperta,
+  // qualche riga più sotto in renderTabellaVotiSondaggio) che evita di ricostruirne il
+  // contenuto mentre è aperta — ma qui, PRIMA ancora di arrivarci, il riquadro dell'intero
+  // sondaggio (#active-poll, che contiene quella tabella) veniva comunque spostato nel
+  // documento più in basso in questa funzione (showActivePoll → nuovo "slot" ricreato ad ogni
+  // giro): un elemento SPOSTATO nel documento fa chiudere al browser qualunque tendina nativa
+  // aperta al suo interno, anche senza toccarne minimamente il contenuto. La protezione della
+  // tabella, da sola, non bastava: serve anche qui.
+  if(tendinaVotiRecentementeAperta()){
     return;
   }
   if(!assemblea){ container.innerHTML=''; return; }
