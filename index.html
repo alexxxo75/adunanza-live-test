@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-234 — creata il 01/09/2026 alle 21:07
+  Versione: LT-235 — creata il 01/09/2026 alle 21:11
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -687,7 +687,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 21:07">LT-234</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 21:11">LT-235</span>
   </div>
 
   <!-- MAIN -->
@@ -10100,7 +10100,14 @@ function eseguiCicloPing(){
       if(rec){ rec.uscita = oraStr; rec.usciteAutomatica = true; }
     });
   }
-  eseguiConUnioneSuServer(applicaPiano);
+  // BUG REALE CORRETTO: questa scrittura avveniva SEMPRE, una volta per ogni giro di controllo
+  // (ogni 15 secondi), anche quando non c'era assolutamente nulla da cambiare (nessuno appena
+  // entrato, uscito, o passato a voto autonomo) — mandando comunque un aggiornamento del nodo
+  // condiviso principale a TUTTI i dispositivi collegati ad ogni giro, sondaggio compreso.
+  // Scriviamo solo quando c'è davvero qualcosa da applicare.
+  if(daSegnareOnline.length || daSegnareUsciti.length || daSegnareVotoAutonomo.length || daSegnareVotoAutonomoUsciti.length){
+    eseguiConUnioneSuServer(applicaPiano);
+  }
   battitiVisti.forEach(({buildingId, assembleaId, condominoId, ultimoVisto, mancate})=>{
     const chiaveLocale = buildingId+':'+assembleaId+':'+condominoId;
     if(ultimoVisto != null) __pingUltimoVistoLocale[chiaveLocale] = ultimoVisto;
