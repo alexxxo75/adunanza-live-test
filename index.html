@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-222 — creata il 01/09/2026 alle 15:25
+  Versione: LT-223 — creata il 01/09/2026 alle 15:36
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -671,7 +671,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 15:25">LT-222</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 15:36">LT-223</span>
   </div>
 
   <!-- MAIN -->
@@ -7116,6 +7116,14 @@ function impostaVoto(condominoId, optId, isPropagazioneAutomatica, isVotoInBlocc
 function pesoVoto(c, b, assemblea){
   // Il voto è sempre sui millesimi reali della tabella scelta dal sondaggio: le tabelle/pesi
   // scelti per i Convocati riguardano solo il quorum di partecipazione, non il voto.
+  // BUG REALE CORRETTO: questa funzione veniva chiamata SOLO quando un sondaggio era già aperto
+  // (quindi activePoll.tabella esisteva sempre) — da quando identitaVotanteCv() viene chiamata
+  // anche SENZA sondaggio aperto (per il controllo di idoneità sul link, valido sempre), un
+  // "peso" viene richiesto anche con activePoll=null: senza questo controllo, l'errore
+  // ("Cannot read properties of null") interrompeva l'intera pagina prima ancora di mostrare
+  // Presidente/Segretario e l'ordine del giorno. Senza un sondaggio aperto il peso non ha
+  // senso: 0 va benissimo, non viene comunque usato per nient'altro in quel momento.
+  if(!activePoll) return 0;
   return c.millesimi[activePoll.tabella]||0;
 }
 function calcolaRisultatiSondaggio(){
