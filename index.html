@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-239 — creata il 02/09/2026 alle 13:16
+  Versione: LT-240 — creata il 02/09/2026 alle 13:40
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -702,7 +702,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/09/2026 alle 13:16">LT-239</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/09/2026 alle 13:40">LT-240</span>
   </div>
 
   <!-- MAIN -->
@@ -7354,17 +7354,32 @@ function renderTabellaVotiSondaggio(){
   const assemblea=getAssembleaInCorso(b);
   const tbody=document.getElementById('poll-voti-tbody');
   if(!tbody || !assemblea) return;
-  // Se un menu a tendina di QUESTA tabella è stato aperto negli ultimi secondi, saltiamo il
-  // ridisegno: ricostruire la tabella ora chiuderebbe la tendina appena aperta, interrompendo
-  // la scelta dell'amministratore. Il blocco è breve e scade da solo (vedi il commento sopra la
-  // funzione): non impedisce agli aggiornamenti degli altri di comparire per sempre, solo per
-  // il tempo in cui la tendina resta davvero aperta.
-  if(tendinaVotiRecentementeAperta()) return;
+  // BUG REALE CORRETTO (LT-240, segnalato dall'utente): questa protezione saltava la
+  // ricostruzione dell'INTERA tabella (non solo della riga con la tendina aperta) per 20
+  // secondi da quando si apriva un qualsiasi menu a tendina — durante quella finestra, i voti
+  // di TUTTI gli altri (comprese le persone online che votano da sole in quel momento)
+  // restavano invisibili in questa tabella, anche se venivano registrati correttamente. Su un
+  // dispositivo touch, dove il "change" del select nativo si conferma solo toccando fuori
+  // dalla tendina, la finestra poteva restare bloccata anche più a lungo di quanto sembrasse.
+  // Ora, invece di saltare tutta la tabella, ricostruiamo ogni riga normalmente e riusiamo
+  // SOLO il nodo della riga la cui tendina ha davvero il focus in questo preciso istante
+  // (document.activeElement) — non un timer, ma lo stato reale del browser in quel momento:
+  // quella riga resta quindi intatta (nessuna interruzione della scelta in corso), mentre
+  // tutte le altre si aggiornano subito, in tempo reale.
+  const __elementoAttivoVoti = document.activeElement;
+  const __idSelectProtetto = (__elementoAttivoVoti && __elementoAttivoVoti.tagName==='SELECT'
+      && tbody.contains(__elementoAttivoVoti) && __elementoAttivoVoti.id.startsWith('voto-select-'))
+    ? __elementoAttivoVoti.id.slice('voto-select-'.length)
+    : null;
+  const __rigaProtettaEsistente = __idSelectProtetto!=null ? __elementoAttivoVoti.closest('tr') : null;
   normalizzaDelegheVersoIPrimari(b, assemblea);
   tbody.innerHTML='';
   // Riga di voto di una persona esterna che ha ricevuto una delega: indentata, mostrata subito
   // sotto chi l'ha delegata — coerente con come già facciamo nell'appello.
   function costruisciRigaVotoEsterno(est){
+    if(__idSelectProtetto!=null && String(est.id)===__idSelectProtetto && __rigaProtettaEsistente){
+      return __rigaProtettaEsistente;
+    }
     const tr=document.createElement('tr');
     const tdNome=document.createElement('td');
     tdNome.style.paddingLeft='34px';
@@ -7382,6 +7397,7 @@ function renderTabellaVotiSondaggio(){
     tr.appendChild(tdStato);
     const tdVoto=document.createElement('td');
     const sel=document.createElement('select');
+    sel.id = 'voto-select-'+est.id;
     sel.style.width='auto'; sel.style.display='inline-block';
     sel.innerHTML = '<option value="">— nessun voto —</option>' + activePoll.options.map(o=>`<option value="${o.id}" ${activePoll.scelte[est.id]===o.id?'selected':''}>${o.label}</option>`).join('');
     sel.onmousedown = segnaAperturaTendinaVoti;
@@ -7436,6 +7452,9 @@ function renderTabellaVotiSondaggio(){
     if(!attivo && !delegatoId && !eUscito) return; // mai comparso: non mostrarlo
 
     const tr=document.createElement('tr');
+    if(__idSelectProtetto!=null && String(c.id)===__idSelectProtetto && __rigaProtettaEsistente){
+      tbody.appendChild(__rigaProtettaEsistente);
+    }else{
     if(delegatoId) tr.style.background = '#F1EFE9'; // riga chiara: presente per delega
     if(eUscito) tr.style.background = '#DCD8CC'; // riga più scura: uscito, voto da registrare solo se comunicato a voce
 
@@ -7462,6 +7481,7 @@ function renderTabellaVotiSondaggio(){
 
     const tdVoto=document.createElement('td');
     const sel=document.createElement('select');
+    sel.id = 'voto-select-'+c.id;
     sel.style.width='auto'; sel.style.display='inline-block';
     sel.innerHTML = '<option value="">— nessun voto —</option>' + activePoll.options.map(o=>`<option value="${o.id}" ${activePoll.scelte[c.id]===o.id?'selected':''}>${o.label}</option>`).join('');
     sel.onmousedown = segnaAperturaTendinaVoti;
@@ -7559,6 +7579,7 @@ function renderTabellaVotiSondaggio(){
     }
     tr.appendChild(tdVoto);
     tbody.appendChild(tr);
+    } // chiude il ramo "else" (riga ricostruita da zero) aperto sopra, dopo la protezione riga LT-240
 
     // Le proprietà unite allo stesso proprietario non hanno più una riga separata sotto: i
     // loro millesimi sono già sommati in quella principale, qui basta un'unica riga per
