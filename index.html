@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-237 — creata il 02/09/2026 alle 12:55
+  Versione: LT-238 — creata il 02/09/2026 alle 13:08
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -487,9 +487,20 @@
      pagina non scorre più affatto: l'UNICO elemento che scorre è la colonna destra (il suo
      scroll interno, invariato) — la sinistra resta quindi sempre, letteralmente, ferma. */
   body.cv-layout-orizzontale{ overflow:hidden; height:100%; }
-  body.cv-layout-orizzontale .condomino-shell{ height:100vh; height:100dvh; overflow:hidden; box-sizing:border-box; }
-  #cv-col-sinistra{ flex:5 1 0; min-width:0; height:calc(100vh - 28px); height:calc(100dvh - 28px); display:flex; flex-direction:column; align-self:flex-start; position:sticky; top:14px; background:#1C1C1D; border:1px solid #3A3A3B; border-radius:10px; padding:8px; box-sizing:border-box; }
-  #cv-col-destra{ flex:3 1 0; min-width:0; height:calc(100vh - 28px); height:calc(100dvh - 28px); overflow-y:auto; background:#1C1C1D; border:1px solid #3A3A3B; border-radius:10px; padding:16px 20px; box-sizing:border-box; margin-left:20px; position:relative; scrollbar-color:#5E5439 #1C1C1D; }
+  /* MODIFICA (LT-237): il pannello "Assemblea del..." / "Condominio/Accesso come..." non è più
+     un overlay che scorre dentro e fuori (con relativo spazio "finto" da compensare via JS):
+     qui in orizzontale diventa una vera e propria riga fissa della cornice alta della pagina,
+     sempre visibile, che occupa spazio per davvero — vedi override qui sotto su
+     #cv-pannello-superiore. Il contenitore di tutta la vista condòmino diventa quindi una
+     colonna flessibile (pannello sopra, poi il resto), alta quanto lo schermo: così il resto
+     del calcolo delle altezze (.condomino-shell e le due colonne) si adatta DA SOLO allo
+     spazio che il pannello occupa per davvero in quel momento — anche se il nome
+     dell'assemblea/condominio va a capo su due righe — invece di un numero fisso "a occhio"
+     come prima (che avrebbe dovuto essere ricalcolato a mano ogni volta). */
+  body.cv-layout-orizzontale #page-vista-condomino{ display:flex; flex-direction:column; height:100vh; height:100dvh; overflow:hidden; }
+  body.cv-layout-orizzontale .condomino-shell{ flex:1 1 auto; min-height:0; height:auto; overflow:hidden; box-sizing:border-box; }
+  #cv-col-sinistra{ flex:5 1 0; min-width:0; height:auto; display:flex; flex-direction:column; background:#1C1C1D; border:1px solid #3A3A3B; border-radius:10px; padding:8px; box-sizing:border-box; }
+  #cv-col-destra{ flex:3 1 0; min-width:0; height:auto; overflow-y:auto; background:#1C1C1D; border:1px solid #3A3A3B; border-radius:10px; padding:16px 20px; box-sizing:border-box; margin-left:20px; position:relative; scrollbar-color:#5E5439 #1C1C1D; }
   #cv-col-destra::-webkit-scrollbar{ width:10px; }
   #cv-col-destra::-webkit-scrollbar-track{ background:#1C1C1D; }
   #cv-col-destra::-webkit-scrollbar-thumb{ background:#5E5439; border-radius:5px; }
@@ -500,16 +511,21 @@
      resta fisso a schermo intero apposta): non c'è nulla che debba restare sempre visibile per
      forza, quindi lasciamo che si allunghi invece di tagliare il fondo — era proprio questo il
      bug segnalato (il riquadro diagnostico restava coperto perché il pannello superiore fisso
-     "rubava" spazio a un contenitore di altezza bloccata a 100vh). */
+     "rubava" spazio a un contenitore di altezza bloccata a 100vh). Il pannello in cima, però,
+     resta comunque fisso e sempre visibile come nel resto dell'orizzontale (LT-237): qui basta
+     che il contenitore torni a un normale flusso a blocchi che può allungarsi, il pannello
+     sopra di lui non cambia comportamento. */
   body.cv-layout-orizzontale.cv-solo-voto-orizz{ overflow:visible; height:auto; }
+  body.cv-layout-orizzontale.cv-solo-voto-orizz #page-vista-condomino{ display:block; height:auto; overflow:visible; }
   body.cv-layout-orizzontale.cv-solo-voto-orizz .condomino-shell{ height:auto; min-height:100vh; min-height:100dvh; overflow:visible; }
   body.cv-layout-orizzontale.cv-solo-voto-orizz #cv-col-destra{ flex:none; width:min(680px, 94vw); height:auto; overflow-y:visible; margin:0 auto; }
   body.cv-layout-orizzontale.cv-solo-voto-orizz #cv-esci-btn{ margin-bottom:14px; flex-shrink:0; }
-  body.cv-layout-orizzontale #condomino-view-box{ display:flex; flex-direction:row; align-items:flex-start; gap:0; }
-  /* Il pannello "Assemblea del..." + "Condominio/Accesso come..." resta fisso in cima, ma qui
-     diventa una singola riga sottile, a tutta larghezza dello schermo (sopra a entrambi i
-     riquadri), invece delle due righe più alte usate in verticale. */
-  body.cv-layout-orizzontale #cv-pannello-superiore{ display:flex; align-items:center; justify-content:center; gap:14px; padding:2px 14px; flex-wrap:wrap; max-width:none; margin:0; background:transparent; box-shadow:none; }
+  body.cv-layout-orizzontale #condomino-view-box{ display:flex; flex-direction:row; gap:0; height:100%; }
+  /* Il pannello "Assemblea del..." + "Condominio/Accesso come..." (LT-237): non più un overlay
+     a scomparsa (position:fixed + transform + JS che lo mostra/nasconde con un timer) — qui in
+     orizzontale è una riga fissa della cornice alta, sempre visibile, che spinge giù per davvero
+     il resto sotto di sé (niente più spazio "finto" da simulare con un padding). */
+  body.cv-layout-orizzontale #cv-pannello-superiore{ position:static; transform:none; flex-shrink:0; display:flex; align-items:center; justify-content:center; gap:14px; padding:2px 14px; flex-wrap:wrap; max-width:none; margin:0; background:transparent; box-shadow:none; border-radius:0; }
   body.cv-layout-orizzontale #cv-tipo-assemblea{ margin:4px 0; padding:4px 12px; font-size:12px; white-space:nowrap; }
   body.cv-layout-orizzontale #cv-testata{ margin:4px 0; padding:4px 12px; background:#000; border-radius:6px; display:flex; align-items:baseline; gap:10px; }
   body.cv-layout-orizzontale #cv-building-name{ font-size:12px; }
@@ -686,7 +702,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/09/2026 alle 12:55">LT-237</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/09/2026 alle 13:08">LT-238</span>
   </div>
 
   <!-- MAIN -->
@@ -2325,6 +2341,13 @@ function disattivaSchermoSempreAcceso(){
 // "tira per aggiornare", che qui invece rivela questo pannello invece di ricaricare la pagina.
 let __pannelloSuperioreTimer = null;
 function mostraPannelloSuperiore(){
+  // MODIFICA (LT-237): in layout ORIZZONTALE il pannello è ora sempre visibile, fisso nella
+  // cornice alta della pagina — se ne occupa solo il CSS (position:static, niente più
+  // transform di scomparsa), quindi qui non c'è più nulla da mostrare né da compensare con un
+  // padding: farlo comunque sommerebbe un padding INUTILE allo spazio già riservato per davvero
+  // dal nuovo layout a colonna, spostando il contenuto verso il basso senza motivo. In
+  // VERTICALE questa funzione resta invece invariata, esattamente come prima.
+  if(document.body.classList.contains('cv-layout-orizzontale')) return;
   const pannello = document.getElementById('cv-pannello-superiore');
   if(!pannello) return;
   pannello.classList.add('visibile');
