@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-242 — creata il 02/09/2026 alle 14:59
+  Versione: LT-243 — creata il 02/09/2026 alle 15:06
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -239,6 +239,12 @@
   .card-dark .btn.secondary:hover{background:rgba(255,255,255,.14);}
   .card-dark .badge{background:rgba(255,255,255,.14);color:var(--sage-light);}
   .card-dark a{color:#fff;}
+  /* LT-243: riquadro ESTERNO scuro che incornicia un contenuto interno rimasto invariato
+     (bianco/leggibile come sempre) — usato per Appello/Presidente-Segretario/avvio
+     assemblea/punti odg/Verbale. Diverso da .card-dark, che invece tinge l'interno (usato
+     solo per la Chat). */
+  .frame-dark{background:var(--ink);border-radius:5px;padding:14px;}
+  .frame-dark > .card{margin:0;}
   @keyframes pollJustOpened{0%{box-shadow:0 0 0 4px rgba(169,130,44,.55);}100%{box-shadow:0 0 0 4px rgba(169,130,44,0);}}
   .poll-just-opened{animation:pollJustOpened 1.1s ease-out 2;}
   .card h3{font-family:var(--font-display);font-size:17px;margin:0 0 4px;font-weight:600;color:var(--ink);}
@@ -716,7 +722,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/09/2026 alle 14:59">LT-242</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/09/2026 alle 15:06">LT-243</span>
   </div>
 
   <!-- MAIN -->
@@ -1237,7 +1243,8 @@
         </div>
       </div>
 
-      <div id="sezione-appello" class="card card-dark" style="margin-top:22px;margin-bottom:18px;">
+      <div class="frame-dark" style="margin-top:22px;margin-bottom:18px;">
+      <div id="sezione-appello" class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
           <div class="section-title" style="margin:0;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="vertical-align:-3px;margin-right:5px;"><circle cx="12" cy="12" r="10.2" stroke-width="1.6"/><path d="M15.7 4.7 19.7 8.7 15.2 13.2C14 15.5 12.2 17.3 9.6 18.8L6.7 20 8 17.2C9.4 14.6 11.2 12.8 13.4 11.6z" fill="currentColor" stroke="none"/><circle cx="13.6" cy="10.4" r="1.35" fill="#fff" stroke="none"/></svg>Appello - Partecipanti</div>
           <span style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -1268,12 +1275,14 @@
           </div>
         </div>
       </div>
+      </div>
 
       <div id="inizia-assemblea-card" style="margin-bottom:18px;">
         <div id="inizia-assemblea-banner"></div>
       </div>
 
-      <div class="card card-dark" id="cariche-assemblea-card" style="margin-bottom:18px;">
+      <div class="frame-dark" style="margin-bottom:18px;">
+      <div class="card" id="cariche-assemblea-card">
         <div class="section-title" style="margin-bottom:10px;">👤 Presidente e Segretario dell'assemblea</div>
         <label>Presidente nominato:</label>
         <input type="text" id="input-presidente-nominato" placeholder="Nome e cognome" oninput="segnaScritturaCaricaAssemblea()" onchange="salvaCaricaAssemblea('Presidente', this.value)">
@@ -1281,6 +1290,7 @@
         <input type="text" id="input-segretario-nominato" placeholder="Nome e cognome" oninput="segnaScritturaCaricaAssemblea()" onchange="salvaCaricaAssemblea('Segretario', this.value)">
         <div class="note" style="margin-top:10px;">Questi nominativi vengono riportati nel verbale. Se cambiano nel corso dell'assemblea, il verbale registrerà anche l'orario del cambio.</div>
         <div id="cronologia-cariche-assemblea" class="muted" style="font-size:12.5px;margin-top:8px;"></div>
+      </div>
       </div>
 
       <div class="card hidden" id="active-poll" style="margin-bottom:18px;border-left:4px solid var(--brass);">
@@ -1331,7 +1341,8 @@
         <div id="odg-blocks-container"></div>
       </div>
 
-      <div id="sezione-verbale" class="card card-dark" style="margin-top:18px;">
+      <div class="frame-dark" style="margin-top:18px;">
+      <div id="sezione-verbale" class="card">
         <div class="section-title">Verbale d'assemblea — generato con IA</div>
         <div class="field">
           <label>Ordine del giorno / appunti presi durante la riunione</label>
@@ -1341,6 +1352,7 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
         </div>
         <button class="btn" id="gen-verbale-btn" onclick="generaVerbale()">Genera verbale con IA</button>
         <div id="verbale-output" style="margin-top:16px;"></div>
+      </div>
       </div>
       <div class="note" style="margin-top:14px;">Quando l'assemblea è conclusa (verbale generato, sondaggi chiusi), archiviala: resterà consultabile nella scheda del condominio, con il video disponibile per 60 giorni.</div>
       <button class="btn full" style="margin-top:10px;padding:20px;font-size:18px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;display:flex;align-items:center;justify-content:center;gap:10px;background:var(--brick);border-color:var(--brick);" onclick="terminaAssemblea()">🔴 Termina assemblea</button>
@@ -4854,7 +4866,7 @@ function renderAppello(){
   const startEl=document.getElementById('inizia-assemblea-banner');
   if(startEl){
     startEl.innerHTML = assemblea.iniziata
-      ? `<div class="card card-dark"><div class="badge">🟢 Assemblea iniziata alle ${assemblea.oraInizio}</div><p class="muted" style="margin-top:6px;">Da questo momento ingressi e uscite anticipate vengono registrati con l'orario.</p></div>`
+      ? `<div class="frame-dark"><div class="card"><div class="badge">🟢 Assemblea iniziata alle ${assemblea.oraInizio}</div><p class="muted" style="margin-top:6px;">Da questo momento ingressi e uscite anticipate vengono registrati con l'orario.</p></div></div>`
       : `<button class="btn brass full" style="padding:20px;font-size:18px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;display:flex;align-items:center;justify-content:center;gap:10px;" onclick="iniziaAssemblea()"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" fill="#fff"/><path d="M9.5 7.5v9l7-4.5-7-4.5z" fill="var(--brass)"/></svg>Avvia assemblea</button><p class="muted" style="margin-top:8px;">Da qui in poi ogni ingresso (online, in presenza o per delega) e ogni uscita anticipata verranno registrati con l'orario.</p>`;
   }
 
@@ -6641,9 +6653,11 @@ function renderOdgBlocks(){
 
   container.innerHTML='';
   assemblea.odg.forEach((p,i)=>{
+    const frame=document.createElement('div');
+    frame.className='frame-dark';
+    frame.style.marginBottom='18px';
     const block=document.createElement('div');
-    block.className='card card-dark';
-    block.style.marginBottom='18px';
+    block.className='card';
     block.dataset.odgId=p.id;
 
     const head=document.createElement('div');
@@ -6826,7 +6840,8 @@ function renderOdgBlocks(){
       block.appendChild(form);
     }
 
-    container.appendChild(block);
+    frame.appendChild(block);
+    container.appendChild(frame);
   });
 
   // se un sondaggio è attualmente live, lo rimettiamo nel suo blocco
