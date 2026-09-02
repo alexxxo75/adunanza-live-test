@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-238 — creata il 02/09/2026 alle 13:08
+  Versione: LT-239 — creata il 02/09/2026 alle 13:16
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -702,7 +702,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/09/2026 alle 13:08">LT-238</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/09/2026 alle 13:16">LT-239</span>
   </div>
 
   <!-- MAIN -->
@@ -2541,7 +2541,18 @@ function goPage(name){
   // pagine, per non consumare batteria inutilmente nel resto dell'app.
   if(name==='vista-condomino' || name==='assemblea'){ attivaSchermoSempreAcceso(); }
   else{ disattivaSchermoSempreAcceso(); }
-  if(name==='vista-condomino'){ mostraPannelloSuperiore(); }
+  // BUG CORRETTO (LT-238): questa riga chiamava mostraPannelloSuperiore() PRIMA che
+  // applicaLayoutOrizzontaleCondomino() (più sotto) avesse la possibilità di aggiungere la
+  // classe "cv-layout-orizzontale" al body — mostraPannelloSuperiore() girava quindi ancora
+  // come se si fosse in verticale (la guardia aggiunta in LT-238 non trovava ancora quella
+  // classe), misurava l'altezza del vecchio pannello scorrevole e aggiungeva un padding
+  // "finto" ai riquadri sottostanti, che poi il vecchio timer di 5s toglieva di colpo —
+  // risultato: un grande spazio vuoto iniziale sopra ai riquadri, e la pagina che "si muove"
+  // da sola dopo 5 secondi. Spostiamo currentPage e applicaLayoutOrizzontaleCondomino() qui
+  // sopra, PRIMA di mostraPannelloSuperiore(), così quando gira sa già se siamo in orizzontale
+  // e la salta del tutto (nessun padding da aggiungere né da togliere in quel caso).
+  currentPage = name;
+  if(name==='vista-condomino'){ applicaLayoutOrizzontaleCondomino(); mostraPannelloSuperiore(); }
   // Un condòmino che arriva dal proprio link personale non deve vedere la barra di
   // navigazione dell'amministratore (altri condomìni, profilo, ripristina demo...): la
   // nascondiamo del tutto in queste pagine, comprimendo lo spazio lasciato libero.
@@ -2577,7 +2588,8 @@ function goPage(name){
     name='crea-assemblea';
   }
   currentPage = name;
-  if(name==='vista-condomino'){ applicaLayoutOrizzontaleCondomino(); }
+  // (applicaLayoutOrizzontaleCondomino() per 'vista-condomino' è già stata chiamata più sopra,
+  // PRIMA di mostraPannelloSuperiore() — vedi nota LT-238 — non va ripetuta qui.)
   window.scrollTo(0,0);
   document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'));
   document.getElementById('page-'+name).classList.remove('hidden');
