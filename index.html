@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-243 — creata il 02/09/2026 alle 15:06
+  Versione: LT-244 — creata il 02/09/2026 alle 15:13
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -245,6 +245,11 @@
      solo per la Chat). */
   .frame-dark{background:var(--ink);border-radius:5px;padding:14px;}
   .frame-dark > .card{margin:0;}
+  /* LT-244: striscia scura (stesso spessore del bordo del riquadro esterno, 14px) usata DENTRO
+     l'Appello per separare più chiaramente il bianco della tabella dal grigio chiaro dei due
+     riquadri annidati (Situazione deleghe, Dati per la validazione) — a tutta larghezza,
+     compensando col margine negativo il padding orizzontale di .card (24px). */
+  .appello-divider-strip{height:14px;background:var(--ink);margin:20px -24px 20px -24px;}
   @keyframes pollJustOpened{0%{box-shadow:0 0 0 4px rgba(169,130,44,.55);}100%{box-shadow:0 0 0 4px rgba(169,130,44,0);}}
   .poll-just-opened{animation:pollJustOpened 1.1s ease-out 2;}
   .card h3{font-family:var(--font-display);font-size:17px;margin:0 0 4px;font-weight:600;color:var(--ink);}
@@ -722,7 +727,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/09/2026 alle 15:06">LT-243</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/09/2026 alle 15:13">LT-244</span>
   </div>
 
   <!-- MAIN -->
@@ -1260,7 +1265,8 @@
               <tfoot><tr id="appello-tfoot"></tr></tfoot>
             </table>
           </div>
-          <div id="appello-schema-deleghe-wrap" class="hidden card" style="margin-top:14px;background:var(--paper);border:1px solid var(--line);padding:16px 18px;">
+          <div id="appello-schema-deleghe-strip" class="hidden appello-divider-strip"></div>
+          <div id="appello-schema-deleghe-wrap" class="hidden card" style="margin-top:0;background:var(--paper);border:1px solid var(--line);padding:16px 18px;">
             <div class="section-title" style="font-size:19px;margin:0 0 8px;">📝 Situazione deleghe</div>
             <div class="table-wrap">
               <table>
@@ -1269,7 +1275,8 @@
               </table>
             </div>
           </div>
-          <div class="card" id="appello-validazione" style="margin-top:14px;background:var(--paper);border:1px solid var(--line);">
+          <div class="appello-divider-strip"></div>
+          <div class="card" id="appello-validazione" style="margin-top:0;background:var(--paper);border:1px solid var(--line);">
             <div class="section-title" style="font-size:14px;margin:0 0 8px;">✅ Dati per la validazione dell'assemblea</div>
             <div id="appello-validazione-corpo"></div>
           </div>
@@ -5297,6 +5304,7 @@ function normalizzaDelegheVersoIPrimari(building, assemblea){
 }
 function renderSchemaDelegheAppello(assemblea, b){
   const wrap = document.getElementById('appello-schema-deleghe-wrap');
+  const strip = document.getElementById('appello-schema-deleghe-strip');
   const tbody = document.getElementById('appello-schema-deleghe-tbody');
   if(!wrap || !tbody) return;
   const deleghe = assemblea.appello.deleghe || {};
@@ -5318,9 +5326,11 @@ function renderSchemaDelegheAppello(assemblea, b){
   const righe = Object.values(gruppiPerDelegato);
   if(righe.length===0){
     wrap.classList.add('hidden');
+    if(strip) strip.classList.add('hidden');
     return;
   }
   wrap.classList.remove('hidden');
+  if(strip) strip.classList.remove('hidden');
   // In ordine dal delegato che rappresenta più millesimi a chi ne rappresenta meno.
   righe.sort((x,y)=>y.millesimiTotali-x.millesimiTotali);
   tbody.innerHTML = righe.map(r=>{
