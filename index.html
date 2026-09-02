@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-236 — creata il 01/09/2026 alle 21:20
+  Versione: LT-237 — creata il 02/09/2026 alle 12:55
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -68,27 +68,26 @@
   const statoRef = ref(db, 'adunanza_stato_condiviso');
 
   window.__fbScriviStato = function(dati){
-    // Scrittura "sicura" (transazione atomica): prima di scrivere, Firebase stesso controlla
-    // cosa c'è già salvato sul server in quel preciso istante. Con una scrittura semplice
-    // (quella di prima), se due dispositivi scrivono quasi insieme, quella arrivata per ultima
-    // vince sempre — anche se corrisponde a un dato più vecchio — e resta sbagliata sul server
-    // per chiunque si colleghi dopo, anche se ogni dispositivo la riconosce come "superata" nel
-    // momento in cui la riceve. Con la transazione, la scrittura più vecchia viene annullata
-    // ancora PRIMA di raggiungere il server, alla fonte del problema.
-    return runTransaction(statoRef, (statoAttualeSulServer)=>{
-      if(statoAttualeSulServer && typeof statoAttualeSulServer.__versione==='number' && typeof dati.__versione==='number' && statoAttualeSulServer.__versione > dati.__versione){
-        return; // annulla la scrittura: sul server c'è già qualcosa di più recente
-      }
-      return dati;
-    }).then(risultato=>{
-      // Una transazione può risolversi "con successo" (nessun errore) ma SENZA aver davvero
-      // scritto nulla (es. troppi tentativi falliti per traffico sul database): senza questo
-      // controllo, un fallimento del genere passerebbe inosservato.
-      if(risultato && risultato.committed===false){
-        console.warn('[Adunanza] Scrittura NON confermata dal server (committed:false) — probabile traffico elevato sul database condiviso.');
-      }
-      return risultato;
-    });
+    // BUG REALE CORRETTO (LT-237): questa funzione confrontava __versione del dispositivo che
+    // scrive con __versione presente sul server, scartando la scrittura se il server risultava
+    // "più avanti" — con l'idea di proteggere da scritture vecchie che arrivano in ritardo.
+    // Il problema: dati.__versione è SOLO un contatore locale a QUESTO dispositivo/scheda
+    // (cresce di 1 ad ogni SUA azione, salvaStato()), mentre statoAttualeSulServer.__versione è
+    // il contatore CONDIVISO, che cresce con le azioni di TUTTI i dispositivi insieme — gli
+    // stessi due numeri, non confrontabili tra loro, che erano già stati riconosciuti come tali
+    // e per cui il controllo analogo era stato tolto dal lato lettura (vedi applicaDatiRicevuti,
+    // più sotto nel file). Qui però il controllo era rimasto: un dispositivo appena collegato
+    // (es. un condòmino che ha appena aperto il proprio link) ha un contatore locale bassissimo,
+    // quasi certamente inferiore a quello, condiviso, del server — così OGNI sua scrittura
+    // veniva annullata in silenzio (nessun errore: per Firebase è un annullamento voluto,
+    // segnalato solo con un console.warn "committed:false", facile da non notare), incluso il
+    // segnale "sono online". Il database condiviso (Firebase) consegna comunque sempre lo stato
+    // più recente confermato: non serve, e anzi è dannoso, un controllo di "vecchiaia" lato
+    // client basato su un contatore non condiviso. Scrittura diretta, senza transazione né
+    // confronto di versione (il caso di scritture concorrenti ad alto rischio, es. segnalarsi
+    // online/votare/alzare la mano, resta comunque protetto a parte da __fbTransazioneMerge,
+    // che opera sui dati veri e più recenti del server).
+    return set(statoRef, dati);
   };
   // Transazione di UNIONE: usata per le azioni dove il rischio di scritture contemporanee da
   // dispositivi diversi è più concreto (segnalarsi online, votare, alzare la mano). A differenza
@@ -687,7 +686,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 01/09/2026 alle 21:20">LT-236</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/09/2026 alle 12:55">LT-237</span>
   </div>
 
   <!-- MAIN -->
@@ -6031,9 +6030,12 @@ function toggleRemind30Min(checked){
   a._remind30 = checked;
   a.programmati = a.programmati.filter(p=>p.tipo!=='Promemoria 30 minuti prima');
   if(checked){
-    const base = sottraiMinuti(a.dataPrima, a.oraPrima, 30);
+    // BUG CORRETTO (LT-237): calcolava il promemoria 30 minuti prima della PRIMA convocazione,
+    // ma è la SECONDA convocazione quella che di fatto si tiene quasi sempre (la prima raramente
+    // raggiunge il quorum) — il promemoria va quindi ancorato a dataSeconda/oraSeconda.
+    const base = sottraiMinuti(a.dataSeconda, a.oraSeconda, 30);
     if(base) a.programmati.push({data:base.data, ora:base.ora, tipo:'Promemoria 30 minuti prima'});
-    else toast('Imposta prima data e ora della prima convocazione.');
+    else toast('Imposta prima data e ora della seconda convocazione.');
   }
   renderSchedList();
 }
