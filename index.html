@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-241 — creata il 02/09/2026 alle 14:05
+  Versione: LT-242 — creata il 02/09/2026 alle 14:59
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -209,7 +209,7 @@
      scorrimento sia andato oltre, già dentro al contenuto invece che sul titolo. */
   #sezione-video-chat, #sezione-appello, #sezione-odg, #sezione-verbale, [data-odg-id]{scroll-margin-top:70px;}
   .active-banner{text-align:center;margin-bottom:22px;}
-  .active-banner .lbl{font-family:var(--font-mono);font-size:10.5px;color:var(--text-soft);text-transform:uppercase;letter-spacing:.14em;margin-bottom:4px;}
+  .active-banner .lbl{font-family:var(--font-mono);font-size:13.5px;color:var(--text-soft);text-transform:uppercase;letter-spacing:.14em;margin-bottom:4px;}
   .active-banner .name{font-family:var(--font-display);font-size:26px;font-weight:600;color:var(--ink);}
   .page-head{margin-bottom:28px;display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;}
   .eyebrow{font-family:var(--font-mono);font-size:11.5px;color:var(--brass);text-transform:uppercase;letter-spacing:.14em;margin-bottom:6px;}
@@ -225,6 +225,20 @@
   .grid-cards{grid-template-columns:repeat(auto-fill,minmax(230px,1fr));}
 
   .card{background:var(--paper-card);border:1px solid var(--line);border-radius:3px;padding:22px 24px;}
+  /* Riquadri scuri (LT-242): stesso grigio del calendar-card in Planning, usati nella pagina
+     Assemblea per Chat/Appello/avvio-assemblea/Presidente e Segretario/punti odg/Verbale — testo
+     sempre a contrasto bianco al loro interno. */
+  .card-dark{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .card-dark .section-title{color:#fff;}
+  .card-dark .muted{color:rgba(255,255,255,.68);}
+  .card-dark label{color:rgba(255,255,255,.78);}
+  .card-dark th{color:rgba(255,255,255,.6);border-bottom-color:rgba(255,255,255,.18);}
+  .card-dark td{border-bottom-color:rgba(255,255,255,.12);}
+  .card-dark .note{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.28);color:#fff;}
+  .card-dark .btn.secondary{color:#fff;border-color:rgba(255,255,255,.5);}
+  .card-dark .btn.secondary:hover{background:rgba(255,255,255,.14);}
+  .card-dark .badge{background:rgba(255,255,255,.14);color:var(--sage-light);}
+  .card-dark a{color:#fff;}
   @keyframes pollJustOpened{0%{box-shadow:0 0 0 4px rgba(169,130,44,.55);}100%{box-shadow:0 0 0 4px rgba(169,130,44,0);}}
   .poll-just-opened{animation:pollJustOpened 1.1s ease-out 2;}
   .card h3{font-family:var(--font-display);font-size:17px;margin:0 0 4px;font-weight:600;color:var(--ink);}
@@ -702,7 +716,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/09/2026 alle 14:05">LT-241</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/09/2026 alle 14:59">LT-242</span>
   </div>
 
   <!-- MAIN -->
@@ -1184,14 +1198,14 @@
     <!-- PAGE: ASSEMBLEA -->
     <div class="page hidden" id="page-assemblea">
       <div class="page-head">
-        <div><div class="eyebrow">Sala virtuale</div><div class="page-title-row"><button class="page-back" onclick="tornaIndietro()" aria-label="Indietro"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M14.5 8 10 12l4.5 4"/><path d="M10.3 12h6.2"/></svg></button><h1 id="assemblea-titolo-corrente">Assemblea in corso</h1></div><p class="sub">Videoconferenza, sondaggi ponderati sui millesimi e verbale generato automaticamente.</p></div>
+        <div style="width:100%;"><div class="eyebrow" style="text-align:center;font-weight:700;font-size:16px;">Sala virtuale</div><div class="page-title-row"><button class="page-back" onclick="tornaIndietro()" aria-label="Indietro"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M14.5 8 10 12l4.5 4"/><path d="M10.3 12h6.2"/></svg></button><h1 id="assemblea-titolo-corrente">Assemblea in corso</h1></div><p class="sub">Videoconferenza, sondaggi ponderati sui millesimi e verbale generato automaticamente.</p></div>
       </div>
 
       <div id="sezione-video-chat">
         <div id="floating-hands" class="hidden"></div>
         <div id="floating-active-poll" class="hidden"></div>
-        <div class="room-grid">
-          <div>
+        <div class="room-grid" style="align-items:stretch;">
+          <div style="display:flex;flex-direction:column;">
             <div class="card" style="padding:14px;">
               <div id="hands-inline-control" class="muted" style="margin-bottom:10px;">✋ Nessuna mano alzata</div>
               <div class="video-box" id="video-box">
@@ -1208,17 +1222,12 @@
                 </div>
               </div>
             </div>
-            <div class="card" style="margin-top:18px;">
-              <div class="section-title">🎛 Videoconferenza</div>
-              <div class="note">I comandi per silenziare/disattivare un partecipante si trovano direttamente dentro la videochiamata (Digital Samba), non qui — passandoci sopra col mouse o toccandolo su schermo, dentro il riquadro video.</div>
-              <div class="muted" style="margin-top:10px;">Per sapere chi è davvero collegato all'assemblea (non solo alla videochiamata), guarda l'Appello qui sotto: è la fonte affidabile, riconosce ciascuno tramite il proprio link personale.</div>
-            </div>
           </div>
 
-          <div>
-            <div class="card">
+          <div style="display:flex;flex-direction:column;">
+            <div class="card card-dark" style="display:flex;flex-direction:column;flex:1;">
               <div class="section-title">Chat</div>
-              <div class="chat-log" id="admin-chat-log" style="height:320px;max-height:320px;"></div>
+              <div class="chat-log" id="admin-chat-log" style="flex:1;height:auto;max-height:none;min-height:170px;"></div>
               <div class="row-inline" style="align-items:center;flex-wrap:nowrap;">
                 <input id="admin-chat-input" placeholder="Scrivi un messaggio..." style="flex:1;min-width:0;width:auto;" onkeydown="if(event.key==='Enter'){event.preventDefault();sendChatMessage('Amministratore','admin-chat-input');}">
                 <button class="btn small" style="flex:0 0 auto;min-width:0;padding:4px 10px;font-size:11px;white-space:nowrap;" onclick="sendChatMessage('Amministratore','admin-chat-input')">Invia</button>
@@ -1228,7 +1237,7 @@
         </div>
       </div>
 
-      <div id="sezione-appello" class="card" style="margin-top:22px;margin-bottom:18px;">
+      <div id="sezione-appello" class="card card-dark" style="margin-top:22px;margin-bottom:18px;">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
           <div class="section-title" style="margin:0;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="vertical-align:-3px;margin-right:5px;"><circle cx="12" cy="12" r="10.2" stroke-width="1.6"/><path d="M15.7 4.7 19.7 8.7 15.2 13.2C14 15.5 12.2 17.3 9.6 18.8L6.7 20 8 17.2C9.4 14.6 11.2 12.8 13.4 11.6z" fill="currentColor" stroke="none"/><circle cx="13.6" cy="10.4" r="1.35" fill="#fff" stroke="none"/></svg>Appello - Partecipanti</div>
           <span style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -1244,7 +1253,7 @@
               <tfoot><tr id="appello-tfoot"></tr></tfoot>
             </table>
           </div>
-          <div id="appello-schema-deleghe-wrap" class="hidden" style="margin-top:14px;">
+          <div id="appello-schema-deleghe-wrap" class="hidden card" style="margin-top:14px;background:var(--paper);border:1px solid var(--line);padding:16px 18px;">
             <div class="section-title" style="font-size:19px;margin:0 0 8px;">📝 Situazione deleghe</div>
             <div class="table-wrap">
               <table>
@@ -1260,11 +1269,11 @@
         </div>
       </div>
 
-      <div class="card" id="inizia-assemblea-card" style="margin-bottom:18px;">
+      <div id="inizia-assemblea-card" style="margin-bottom:18px;">
         <div id="inizia-assemblea-banner"></div>
       </div>
 
-      <div class="card" id="cariche-assemblea-card" style="margin-bottom:18px;">
+      <div class="card card-dark" id="cariche-assemblea-card" style="margin-bottom:18px;">
         <div class="section-title" style="margin-bottom:10px;">👤 Presidente e Segretario dell'assemblea</div>
         <label>Presidente nominato:</label>
         <input type="text" id="input-presidente-nominato" placeholder="Nome e cognome" oninput="segnaScritturaCaricaAssemblea()" onchange="salvaCaricaAssemblea('Presidente', this.value)">
@@ -1322,7 +1331,7 @@
         <div id="odg-blocks-container"></div>
       </div>
 
-      <div id="sezione-verbale" class="card" style="margin-top:18px;">
+      <div id="sezione-verbale" class="card card-dark" style="margin-top:18px;">
         <div class="section-title">Verbale d'assemblea — generato con IA</div>
         <div class="field">
           <label>Ordine del giorno / appunti presi durante la riunione</label>
@@ -1332,10 +1341,10 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
         </div>
         <button class="btn" id="gen-verbale-btn" onclick="generaVerbale()">Genera verbale con IA</button>
         <div id="verbale-output" style="margin-top:16px;"></div>
-        <div class="note" style="margin-top:14px;">Quando l'assemblea è conclusa (verbale generato, sondaggi chiusi), archiviala: resterà consultabile nella scheda del condominio, con il video disponibile per 60 giorni.</div>
-        <button class="btn full" style="margin-top:10px;padding:20px;font-size:18px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;display:flex;align-items:center;justify-content:center;gap:10px;background:var(--brick);border-color:var(--brick);" onclick="terminaAssemblea()">🔴 Termina assemblea</button>
-        <div id="avviso-catena-termina" class="hidden note" style="margin-top:10px;border-color:var(--brass);color:var(--ink);"></div>
       </div>
+      <div class="note" style="margin-top:14px;">Quando l'assemblea è conclusa (verbale generato, sondaggi chiusi), archiviala: resterà consultabile nella scheda del condominio, con il video disponibile per 60 giorni.</div>
+      <button class="btn full" style="margin-top:10px;padding:20px;font-size:18px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;display:flex;align-items:center;justify-content:center;gap:10px;background:var(--brick);border-color:var(--brick);" onclick="terminaAssemblea()">🔴 Termina assemblea</button>
+      <div id="avviso-catena-termina" class="hidden note" style="margin-top:10px;border-color:var(--brass);color:var(--ink);"></div>
     </div>
 
     <!-- PAGE: DELEGA CONDOMINO (self-service, link personale) -->
@@ -4845,7 +4854,7 @@ function renderAppello(){
   const startEl=document.getElementById('inizia-assemblea-banner');
   if(startEl){
     startEl.innerHTML = assemblea.iniziata
-      ? `<div class="badge">🟢 Assemblea iniziata alle ${assemblea.oraInizio}</div><p class="muted" style="margin-top:6px;">Da questo momento ingressi e uscite anticipate vengono registrati con l'orario.</p>`
+      ? `<div class="card card-dark"><div class="badge">🟢 Assemblea iniziata alle ${assemblea.oraInizio}</div><p class="muted" style="margin-top:6px;">Da questo momento ingressi e uscite anticipate vengono registrati con l'orario.</p></div>`
       : `<button class="btn brass full" style="padding:20px;font-size:18px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;display:flex;align-items:center;justify-content:center;gap:10px;" onclick="iniziaAssemblea()"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" fill="#fff"/><path d="M9.5 7.5v9l7-4.5-7-4.5z" fill="var(--brass)"/></svg>Avvia assemblea</button><p class="muted" style="margin-top:8px;">Da qui in poi ogni ingresso (online, in presenza o per delega) e ogni uscita anticipata verranno registrati con l'orario.</p>`;
   }
 
@@ -6633,7 +6642,7 @@ function renderOdgBlocks(){
   container.innerHTML='';
   assemblea.odg.forEach((p,i)=>{
     const block=document.createElement('div');
-    block.className='card';
+    block.className='card card-dark';
     block.style.marginBottom='18px';
     block.dataset.odgId=p.id;
 
