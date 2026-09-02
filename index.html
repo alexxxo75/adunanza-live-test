@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-240 — creata il 02/09/2026 alle 13:40
+  Versione: LT-241 — creata il 02/09/2026 alle 14:05
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -702,7 +702,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/09/2026 alle 13:40">LT-240</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/09/2026 alle 14:05">LT-241</span>
   </div>
 
   <!-- MAIN -->
@@ -8537,7 +8537,7 @@ function costruisciRisultatoSondaggioPerPunto(s, condomino){
   const votanti = mostraVotanti ? costruisciElencoVotantiSondaggio(s, getActiveBuilding()) : [];
   const votantiHtml = mostraVotanti
     ? (votanti.length
-        ? `<div class="cv-elenco-votanti">${votanti.map(v=>`<div class="cv-elenco-votanti-riga">${escapeHtml(v.nome)} \u2014 ${escapeHtml(v.opzione)} \u2014 ${v.millesimi}\u2030 / 1 testa</div>`).join('')}</div>`
+        ? `<div class="cv-elenco-votanti" data-chiave-sondaggio="${chiaveSondaggio}">${votanti.map(v=>`<div class="cv-elenco-votanti-riga">${escapeHtml(v.nome)} \u2014 ${escapeHtml(v.opzione)} \u2014 ${v.millesimi}\u2030 / 1 testa</div>`).join('')}</div>`
         : `<p class="muted cv-elenco-votanti-vuoto">Nessun voto individuale registrato per questo sondaggio.</p>`)
     : '';
   return `<div class="cv-risultato-sotto-punto"><p class="sub" style="margin:8px 0 6px;font-weight:600;">${escapeHtml(s.question||'')}</p>${barreHtml}
@@ -8738,6 +8738,25 @@ function renderCvPollArea(){
 function renderCvPollArea_interno(){
   const el=document.getElementById('cv-poll-area');
   if(!el) return;
+  // BUG CORRETTO (LT-241, segnalato dall'utente): questo riquadro viene ricostruito per intero
+  // ad ogni sincronizzazione (cosa che succede spesso, anche solo perché arriva un messaggio in
+  // chat o qualcun altro manda un battito) — rimpiazzando il contenuto, l'elenco dei votanti di
+  // un sondaggio chiuso (.cv-elenco-votanti, che ha un proprio scorrimento INTERNO separato
+  // dalla pagina) viene ricreato da zero e riparte sempre da scrollTop 0, dando l'impressione
+  // che la lista "risalga da sola" mentre la si sta leggendo. La posizione della PAGINA è già
+  // protetta altrove (rirenderizzaDopoSincronizzazione), ma questo scorrimento interno no: lo
+  // salviamo qui (per ogni elenco votanti aperto in questo momento, identificato dal sondaggio a
+  // cui appartiene) e lo ripristiniamo subito dopo ogni ricostruzione del contenuto qui sotto.
+  const __scrollElenchiVotanti = {};
+  el.querySelectorAll('.cv-elenco-votanti[data-chiave-sondaggio]').forEach(elencoEl=>{
+    __scrollElenchiVotanti[elencoEl.dataset.chiaveSondaggio] = elencoEl.scrollTop;
+  });
+  function ripristinaScrollElenchiVotanti(){
+    el.querySelectorAll('.cv-elenco-votanti[data-chiave-sondaggio]').forEach(elencoEl=>{
+      const chiave = elencoEl.dataset.chiaveSondaggio;
+      if(__scrollElenchiVotanti[chiave]!=null) elencoEl.scrollTop = __scrollElenchiVotanti[chiave];
+    });
+  }
   const b=getActiveBuilding();
   const assembleaCorrente=getAssembleaContestualizzataCondomino(b);
   if(!assembleaCorrente || assembleaCorrente.stato==='conclusa'){ el.innerHTML=''; applicaVisibilitaElementiCondomino('normale'); return; }
@@ -8813,6 +8832,7 @@ function renderCvPollArea_interno(){
       el.setAttribute('data-vista', 'normale');
       __cvUltimoPuntoRenderizzato = null;
       el.innerHTML = costruisciBloccoSondaggioAttivo(assembleaCorrente, b) + costruisciOdgEChiCeCondomino(assembleaCorrente, b);
+      ripristinaScrollElenchiVotanti();
       return;
     }
     applicaVisibilitaElementiCondomino('sondaggio');
@@ -8862,6 +8882,7 @@ function renderCvPollArea_interno(){
       <h3 style="margin-top:0;">📊 Risultato del sondaggio</h3>
       ${costruisciRisultatoSondaggioPerPunto(risultatoRecente.info, currentCondomino)}
     </div></div>`;
+    ripristinaScrollElenchiVotanti();
     return;
   }
 
@@ -8879,6 +8900,7 @@ function renderCvPollArea_interno(){
   __cvUltimoPuntoRenderizzato = null;
 
   el.innerHTML = costruisciOdgEChiCeCondomino(assembleaCorrente, b);
+  ripristinaScrollElenchiVotanti();
 }
 // Estratta a parte: la stessa identica costruzione serve sia nella vista normale sia — in
 // layout orizzontale, dopo aver votato — insieme al piccolo avviso "hai votato", quando il
