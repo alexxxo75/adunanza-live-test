@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-246 — creata il 03/09/2026 alle 09:00
+  Versione: LT-248 — creata il 03/09/2026 alle 09:43
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -727,7 +727,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 03/09/2026 alle 09:00">LT-246</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 03/09/2026 alle 09:43">LT-248</span>
   </div>
 
   <!-- MAIN -->
@@ -1288,8 +1288,6 @@
         <div id="inizia-assemblea-banner"></div>
       </div>
 
-      <div id="quorum-avviso-banner" style="margin-bottom:18px;"></div>
-
       <div class="frame-dark" style="margin-bottom:18px;">
       <div class="card" id="cariche-assemblea-card">
         <div class="section-title" style="margin-bottom:10px;">👤 Presidente e Segretario dell'assemblea</div>
@@ -1596,6 +1594,17 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
     <div class="modal-actions">
       <button class="btn" onclick="chiudiAvvisoGenerico()">OK</button>
     </div>
+  </div>
+</div>
+
+<!-- Avvisi sul quorum costitutivo (art.1136 c.3 c.c.) durante un'assemblea già avviata: quorum
+     perso dopo un'uscita ("ATTENZIONE") o ristabilito dopo un rientro ("Quorum ristabilito").
+     Un solo modale riusato per entrambi i casi, colore/testo impostati da JS. Solo lato admin. -->
+<div class="modal-overlay hidden" id="modal-quorum-avviso">
+  <div class="modal-box">
+    <h3 id="quorum-avviso-titolo" style="white-space:pre-wrap;"></h3>
+    <p id="quorum-avviso-testo" style="font-size:15px;white-space:pre-wrap;text-align:left;"></p>
+    <div class="modal-actions" id="quorum-avviso-azioni"></div>
   </div>
 </div>
 
@@ -4728,14 +4737,27 @@ function annullaAvvisoAvvioSenzaQuorum(){
   mostraAvvisoAvvioSenzaQuorum = false;
   renderAppello();
 }
-function chiudiAvvisoQuorum(tipo){
+let quorumAvvisoTipoCorrente = null;
+function chiudiAvvisoQuorum(){
   const b = getActiveBuilding();
   const assemblea = getAssembleaInCorso(b);
+  const modalEl = document.getElementById('modal-quorum-avviso');
+  if(modalEl) modalEl.classList.add('hidden');
+  quorumAvvisoTipoCorrente = null;
   if(!assemblea) return;
-  if(tipo==='attenzione') assemblea.quorumBannerAttenzioneVisibile = false;
-  else assemblea.quorumBannerRistabilitoVisibile = false;
+  assemblea.quorumBannerAttenzioneVisibile = false;
+  assemblea.quorumBannerRistabilitoVisibile = false;
+  assemblea.quorumBannerRaggiuntoVisibile = false;
   salvaStato();
-  renderAppello();
+}
+function disabilitaAvvisoQuorum(){
+  const b = getActiveBuilding();
+  const assemblea = getAssembleaInCorso(b);
+  if(assemblea){
+    if(quorumAvvisoTipoCorrente==='attenzione') assemblea.quorumAvvisoAttenzioneDisabilitato = true;
+    else if(quorumAvvisoTipoCorrente==='ristabilito') assemblea.quorumAvvisoRistabilitoDisabilitato = true;
+  }
+  chiudiAvvisoQuorum();
 }
 function iniziaAssemblea(forzaSenzaQuorum){
   const b = getActiveBuilding();
@@ -4757,6 +4779,10 @@ function iniziaAssemblea(forzaSenzaQuorum){
   assemblea.quorumPersoUnaVolta = false;
   assemblea.quorumBannerAttenzioneVisibile = false;
   assemblea.quorumBannerRistabilitoVisibile = false;
+  assemblea.quorumBannerRaggiuntoVisibile = false;
+  assemblea.quorumRaggiuntoGiaMostrato = false;
+  assemblea.quorumAvvisoAttenzioneDisabilitato = false;
+  assemblea.quorumAvvisoRistabilitoDisabilitato = false;
   assemblea.iniziata=true;
   assemblea.oraInizio=oraAdesso();
   assemblea.oraInizioEpoch=Date.now(); // orario preciso, usato per la schermata "chi c'è" dei primi 30 secondi lato cellulare
@@ -4936,22 +4962,35 @@ function renderAppello(){
       `</div>` + rigaQuorum;
   }
 
-  // Monitoraggio del quorum DURANTE un'assemblea già avviata (solo se era stata avviata
-  // regolarmente, a semaforo verde): rileva le transizioni verde→rosso ("ATTENZIONE", quorum
-  // perso) e, solo dopo che è già successo almeno una volta, rosso→verde ("Quorum
-  // ristabilito"). Stato persistito sull'assemblea, così sopravvive ai ridisegni e alle sync.
+  // Monitoraggio del quorum DURANTE un'assemblea già avviata: rileva le transizioni di stato e
+  // decide quale popup mostrare. Tre casi, in quest'ordine:
+  // (1) l'assemblea era stata avviata FORZATAMENTE senza quorum, e lo raggiunge ora per la
+  //     prima volta → popup "Quorum raggiunto" (una tantum), poi da qui in avanti il
+  //     monitoraggio si comporta come se fosse stata avviata regolarmente (così un successivo
+  //     calo del quorum fa comparire "ATTENZIONE" come nel flusso normale);
+  // (2) era regolare (verde) e diventa non regolare (rosso) → popup "ATTENZIONE";
+  // (3) era diventata non regolare e torna regolare (solo se già successo il caso 2) → popup
+  //     "Quorum ristabilito". Ognuno dei popup (2)/(3) può essere disattivato in modo permanente
+  //     per questa assemblea con "Chiudi e non mostrare più". Stato persistito sull'assemblea.
   let cambiamentoQuorumBanner = false;
   if(assemblea.iniziata){
     if(assemblea.quorumStatoPrecedente == null){
       assemblea.quorumStatoPrecedente = quorumRegolare ? 'verde' : 'rosso';
-    }else if(assemblea.quorumStatoPrecedente==='verde' && !quorumRegolare && assemblea.quorumRegolareAllAvvio){
-      assemblea.quorumBannerAttenzioneVisibile = true;
+    }else if(!assemblea.quorumRegolareAllAvvio && !assemblea.quorumRaggiuntoGiaMostrato && assemblea.quorumStatoPrecedente==='rosso' && quorumRegolare){
+      if(!assemblea.quorumBannerRaggiuntoVisibile) assemblea.quorumBannerRaggiuntoVisibile = true;
+      assemblea.quorumRaggiuntoGiaMostrato = true;
+      assemblea.quorumRegolareAllAvvio = true; // da qui in poi si comporta come un avvio regolare
+      assemblea.quorumPersoUnaVolta = false;
+      assemblea.quorumStatoPrecedente = 'verde';
+      cambiamentoQuorumBanner = true;
+    }else if(assemblea.quorumRegolareAllAvvio && assemblea.quorumStatoPrecedente==='verde' && !quorumRegolare){
+      if(!assemblea.quorumAvvisoAttenzioneDisabilitato) assemblea.quorumBannerAttenzioneVisibile = true;
       assemblea.quorumBannerRistabilitoVisibile = false;
       assemblea.quorumPersoUnaVolta = true;
       assemblea.quorumStatoPrecedente = 'rosso';
       cambiamentoQuorumBanner = true;
-    }else if(assemblea.quorumStatoPrecedente==='rosso' && quorumRegolare && assemblea.quorumPersoUnaVolta){
-      assemblea.quorumBannerRistabilitoVisibile = true;
+    }else if(assemblea.quorumRegolareAllAvvio && assemblea.quorumStatoPrecedente==='rosso' && quorumRegolare && assemblea.quorumPersoUnaVolta){
+      if(!assemblea.quorumAvvisoRistabilitoDisabilitato) assemblea.quorumBannerRistabilitoVisibile = true;
       assemblea.quorumBannerAttenzioneVisibile = false;
       assemblea.quorumStatoPrecedente = 'verde';
       cambiamentoQuorumBanner = true;
@@ -4961,20 +5000,31 @@ function renderAppello(){
   }
   if(cambiamentoQuorumBanner) salvaStato();
 
-  const quorumBannerEl = document.getElementById('quorum-avviso-banner');
-  if(quorumBannerEl){
+  const quorumModalEl = document.getElementById('modal-quorum-avviso');
+  const quorumAzioniEl = document.getElementById('quorum-avviso-azioni');
+  if(quorumModalEl){
+    const dueBottoni = '<button class="btn secondary" onclick="disabilitaAvvisoQuorum()">Chiudi e non mostrare più</button><button class="btn" onclick="chiudiAvvisoQuorum()">Chiudi avviso</button>';
+    const unBottone = '<button class="btn" onclick="chiudiAvvisoQuorum()">Chiudi avviso</button>';
     if(assemblea.iniziata && assemblea.quorumBannerAttenzioneVisibile){
-      quorumBannerEl.innerHTML = `<div class="frame-dark"><div class="card" style="border:2px solid #8C1F1F;">` +
-        `<div style="color:#8C1F1F;font-weight:700;">- ATTENZIONE -<br>A seguito dell'uscita dall'assemblea di alcuni condomini, viene meno il quorum richiesto dall'art. 1136 c.c.</div>` +
-        `<button class="btn secondary" style="margin-top:12px;" onclick="chiudiAvvisoQuorum('attenzione')">Chiudi avviso</button>` +
-      `</div></div>`;
+      quorumAvvisoTipoCorrente = 'attenzione';
+      document.getElementById('quorum-avviso-titolo').innerHTML = '<span style="color:#8C1F1F;">- ATTENZIONE -</span>';
+      document.getElementById('quorum-avviso-testo').innerHTML = '<span style="color:#8C1F1F;font-weight:700;">A seguito dell\'uscita dall\'assemblea di alcuni condomini, viene meno il quorum richiesto dall\'art. 1136 c.c.</span>';
+      if(quorumAzioniEl) quorumAzioniEl.innerHTML = dueBottoni;
+      quorumModalEl.classList.remove('hidden');
     }else if(assemblea.iniziata && assemblea.quorumBannerRistabilitoVisibile){
-      quorumBannerEl.innerHTML = `<div class="frame-dark"><div class="card" style="border:2px solid #3D8B4C;">` +
-        `<div style="color:#2E6B44;font-weight:700;">- Quorum ristabilito -<br>Alcuni condomini sono entrati in assemblea, il quorum richiesto dall'art. 1136 c.c. è quindi ristabilito.</div>` +
-        `<button class="btn secondary" style="margin-top:12px;" onclick="chiudiAvvisoQuorum('ristabilito')">Chiudi avviso</button>` +
-      `</div></div>`;
+      quorumAvvisoTipoCorrente = 'ristabilito';
+      document.getElementById('quorum-avviso-titolo').innerHTML = '<span style="color:#2E6B44;">- Quorum ristabilito -</span>';
+      document.getElementById('quorum-avviso-testo').innerHTML = '<span style="color:#2E6B44;font-weight:700;">Alcuni condomini sono entrati in assemblea, il quorum richiesto dall\'art. 1136 c.c. è quindi ristabilito.</span>';
+      if(quorumAzioniEl) quorumAzioniEl.innerHTML = dueBottoni;
+      quorumModalEl.classList.remove('hidden');
+    }else if(assemblea.iniziata && assemblea.quorumBannerRaggiuntoVisibile){
+      quorumAvvisoTipoCorrente = 'raggiunto';
+      document.getElementById('quorum-avviso-titolo').innerHTML = '<span style="color:#2E6B44;">- Quorum raggiunto -</span>';
+      document.getElementById('quorum-avviso-testo').innerHTML = '<span style="color:#2E6B44;font-weight:700;">Alcuni condomini sono entrati in assemblea, il quorum richiesto dall\'art. 1136 c.c. è quindi stato raggiunto.</span>';
+      if(quorumAzioniEl) quorumAzioniEl.innerHTML = unBottone;
+      quorumModalEl.classList.remove('hidden');
     }else{
-      quorumBannerEl.innerHTML = '';
+      quorumModalEl.classList.add('hidden');
     }
   }
 
