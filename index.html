@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-257 — creata il 03/09/2026 alle 18:18
+  Versione: LT-258 — creata il 03/09/2026 alle 18:38
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -738,7 +738,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 03/09/2026 alle 18:18">LT-257</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 03/09/2026 alle 18:38">LT-258</span>
   </div>
 
   <!-- MAIN -->
@@ -10379,9 +10379,15 @@ function eseguiCicloPing(){
         : (a.appello.online||[]).find(r=>r.condominoId===id);
       const eraOnlineAttivo = recOnline && !recOnline.uscita;
       const eraUscitoVolontario = recOnline && recOnline.uscita && !recOnline.usciteAutomatica;
+      // LOG DIAGNOSTICO TEMPORANEO (da rimuovere una volta capito il bug del "non diventa
+      // verde nonostante il battito arrivi"): stampa lo stato calcolato per OGNI convocato ad
+      // ogni giro, così la prossima volta che il problema si ripresenta è possibile vedere
+      // esattamente quale condizione blocca il passaggio a "online".
+      console.log('[Adunanza][ping-debug]', {id, chiaveLocale, valoreAttuale, valorePrecedente, inSoloVoto, eraOnlineAttivo, eraUscitoVolontario, recOnline: recOnline ? {...recOnline} : null});
 
       if(valoreAttuale !== valorePrecedente){
         // Il battito è salito rispetto all'ultima volta controllata: il dispositivo è vivo ADESSO.
+        console.log('[Adunanza][ping-debug] valore cambiato per', id, '— verrà segnato online?', (!eraOnlineAttivo && !eraUscitoVolontario));
         if(!eraOnlineAttivo && !eraUscitoVolontario){
           // Non era online/in voto autonomo (mai stato, o era uscito in automatico): lo
           // rimettiamo attivo — anche se è il suo primissimo battito in assoluto.
@@ -10409,6 +10415,8 @@ function eseguiCicloPing(){
           (inSoloVoto ? daSegnareVotoAutonomoUsciti : daSegnareUsciti).push({buildingId: bb.id, assembleaId: a.id, condominoId: id});
         }
         battitiVisti.push({buildingId: bb.id, assembleaId: a.id, condominoId: id, ultimoVisto: valoreAttuale, mancate: mancateAggiornate});
+      }else{
+        console.log('[Adunanza][ping-debug] valore INVARIATO per', id, '— non era online, non facciamo nulla (valoreAttuale='+valoreAttuale+')');
       }
       // Se non era online e non ha mandato un nuovo battito, non c'è nulla da fare: resta come sta.
     });
@@ -10459,6 +10467,7 @@ function eseguiCicloPing(){
   // condiviso principale a TUTTI i dispositivi collegati ad ogni giro, sondaggio compreso.
   // Scriviamo solo quando c'è davvero qualcosa da applicare.
   if(daSegnareOnline.length || daSegnareUsciti.length || daSegnareVotoAutonomo.length || daSegnareVotoAutonomoUsciti.length){
+    console.log('[Adunanza][ping-debug] piano da applicare:', {daSegnareOnline, daSegnareUsciti, daSegnareVotoAutonomo, daSegnareVotoAutonomoUsciti});
     eseguiConUnioneSuServer(applicaPiano);
   }
   battitiVisti.forEach(({buildingId, assembleaId, condominoId, ultimoVisto, mancate})=>{
