@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-262 — creata il 03/09/2026 alle 19:30
+  Versione: LT-264 — creata il 03/09/2026 alle 19:53
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -738,7 +738,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 03/09/2026 alle 19:30">LT-262</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 03/09/2026 alle 19:53">LT-264</span>
   </div>
 
   <!-- MAIN -->
@@ -3241,7 +3241,7 @@ function renderCondominiElenco(){
       : '';
     const rigaPianificate = pianificate.length
       ? '<div style="line-height:1.6;margin-top:8px;padding-left:16px;">' + pianificate.map(a=>
-          `<span style="color:#2E6B44;font-weight:600;background:rgba(62,122,84,.1);padding:2px 8px;border-radius:3px;display:inline-block;margin-top:2px;">- Assemblea ${a.tipo==='straordinaria'?'straordinaria':'ordinaria'} pianificata per il ${a.dataSeconda}</span>${b.assembleaInCorsoId===a.id ? ' <span title="Assemblea attualmente in corso — la Sala virtuale è aperta" style="color:#fff;font-weight:700;background:#C0392B;padding:2px 8px;border-radius:3px;display:inline-block;margin-top:2px;">🔴 REC</span>' : ''}`
+          `<span style="color:#2E6B44;font-weight:600;background:rgba(62,122,84,.1);padding:2px 8px;border-radius:3px;display:inline-block;margin-top:2px;">- Assemblea ${a.tipo==='straordinaria'?'straordinaria':'ordinaria'} pianificata per il ${a.dataSeconda}</span>${b.assembleaInCorsoId===a.id ? ' <span title="Assemblea attualmente in corso — la Sala virtuale è aperta" style="color:#fff;font-weight:700;background:#C0392B;padding:2px 8px;border-radius:3px;display:inline-block;margin-top:2px;">🔴 IN CORSO</span>' : ''}`
         ).join('<br>') + '</div>'
       : '';
     row.innerHTML = `<span><span class="muted">${b.condomini.length} condòmini · ${(b.assemblee||[]).filter(a=>a.stato==='conclusa').length} assemblee archiviate</span>${rigaDaInviare}${rigaPianificate}</span>
@@ -4953,7 +4953,7 @@ function contaTeste(convocatiList, assemblea, building){
   return {totaleTeste: teste.length, testePresenti: testePresenti.length};
 }
 function semaforoAppello(stato){
-  const colori = {verde:'#3D8B4C', blu:'#1D6FD1', arancio:'#E08A2C', grigio:'#9AA0A6', nero:'#2A2A2A', rosso:'#C0392B', rosa:'#C2508A'};
+  const colori = {verde:'#4CBB5B', blu:'#1D6FD1', arancio:'#E08A2C', grigio:'#9AA0A6', nero:'#2A2A2A', rosso:'#C0392B', rosa:'#C2508A'};
   const titoli = {verde:'Presente online', blu:'Presente fisicamente', arancio:'Delega', grigio:'Assente', nero:'Uscito/a', rosso:'Online, non ancora riconosciuto', rosa:'Online, segnato a mano dall\'amministratore'};
   return `<span title="${titoli[stato]||stato}" style="display:inline-block;width:11px;height:11px;border-radius:50%;background:${colori[stato]||'#9AA0A6'};margin-right:9px;vertical-align:middle;flex-shrink:0;"></span>`;
 }
@@ -7461,9 +7461,12 @@ function votoUnanime(optId){
       // "Tutti" si applica a chiunque risulti attivo in questo momento — online o in aula, non
       // importa il mezzo — sovrascrivendo anche eventuali voti impostati in blocco in
       // precedenza (di proposito: l'amministratore l'ha scelto apposta cliccando questo
-      // pulsante). FA ECCEZIONE chi è online e ha già votato DI PERSONA, individualmente, dal
-      // proprio dispositivo: quella è una scelta sua, deliberata, e non va toccata da un
-      // pulsante pensato per chi non ha ancora votato o segue il gruppo.
+      // pulsante). FA ECCEZIONE chiunque abbia già un voto individuale (non impostato tramite un
+      // precedente "Tutti"): sia chi vota online/in autonomia da sé, sia chi è in presenza e il
+      // cui voto è già stato impostato a mano dall'amministratore — in entrambi i casi è una
+      // scelta specifica già espressa, e un pulsante pensato per chi segue il gruppo non deve
+      // sovrascriverla. Regola estesa su richiesta esplicita (prima proteggeva solo online/voto
+      // autonomo, lasciando sovrascrivibile chi in presenza aveva già un voto messo a mano).
       const idsConvocatiSet = new Set(convocatiList.map(c=>c.id));
       const condominiDaVotare = convocatiList.filter(c=>{
         // Le unità SECONDARIE (stesso proprietario di un'altra unità PRESENTE in questo elenco)
@@ -7473,7 +7476,7 @@ function votoUnanime(optId){
         if(c.unificatoCon && idsConvocatiSet.has(c.unificatoCon)) return false;
         const attivo = recordAttivoConSecondarie(bCorrente, assembleaCorrente, c.id);
         if(!attivo) return false;
-        const haGiaVotatoDiPersona = (attivo.tipo==='online' || attivo.tipo==='voto-autonomo') && activePoll.voted.has(c.id) && !activePoll.votatoInBlocco.has(c.id);
+        const haGiaVotatoDiPersona = activePoll.voted.has(c.id) && !activePoll.votatoInBlocco.has(c.id);
         return !haGiaVotatoDiPersona;
       });
       // BUG CORRETTO: le persone esterne con delega (es. un familiare/legale che rappresenta un
@@ -7486,7 +7489,7 @@ function votoUnanime(optId){
       const esterniDaVotare = (assembleaCorrente.deleghiEsterni||[]).filter(est=>{
         const attivo = recordAttivo(assembleaCorrente, est.id);
         if(!attivo) return false;
-        const haGiaVotatoDiPersona = (attivo.tipo==='online' || attivo.tipo==='voto-autonomo') && activePoll.voted.has(est.id) && !activePoll.votatoInBlocco.has(est.id);
+        const haGiaVotatoDiPersona = activePoll.voted.has(est.id) && !activePoll.votatoInBlocco.has(est.id);
         return !haGiaVotatoDiPersona;
       });
       const daVotareInBlocco = [...condominiDaVotare, ...esterniDaVotare];
