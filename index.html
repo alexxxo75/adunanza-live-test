@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-245 — creata il 02/09/2026 alle 17:28
+  Versione: LT-246 — creata il 03/09/2026 alle 09:00
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -727,7 +727,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/09/2026 alle 17:28">LT-245</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 03/09/2026 alle 09:00">LT-246</span>
   </div>
 
   <!-- MAIN -->
@@ -1265,6 +1265,11 @@
               <tfoot><tr id="appello-tfoot"></tr></tfoot>
             </table>
           </div>
+          <div class="appello-divider-strip"></div>
+          <div class="card" id="appello-validazione" style="margin-top:0;background:var(--paper);border:1px solid var(--line);">
+            <div class="section-title" style="font-size:19px;margin:0 0 8px;">✅ Validazione assemblea</div>
+            <div id="appello-validazione-corpo"></div>
+          </div>
           <div id="appello-schema-deleghe-strip" class="hidden appello-divider-strip"></div>
           <div id="appello-schema-deleghe-wrap" class="hidden card" style="margin-top:0;background:var(--paper);border:1px solid var(--line);padding:16px 18px;">
             <div class="section-title" style="font-size:19px;margin:0 0 8px;">📝 Situazione deleghe</div>
@@ -1275,11 +1280,6 @@
               </table>
             </div>
           </div>
-          <div class="appello-divider-strip"></div>
-          <div class="card" id="appello-validazione" style="margin-top:0;background:var(--paper);border:1px solid var(--line);">
-            <div class="section-title" style="font-size:14px;margin:0 0 8px;">✅ Dati per la validazione dell'assemblea</div>
-            <div id="appello-validazione-corpo"></div>
-          </div>
         </div>
       </div>
       </div>
@@ -1287,6 +1287,8 @@
       <div id="inizia-assemblea-card" style="margin-bottom:18px;">
         <div id="inizia-assemblea-banner"></div>
       </div>
+
+      <div id="quorum-avviso-banner" style="margin-bottom:18px;"></div>
 
       <div class="frame-dark" style="margin-bottom:18px;">
       <div class="card" id="cariche-assemblea-card">
@@ -4697,9 +4699,64 @@ function aggiornaTitoloAssemblea(){
     }
   }
 }
-function iniziaAssemblea(){
-  const assemblea=getAssembleaInCorso(getActiveBuilding());
+// Quorum costitutivo di seconda convocazione (art.1136 comma 3 c.c.): almeno un terzo delle
+// teste convocate E almeno un terzo dei millesimi convocati. Il confronto viene fatto per
+// moltiplicazione incrociata (x*3 >= totale) invece che dividendo, per evitare differenze di
+// arrotondamento tra i due modi di scrivere la stessa condizione.
+function calcolaQuorumSecondaConvocazione(assemblea, building){
+  const convocatiList = building.condomini.filter(c=>assemblea.convocati.selezionati.includes(c.id));
+  const rappresentati = convocatiList.filter(c=>convocatoRappresentato(c, assemblea, building));
+  const {totaleTeste, testePresenti} = contaTeste(convocatiList, assemblea, building);
+  const totMillConvocati = arrotondaMillesimi(convocatiList.reduce((s,c)=>s+(pesoConvocato(c,assemblea,building)),0)) || 1;
+  const millPresenti = arrotondaMillesimi(rappresentati.reduce((s,c)=>s+(pesoConvocato(c,assemblea,building)),0));
+  const percTeste = totaleTeste>0 ? Math.round((testePresenti/totaleTeste)*1000)/10 : 0;
+  const regolare = (testePresenti*3 >= totaleTeste) && (millPresenti*3 >= totMillConvocati);
+  return {totaleTeste, testePresenti, totMillConvocati, millPresenti, percTeste, regolare};
+}
+function formattaMillesimiIT(v){
+  return v.toLocaleString('it-IT', {minimumFractionDigits:0, maximumFractionDigits:2});
+}
+function testoQuorumSecondaConvocazione(q){
+  return `Presenti ${q.testePresenti} condomini pari al ${q.percTeste}%, rappresentanti ${formattaMillesimiIT(q.millPresenti)}/1000 millesimi`;
+}
+// Vero mentre è visibile l'avviso "vuoi avviare comunque anche se il quorum non è
+// raggiunto?" al posto del pulsante "Avvia assemblea" — stato solo locale a questo
+// dispositivo/scheda, non va sincronizzato: è una domanda a metà a cui l'amministratore
+// deve ancora rispondere.
+let mostraAvvisoAvvioSenzaQuorum = false;
+function annullaAvvisoAvvioSenzaQuorum(){
+  mostraAvvisoAvvioSenzaQuorum = false;
+  renderAppello();
+}
+function chiudiAvvisoQuorum(tipo){
+  const b = getActiveBuilding();
+  const assemblea = getAssembleaInCorso(b);
   if(!assemblea) return;
+  if(tipo==='attenzione') assemblea.quorumBannerAttenzioneVisibile = false;
+  else assemblea.quorumBannerRistabilitoVisibile = false;
+  salvaStato();
+  renderAppello();
+}
+function iniziaAssemblea(forzaSenzaQuorum){
+  const b = getActiveBuilding();
+  const assemblea=getAssembleaInCorso(b);
+  if(!assemblea) return;
+  const q = calcolaQuorumSecondaConvocazione(assemblea, b);
+  if(!forzaSenzaQuorum && !q.regolare){
+    // Non avviamo subito: mostriamo prima l'avviso con la scelta "Attendi"/"Avvia comunque".
+    mostraAvvisoAvvioSenzaQuorum = true;
+    renderAppello();
+    return;
+  }
+  mostraAvvisoAvvioSenzaQuorum = false;
+  // Stato di partenza per il monitoraggio del quorum durante l'assemblea (banner
+  // "ATTENZIONE"/"Quorum ristabilito" più sotto in renderAppello): registriamo se si parte
+  // con il semaforo verde o no, e azzeriamo ogni traccia di un giro precedente.
+  assemblea.quorumRegolareAllAvvio = q.regolare;
+  assemblea.quorumStatoPrecedente = q.regolare ? 'verde' : 'rosso';
+  assemblea.quorumPersoUnaVolta = false;
+  assemblea.quorumBannerAttenzioneVisibile = false;
+  assemblea.quorumBannerRistabilitoVisibile = false;
   assemblea.iniziata=true;
   assemblea.oraInizio=oraAdesso();
   assemblea.oraInizioEpoch=Date.now(); // orario preciso, usato per la schermata "chi c'è" dei primi 30 secondi lato cellulare
@@ -4859,22 +4916,84 @@ function renderAppello(){
   document.getElementById('appello-summary').textContent =
     `${assemblea.appello.online.filter(r=>!r.uscita).length} online · ${assemblea.appello.presenzeFisiche.filter(r=>!r.uscita).length} in presenza · ${Object.keys(assemblea.appello.deleghe).length} deleghe registrate — totale rappresentati: ${testePresenti} (${millPresenti}/${totMillConvocati}‰ su tabella "${tq}")`;
 
+  // Quorum costitutivo di seconda convocazione (art.1136 c.3 c.c.): almeno un terzo delle
+  // teste convocate e almeno un terzo dei millesimi convocati. Confronto per moltiplicazione
+  // incrociata (x*3 >= totale) per evitare differenze di arrotondamento.
+  const percTesteQuorum = totaleTeste>0 ? Math.round((testePresenti/totaleTeste)*1000)/10 : 0;
+  const quorumRegolare = (testePresenti*3 >= totaleTeste) && (millPresenti*3 >= totMillConvocati);
+  const testoQuorum = testoQuorumSecondaConvocazione({testePresenti, percTeste:percTesteQuorum, millPresenti});
+
   const validazioneEl = document.getElementById('appello-validazione-corpo');
   if(validazioneEl){
     const percMill = totMillConvocati>0 ? Math.round((millPresenti/totMillConvocati)*1000)/10 : 0;
+    const rigaQuorum = quorumRegolare
+      ? `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line);display:flex;align-items:flex-start;gap:8px;"><span>🟢</span><span>${testoQuorum}: l'assemblea è regolarmente costituita in seconda convocazione ai sensi dell'art. 1136, comma 3, c.c.</span></div>`
+      : `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line);display:flex;align-items:flex-start;gap:8px;"><span>🔴</span><span style="color:#8C1F1F;font-weight:700;">${testoQuorum}: l'assemblea, in seconda convocazione, non è regolarmente costituita ai sensi dell'art. 1136, comma 3, c.c.</span></div>`;
     validazioneEl.innerHTML =
       `<div class="grid grid-2">` +
-        `<div><div class="muted" style="font-size:12px;">Teste presenti</div><div style="font-size:22px;font-weight:700;">${testePresenti} <span class="muted" style="font-size:14px;font-weight:400;">/ ${totaleTeste} convocati</span></div></div>` +
+        `<div><div class="muted" style="font-size:12px;">Teste presenti</div><div style="font-size:22px;font-weight:700;">${testePresenti} <span class="muted" style="font-size:14px;font-weight:400;">/ ${totaleTeste} partecipanti convocati</span></div></div>` +
         `<div><div class="muted" style="font-size:12px;">Millesimi presenti (tabella "${tq}")</div><div style="font-size:22px;font-weight:700;">${millPresenti} <span class="muted" style="font-size:14px;font-weight:400;">/ ${totMillConvocati}‰ (${percMill}%)</span></div></div>` +
-      `</div>`;
+      `</div>` + rigaQuorum;
+  }
+
+  // Monitoraggio del quorum DURANTE un'assemblea già avviata (solo se era stata avviata
+  // regolarmente, a semaforo verde): rileva le transizioni verde→rosso ("ATTENZIONE", quorum
+  // perso) e, solo dopo che è già successo almeno una volta, rosso→verde ("Quorum
+  // ristabilito"). Stato persistito sull'assemblea, così sopravvive ai ridisegni e alle sync.
+  let cambiamentoQuorumBanner = false;
+  if(assemblea.iniziata){
+    if(assemblea.quorumStatoPrecedente == null){
+      assemblea.quorumStatoPrecedente = quorumRegolare ? 'verde' : 'rosso';
+    }else if(assemblea.quorumStatoPrecedente==='verde' && !quorumRegolare && assemblea.quorumRegolareAllAvvio){
+      assemblea.quorumBannerAttenzioneVisibile = true;
+      assemblea.quorumBannerRistabilitoVisibile = false;
+      assemblea.quorumPersoUnaVolta = true;
+      assemblea.quorumStatoPrecedente = 'rosso';
+      cambiamentoQuorumBanner = true;
+    }else if(assemblea.quorumStatoPrecedente==='rosso' && quorumRegolare && assemblea.quorumPersoUnaVolta){
+      assemblea.quorumBannerRistabilitoVisibile = true;
+      assemblea.quorumBannerAttenzioneVisibile = false;
+      assemblea.quorumStatoPrecedente = 'verde';
+      cambiamentoQuorumBanner = true;
+    }else if(assemblea.quorumStatoPrecedente !== (quorumRegolare?'verde':'rosso')){
+      assemblea.quorumStatoPrecedente = quorumRegolare ? 'verde' : 'rosso';
+    }
+  }
+  if(cambiamentoQuorumBanner) salvaStato();
+
+  const quorumBannerEl = document.getElementById('quorum-avviso-banner');
+  if(quorumBannerEl){
+    if(assemblea.iniziata && assemblea.quorumBannerAttenzioneVisibile){
+      quorumBannerEl.innerHTML = `<div class="frame-dark"><div class="card" style="border:2px solid #8C1F1F;">` +
+        `<div style="color:#8C1F1F;font-weight:700;">- ATTENZIONE -<br>A seguito dell'uscita dall'assemblea di alcuni condomini, viene meno il quorum richiesto dall'art. 1136 c.c.</div>` +
+        `<button class="btn secondary" style="margin-top:12px;" onclick="chiudiAvvisoQuorum('attenzione')">Chiudi avviso</button>` +
+      `</div></div>`;
+    }else if(assemblea.iniziata && assemblea.quorumBannerRistabilitoVisibile){
+      quorumBannerEl.innerHTML = `<div class="frame-dark"><div class="card" style="border:2px solid #3D8B4C;">` +
+        `<div style="color:#2E6B44;font-weight:700;">- Quorum ristabilito -<br>Alcuni condomini sono entrati in assemblea, il quorum richiesto dall'art. 1136 c.c. è quindi ristabilito.</div>` +
+        `<button class="btn secondary" style="margin-top:12px;" onclick="chiudiAvvisoQuorum('ristabilito')">Chiudi avviso</button>` +
+      `</div></div>`;
+    }else{
+      quorumBannerEl.innerHTML = '';
+    }
   }
 
   // banner "inizia assemblea" / stato
   const startEl=document.getElementById('inizia-assemblea-banner');
   if(startEl){
-    startEl.innerHTML = assemblea.iniziata
-      ? `<div class="frame-dark"><div class="card"><div class="badge">🟢 Assemblea iniziata alle ${assemblea.oraInizio}</div><p class="muted" style="margin-top:6px;">Da questo momento ingressi e uscite anticipate vengono registrati con l'orario.</p></div></div>`
-      : `<button class="btn brass full" style="padding:20px;font-size:18px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;display:flex;align-items:center;justify-content:center;gap:10px;" onclick="iniziaAssemblea()"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" fill="#fff"/><path d="M9.5 7.5v9l7-4.5-7-4.5z" fill="var(--brass)"/></svg>Avvia assemblea</button><p class="muted" style="margin-top:8px;">Da qui in poi ogni ingresso (online, in presenza o per delega) e ogni uscita anticipata verranno registrati con l'orario.</p>`;
+    if(assemblea.iniziata){
+      startEl.innerHTML = `<div class="frame-dark"><div class="card"><div class="badge">🟢 Assemblea iniziata alle ${assemblea.oraInizio}</div><p class="muted" style="margin-top:6px;">Da questo momento ingressi e uscite anticipate vengono registrati con l'orario.</p></div></div>`;
+    }else if(mostraAvvisoAvvioSenzaQuorum){
+      startEl.innerHTML = `<div class="frame-dark"><div class="card" style="border:2px solid #8C1F1F;">` +
+        `<div style="color:#8C1F1F;font-weight:700;">🔴 L'assemblea, in seconda convocazione, non è ancora regolarmente costituita: ${testoQuorum}. Attendere l'arrivo di altri condomini.</div>` +
+        `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">` +
+          `<button class="btn secondary" onclick="annullaAvvisoAvvioSenzaQuorum()">Attendi</button>` +
+          `<button class="btn brass" onclick="iniziaAssemblea(true)">Avvia l'assemblea</button>` +
+        `</div>` +
+      `</div></div>`;
+    }else{
+      startEl.innerHTML = `<button class="btn brass full" style="padding:20px;font-size:18px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;display:flex;align-items:center;justify-content:center;gap:10px;" onclick="iniziaAssemblea()"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" fill="#fff"/><path d="M9.5 7.5v9l7-4.5-7-4.5z" fill="var(--brass)"/></svg>Avvia assemblea</button><p class="muted" style="margin-top:8px;">Da qui in poi ogni ingresso (online, in presenza o per delega) e ogni uscita anticipata verranno registrati con l'orario.</p>`;
+    }
   }
 
   const convocatiIds = assemblea.convocati.selezionati;
