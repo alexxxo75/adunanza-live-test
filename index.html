@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-260 — creata il 03/09/2026 alle 19:08
+  Versione: LT-261 — creata il 03/09/2026 alle 19:18
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -738,7 +738,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 03/09/2026 alle 19:08">LT-260</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 03/09/2026 alle 19:18">LT-261</span>
   </div>
 
   <!-- MAIN -->
@@ -2303,7 +2303,14 @@ function anteprimaVistaCondomino(){
   const c=b.condomini.find(x=>x.id===id);
   if(!c){ toast('Aggiungi prima dei condòmini dalla Dashboard.'); return; }
   currentCondomino = c;
-  segnaOnlineSeAssente(b, c.id);
+  // BUG REALE CORRETTO (segnalato dall'utente: un condòmino risultava "online" nei dati veri
+  // dell'assemblea — semaforo verde — senza essersi mai collegato con il proprio link, e il suo
+  // vero battito successivo veniva ignorato perché "già online"): questa era solo un'ANTEPRIMA
+  // per l'amministratore di cosa vede un condòmino, ma la riga sotto lo segnava online SUL
+  // SERIO, nei dati condivisi reali dell'assemblea — un puro effetto collaterale indesiderato,
+  // per di più senza nemmeno salvarlo subito (restava in memoria finché qualche altra azione,
+  // per conto suo, non lo salvava davvero: da qui l'incoerenza tra un giro e l'altro). Una
+  // semplice anteprima non deve avere alcun effetto sui dati reali.
   goPage('vista-condomino');
 }
 let contestoDelegaAssembleaId = null;
@@ -4960,7 +4967,6 @@ function renderAppello(){
   // ricostruendo la riga sotto un menù nativo del browser ancora aperto lo si farebbe
   // comportare in modo imprevedibile (si sposta, sfarfalla, si chiude da solo).
   if(document.activeElement && tbody.contains(document.activeElement) && document.activeElement.tagName==='SELECT' && document.activeElement.id.startsWith('delega-select-')){
-    console.log('[Adunanza][ping-debug] renderAppello BLOCCATO: menù delega aperto a fuoco');
     return;
   }
   // BUG CORRETTO: mancava la stessa protezione per il modale "Su quali assemblee vale questa
@@ -4970,13 +4976,11 @@ function renderAppello(){
   // la delega finiva scritta su un oggetto ormai scollegato dallo stato reale e andava persa in
   // silenzio, senza nessun errore visibile.
   if(!document.getElementById('modal-catena-delega-admin').classList.contains('hidden')){
-    console.log('[Adunanza][ping-debug] renderAppello BLOCCATO: modal-catena-delega-admin aperto');
     return;
   }
   // Stessa protezione anche per il modale di anteprima/reinvio email aperto dalla busta qui
   // accanto: l'amministratore potrebbe starci scrivendo dentro (corpo del messaggio, indirizzo).
   if(!document.getElementById('modal-anteprima-email').classList.contains('hidden')){
-    console.log('[Adunanza][ping-debug] renderAppello BLOCCATO: modal-anteprima-email aperto');
     return;
   }
   if(assemblea){
@@ -5170,11 +5174,6 @@ function renderAppello(){
   }
   b.condomini.filter(c=>convocatiIds.includes(c.id) && !(c.unificatoCon && convocatiIds.includes(c.unificatoCon))).forEach(c=>{
     const attivo = recordAttivoConSecondarieSenzaVotoAutonomo(b, assemblea, c.id);
-    // LOG DIAGNOSTICO TEMPORANEO: cosa vede il DISEGNO della riga per ciascun convocato — da
-    // confrontare con quanto vede il ciclo di controllo del battito (righe "ping-debug" più
-    // sopra). Se qui risulta "attivo: null" mentre il ciclo di controllo diceva
-    // eraOnlineAttivo=true per lo stesso id, il problema è nel disegno, non nella rilevazione.
-    console.log('[Adunanza][render-debug] riga condòmino id='+c.id+' attivo='+JSON.stringify(attivo)+' assemblea.appello.online='+JSON.stringify(assemblea.appello.online));
     const delegatoId = assemblea.appello.deleghe[c.id];
     const collegate = personeCollegate(b, c.id);
     const collegatoAttivo = !attivo && !delegatoId ? collegate.map(id=>statoRealeSenzaVotoAutonomo(assemblea,id)).find(Boolean) : null;
@@ -10373,12 +10372,6 @@ function eseguiCicloPing(){
     // ciascuna persona esterna che compare tra le deleghe di questa assemblea.
     const idsDaControllare = new Set(a.convocati.selezionati||[]);
     Object.values(a.appello.deleghe||{}).forEach(delegatoId=>{ if(typeof delegatoId==='string') idsDaControllare.add(delegatoId); });
-    // LOG DIAGNOSTICO TEMPORANEO: il contenuto per intero di appello.online per questa
-    // assemblea, una volta per giro — per vedere se contiene già, fin dall'inizio, un record
-    // "fantasma" per qualcuno che in realtà non si è mai ancora collegato.
-    if((a.appello.online||[]).length){
-      console.log('[Adunanza][ping-debug] appello.online attuale per assemblea '+a.id+':', JSON.stringify(a.appello.online));
-    }
 
     idsDaControllare.forEach(id=>{
       const chiaveLocale = bb.id+':'+a.id+':'+id;
@@ -10393,16 +10386,9 @@ function eseguiCicloPing(){
         : (a.appello.online||[]).find(r=>r.condominoId===id);
       const eraOnlineAttivo = recOnline && !recOnline.uscita;
       const eraUscitoVolontario = recOnline && recOnline.uscita && !recOnline.usciteAutomatica;
-      // LOG DIAGNOSTICO TEMPORANEO (da rimuovere una volta capito il bug del "non diventa
-      // verde nonostante il battito arrivi"): stampa lo stato calcolato per OGNI convocato ad
-      // ogni giro, così la prossima volta che il problema si ripresenta è possibile vedere
-      // esattamente quale condizione blocca il passaggio a "online". Riga di solo testo (non un
-      // oggetto), per evitare che la console la comprima nascondendo i dettagli.
-      console.log('[Adunanza][ping-debug] id='+id+' valoreAttuale='+valoreAttuale+' valorePrecedente='+valorePrecedente+' inSoloVoto='+inSoloVoto+' eraOnlineAttivo='+eraOnlineAttivo+' eraUscitoVolontario='+eraUscitoVolontario+' recOnline='+JSON.stringify(recOnline||null));
 
       if(valoreAttuale !== valorePrecedente){
         // Il battito è salito rispetto all'ultima volta controllata: il dispositivo è vivo ADESSO.
-        console.log('[Adunanza][ping-debug] valore cambiato per', id, '— verrà segnato online?', (!eraOnlineAttivo && !eraUscitoVolontario));
         if(!eraOnlineAttivo && !eraUscitoVolontario){
           // Non era online/in voto autonomo (mai stato, o era uscito in automatico): lo
           // rimettiamo attivo — anche se è il suo primissimo battito in assoluto.
@@ -10430,8 +10416,6 @@ function eseguiCicloPing(){
           (inSoloVoto ? daSegnareVotoAutonomoUsciti : daSegnareUsciti).push({buildingId: bb.id, assembleaId: a.id, condominoId: id});
         }
         battitiVisti.push({buildingId: bb.id, assembleaId: a.id, condominoId: id, ultimoVisto: valoreAttuale, mancate: mancateAggiornate});
-      }else{
-        console.log('[Adunanza][ping-debug] valore INVARIATO per', id, '— non era online, non facciamo nulla (valoreAttuale='+valoreAttuale+')');
       }
       // Se non era online e non ha mandato un nuovo battito, non c'è nulla da fare: resta come sta.
     });
@@ -10482,7 +10466,6 @@ function eseguiCicloPing(){
   // condiviso principale a TUTTI i dispositivi collegati ad ogni giro, sondaggio compreso.
   // Scriviamo solo quando c'è davvero qualcosa da applicare.
   if(daSegnareOnline.length || daSegnareUsciti.length || daSegnareVotoAutonomo.length || daSegnareVotoAutonomoUsciti.length){
-    console.log('[Adunanza][ping-debug] piano da applicare:', {daSegnareOnline, daSegnareUsciti, daSegnareVotoAutonomo, daSegnareVotoAutonomoUsciti});
     eseguiConUnioneSuServer(applicaPiano);
   }
   battitiVisti.forEach(({buildingId, assembleaId, condominoId, ultimoVisto, mancate})=>{
