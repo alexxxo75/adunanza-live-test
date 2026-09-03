@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-261 — creata il 03/09/2026 alle 19:18
+  Versione: LT-262 — creata il 03/09/2026 alle 19:30
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -738,7 +738,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 03/09/2026 alle 19:18">LT-261</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 03/09/2026 alle 19:30">LT-262</span>
   </div>
 
   <!-- MAIN -->
@@ -3241,7 +3241,7 @@ function renderCondominiElenco(){
       : '';
     const rigaPianificate = pianificate.length
       ? '<div style="line-height:1.6;margin-top:8px;padding-left:16px;">' + pianificate.map(a=>
-          `<span style="color:#2E6B44;font-weight:600;background:rgba(62,122,84,.1);padding:2px 8px;border-radius:3px;display:inline-block;margin-top:2px;">- Assemblea ${a.tipo==='straordinaria'?'straordinaria':'ordinaria'} pianificata per il ${a.dataSeconda}</span>`
+          `<span style="color:#2E6B44;font-weight:600;background:rgba(62,122,84,.1);padding:2px 8px;border-radius:3px;display:inline-block;margin-top:2px;">- Assemblea ${a.tipo==='straordinaria'?'straordinaria':'ordinaria'} pianificata per il ${a.dataSeconda}</span>${b.assembleaInCorsoId===a.id ? ' <span title="Assemblea attualmente in corso — la Sala virtuale è aperta" style="color:#fff;font-weight:700;background:#C0392B;padding:2px 8px;border-radius:3px;display:inline-block;margin-top:2px;">🔴 REC</span>' : ''}`
         ).join('<br>') + '</div>'
       : '';
     row.innerHTML = `<span><span class="muted">${b.condomini.length} condòmini · ${(b.assemblee||[]).filter(a=>a.stato==='conclusa').length} assemblee archiviate</span>${rigaDaInviare}${rigaPianificate}</span>
@@ -4957,6 +4957,14 @@ function semaforoAppello(stato){
   const titoli = {verde:'Presente online', blu:'Presente fisicamente', arancio:'Delega', grigio:'Assente', nero:'Uscito/a', rosso:'Online, non ancora riconosciuto', rosa:'Online, segnato a mano dall\'amministratore'};
   return `<span title="${titoli[stato]||stato}" style="display:inline-block;width:11px;height:11px;border-radius:50%;background:${colori[stato]||'#9AA0A6'};margin-right:9px;vertical-align:middle;flex-shrink:0;"></span>`;
 }
+let __timeoutRitentoRenderAppello = null;
+function programmaRitentoRenderAppello(){
+  if(__timeoutRitentoRenderAppello) return; // già programmato, non serve accumularne altri
+  __timeoutRitentoRenderAppello = setTimeout(()=>{
+    __timeoutRitentoRenderAppello = null;
+    renderAppello();
+  }, 2000);
+}
 function renderAppello(){
   const b=getActiveBuilding();
   const assemblea=getAssembleaInCorso(b);
@@ -4966,7 +4974,17 @@ function renderAppello(){
   // ridisegniamo la tabella: il ciclo di controllo del battito la richiama molto spesso, e
   // ricostruendo la riga sotto un menù nativo del browser ancora aperto lo si farebbe
   // comportare in modo imprevedibile (si sposta, sfarfalla, si chiude da solo).
+  // BUG REALE CORRETTO (segnalato dall'utente: un condòmino risultava "assente" sullo schermo
+  // per oltre un minuto nonostante i dati fossero già corretti, e tornava a posto solo uscendo e
+  // rientrando dalla pagina): queste tre protezioni, se il menù/modale restava a fuoco/aperto
+  // più a lungo del previsto (anche solo per una distrazione, uno sfiorare lo schermo, o un
+  // fuoco rimasto appeso), bloccavano il ridisegno per SEMPRE — nessuno lo riprovava più, finché
+  // un ricaricamento/cambio pagina non "sbloccava" il fuoco per puro caso. Ora, ogni volta che il
+  // ridisegno viene rimandato per questo motivo, ne programmiamo uno nuovo tra poco: se nel
+  // frattempo il blocco si è tolto, il ridisegno finalmente avviene; se è ancora lì, si riprova
+  // ancora, senza mai restare bloccati in modo permanente e silenzioso.
   if(document.activeElement && tbody.contains(document.activeElement) && document.activeElement.tagName==='SELECT' && document.activeElement.id.startsWith('delega-select-')){
+    programmaRitentoRenderAppello();
     return;
   }
   // BUG CORRETTO: mancava la stessa protezione per il modale "Su quali assemblee vale questa
@@ -4976,11 +4994,13 @@ function renderAppello(){
   // la delega finiva scritta su un oggetto ormai scollegato dallo stato reale e andava persa in
   // silenzio, senza nessun errore visibile.
   if(!document.getElementById('modal-catena-delega-admin').classList.contains('hidden')){
+    programmaRitentoRenderAppello();
     return;
   }
   // Stessa protezione anche per il modale di anteprima/reinvio email aperto dalla busta qui
   // accanto: l'amministratore potrebbe starci scrivendo dentro (corpo del messaggio, indirizzo).
   if(!document.getElementById('modal-anteprima-email').classList.contains('hidden')){
+    programmaRitentoRenderAppello();
     return;
   }
   if(assemblea){
