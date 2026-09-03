@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-253 — creata il 03/09/2026 alle 15:17
+  Versione: LT-257 — creata il 03/09/2026 alle 18:18
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -235,8 +235,7 @@
   .card-dark th{color:rgba(255,255,255,.6);border-bottom-color:rgba(255,255,255,.18);}
   .card-dark td{border-bottom-color:rgba(255,255,255,.12);}
   .card-dark .note{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.28);color:#fff;}
-  .card-dark .btn.secondary{color:#fff;border-color:rgba(255,255,255,.5);}
-  .card-dark .btn.secondary:hover{background:rgba(255,255,255,.14);}
+  .card-dark .btn.secondary{background:transparent;color:#fff;border-color:rgba(255,255,255,.5);}
   .card-dark .badge{background:rgba(255,255,255,.14);color:var(--sage-light);}
   .card-dark a{color:#fff;}
   /* LT-243: riquadro ESTERNO scuro che incornicia un contenuto interno rimasto invariato
@@ -249,6 +248,12 @@
      fascia scura del frame-dark stesso — usato in Nuova assemblea/Profilo/Preferenze. Stessa
      resa tipografica di card h3, solo in bianco per il contrasto sullo sfondo scuro. */
   .frame-dark-title{color:#fff;font-family:var(--font-display);font-size:17px;font-weight:600;margin:2px 6px 10px;}
+  /* LT-254: stesso effetto "oro" al passaggio del mouse già usato in Home per le righe di
+     "Assemblee in programma" (.card-assemblee-programma .building-row:hover), applicato ai
+     riquadri frame-dark introdotti in Nuova assemblea/Profilo/Preferenze/creazione condominio.
+     Non tocca Appello/ODG/Presidente-Segretario/Verbale della pagina Assemblea, preesistenti. */
+  .frame-dark-hover{transition:.12s;}
+  .frame-dark-hover:hover{background:#F2ECDF;border:1px solid var(--brass);}
   /* LT-244: striscia scura (stesso spessore del bordo del riquadro esterno, 14px) usata DENTRO
      l'Appello per separare più chiaramente il bianco della tabella dal grigio chiaro dei due
      riquadri annidati (Situazione deleghe, Dati per la validazione) — a tutta larghezza,
@@ -315,17 +320,20 @@
   .step-icon.stato-ok{background:var(--sage);}
 
   .btn{font-family:var(--font-body);font-size:13.5px;font-weight:500;padding:10px 18px;border-radius:2px;border:1px solid var(--ink);background:var(--ink);color:#fff;cursor:pointer;transition:.15s;}
-  .btn:hover{background:var(--ink-soft);}
-  .btn.secondary{background:transparent;color:var(--ink);}
-  .btn.secondary:hover{background:rgba(22,35,61,.06);}
+  /* LT-255: su richiesta esplicita, i bottoni non cambiano più colore al passaggio del mouse
+     (restano come lo stato normale, esattamente come i campi di testo) — le regole *:hover che
+     scurivano/schiarivano lo sfondo dei bottoni sono state rimosse qui sotto. */
+  /* LT-256: su richiesta esplicita, i bottoni "secondary" (bordo scuro, prima sfondo
+     trasparente) ora hanno uno sfondo bianco pieno come i campi di testo — altrimenti, essendo
+     trasparenti, "trasparivano" il colore del riquadro sotto quando questo si tinge d'oro al
+     passaggio del mouse (vedi .frame-dark-hover), dando l'impressione che anche il bottone si
+     colorasse. */
+  .btn.secondary{background:#fff;color:var(--ink);}
   .btn.brass{background:var(--brass);border-color:var(--brass);}
   .btn-fisso{width:92px;height:34px;display:flex;align-items:center;justify-content:center;text-align:center;white-space:normal;line-height:1.15;font-size:11px;letter-spacing:-.1px;padding:2px 5px;overflow:hidden;}
   .btn-promemoria{width:78px;min-height:22px;display:flex;align-items:center;justify-content:center;text-align:center;white-space:normal;line-height:1.05;font-size:9.5px;letter-spacing:-.1px;padding:2px 5px;border-radius:3px;cursor:pointer;border:1px solid transparent;}
   .btn-promemoria.invia{background:#2C5F82;border-color:#2C5F82;color:#fff;}
-  .btn-promemoria.invia:hover{background:#234C69;}
-  .btn-promemoria.elimina-msg{background:transparent;border-color:#B7ADA0;color:#7A6F60;}
-  .btn-promemoria.elimina-msg:hover{background:rgba(0,0,0,.05);}
-  .btn.brass:hover{background:var(--brass-soft);}
+  .btn-promemoria.elimina-msg{background:#fff;border-color:#B7ADA0;color:#7A6F60;}
   .btn.small{padding:6px 12px;font-size:12.5px;}
   .btn:disabled{opacity:.45;cursor:not-allowed;}
   .btn.full{width:100%;}
@@ -366,7 +374,6 @@
   .badge-convocazione-inviata{display:inline-block;font-family:var(--font-mono);font-size:11px;font-weight:700;padding:4px 9px;border-radius:2px;background:var(--sage);color:#fff;}
   .badge-convocazione-non-inviata{display:inline-block;font-family:var(--font-mono);font-size:11px;font-weight:700;padding:4px 9px;border-radius:2px;background:var(--brick);color:#fff;}
   .btn.on-dark{background:transparent;color:#fff;border:1px solid #fff;}
-  .btn.on-dark:hover{background:rgba(255,255,255,.12);}
 
   .tag-close{cursor:pointer;color:var(--text-soft);margin-left:6px;}
   .list-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:13.5px;}
@@ -731,7 +738,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 03/09/2026 alle 15:17">LT-253</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 03/09/2026 alle 18:18">LT-257</span>
   </div>
 
   <!-- MAIN -->
@@ -805,7 +812,7 @@
 
       <div class="frame-dark" style="margin-bottom:18px;">
       <div class="frame-dark-title">Anagrafica</div>
-      <div class="card">
+      <div class="card frame-dark-hover">
         <p class="muted" style="margin-bottom:14px;">Questi dati ci servono per la fatturazione e per gli obblighi di legge sull'attività di amministratore di condominio.</p>
         <div class="grid">
           <div class="field"><label>Nome</label><input type="text" id="prof-nome"></div>
@@ -835,7 +842,7 @@
 
       <div class="frame-dark" style="margin-bottom:18px;">
       <div class="frame-dark-title">Personalizzazione delle comunicazioni</div>
-      <div class="card">
+      <div class="card frame-dark-hover">
         <p class="muted" style="margin-bottom:14px;">Valori di partenza usati per ogni nuova assemblea: restano comunque modificabili caso per caso.</p>
         <div class="field">
           <label>Logo dello studio</label><br>
@@ -866,7 +873,7 @@
 
       <div class="frame-dark" style="margin-bottom:18px;">
       <div class="frame-dark-title">Preferenze operative</div>
-      <div class="card">
+      <div class="card frame-dark-hover">
         <div class="grid">
           <div class="field">
             <label>Modalità di svolgimento predefinita</label>
@@ -896,7 +903,7 @@
         <span class="step-icon hidden" id="wiz-icon-1"></span>
         <span>1. Nome del condominio</span>
       </div>
-      <div class="card">
+      <div class="card frame-dark-hover">
         <input id="dash-nome-condominio" placeholder="Es. Via Palestro 1" oninput="aggiornaNomeCondominio(this.value)">
       </div>
       </div>
@@ -906,7 +913,7 @@
         <span class="step-icon hidden" id="wiz-icon-2"></span>
         <span>2. Anagrafica</span>
       </div>
-      <div class="card">
+      <div class="card frame-dark-hover">
         <p class="muted" style="margin-bottom:10px;">Dati identificativi del condominio, tutti obbligatori.</p>
         <div class="row-inline">
           <div class="field"><label>Denominazione</label><input id="dash-denominazione" readonly style="background:var(--paper);cursor:not-allowed;" title="Segue automaticamente il Nome del condominio (punto 1)"></div>
@@ -930,7 +937,7 @@
         <span class="step-icon hidden" id="wiz-icon-3"></span>
         <span>3. Carica da Excel i dati dei condòmini</span>
       </div>
-      <div class="card">
+      <div class="card frame-dark-hover">
         <p class="muted" style="margin-bottom:8px;">Colonne riconosciute: Cognome, Nome (opzionale), Interno (opzionale), Unità immobiliare (opzionale), Email, e una o più colonne "Millesimi ..." (es. "Millesimi Proprietà", "Millesimi Giardino"). Se il file non ha titoli riconoscibili, viene letto per posizione: Cognome (e Nome, se insieme) — Nome — Interno — Unità immobiliare — Email — Millesimi proprietà — altri millesimi.</p>
         <input type="file" id="excel-input" accept=".xlsx,.xls,.csv" onchange="handleExcelUpload(event)">
         <div id="excel-feedback" class="muted" style="margin-top:8px;"></div>
@@ -942,7 +949,7 @@
         <span class="step-icon hidden" id="wiz-icon-4"></span>
         <span>4. Aggiungi condòmino manualmente</span>
       </div>
-      <div class="card">
+      <div class="card frame-dark-hover">
         <div class="row-inline">
           <div class="field"><label>Nome</label><input id="c-nome" placeholder="Es. Maria"></div>
           <div class="field"><label>Cognome</label><input id="c-cognome" placeholder="Es. Rossi (opzionale)"></div>
@@ -960,7 +967,7 @@
         <span class="step-icon hidden" id="wiz-icon-5"></span>
         <span>5. Elenco condòmini (modificabile)</span>
       </div>
-      <div class="card">
+      <div class="card frame-dark-hover">
         <p class="muted" style="margin-bottom:10px;">Ogni riga è modificabile direttamente: correggi errori o aggiungi un subentro anche dopo l'invio della convocazione.</p>
         <div class="table-wrap">
           <table id="tbl-condomini">
@@ -980,7 +987,7 @@
         <span class="step-icon hidden" id="wiz-icon-6"></span>
         <span>6. Tabelle millesimali</span>
       </div>
-      <div class="card">
+      <div class="card frame-dark-hover">
         <p class="muted" style="margin-bottom:10px;">Proprietà, giardino, box, ascensori... l'amministratore sceglierà quale usare per ogni votazione.</p>
         <div id="tabelle-chips" style="margin-bottom:10px;"></div>
         <div class="row-inline">
@@ -991,13 +998,13 @@
       </div>
 
       <div class="frame-dark hidden" id="dash-confirm-wrap" style="margin-top:18px;">
-      <div class="card">
+      <div class="card frame-dark-hover">
         <button class="btn brass full" onclick="confermaCreazioneCondominio()">✓ Conferma e crea il condominio</button>
       </div>
       </div>
 
       <div class="frame-dark" id="dash-continue-wrap" style="margin-top:18px;">
-      <div class="card">
+      <div class="card frame-dark-hover">
         <p class="muted" style="margin-bottom:12px;">Anagrafica pronta? Prosegui con la creazione della convocazione.</p>
         <button class="btn brass" onclick="goPage('crea-assemblea')">Vai a Assemblea →</button>
       </div>
@@ -1038,7 +1045,7 @@
 
         <div class="frame-dark" style="margin-bottom:18px;">
         <div class="frame-dark-title">Convocazione - Date</div>
-        <div class="card">
+        <div class="card frame-dark-hover">
           <div class="field">
             <label>Oggetto <span style="color:var(--brick);">*</span></label>
             <input type="text" id="ca-oggetto" placeholder="Es. Assemblea ordinaria 2025/26, oppure Assemblea scala B - lavori tetto" maxlength="120">
@@ -1088,7 +1095,7 @@
              sotto-blocchi è nascosto. -->
         <div class="frame-dark" style="margin-bottom:18px;">
         <div class="frame-dark-title" id="ca-tipo-convocazione-scelta-title">Tipo di assemblea</div>
-        <div class="card" id="ca-tipo-convocazione-scelta">
+        <div class="card frame-dark-hover" id="ca-tipo-convocazione-scelta">
           <p class="muted" style="margin-bottom:14px;">Scegli il tipo: la scelta non fatta sparirà, si procede solo con quella scelta.</p>
           <div class="row-inline">
             <div class="tipo-convocazione-box" tabindex="0" role="button" onclick="scegliTipoConvocazione('standard')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();scegliTipoConvocazione('standard');}">
@@ -1103,7 +1110,7 @@
         </div>
 
         <div class="frame-dark-title hidden" id="ca-convocati-standard-info-title" style="margin-top:18px;">Assemblea standard</div>
-        <div class="card hidden" id="ca-convocati-standard-info" style="margin-top:0;">
+        <div class="card hidden frame-dark-hover" id="ca-convocati-standard-info" style="margin-top:0;">
           <div style="display:flex;justify-content:flex-end;align-items:center;">
             <button class="btn small secondary" onclick="cambiaTipoConvocazione()">← Cambia tipo di assemblea</button>
           </div>
@@ -1111,7 +1118,7 @@
         </div>
 
         <div class="frame-dark-title hidden" id="ca-convocati-speciale-title" style="margin-top:18px;">Assemblea speciale</div>
-        <div class="card hidden" id="ca-convocati-speciale" style="margin-top:0;">
+        <div class="card hidden frame-dark-hover" id="ca-convocati-speciale" style="margin-top:0;">
           <div style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:6px;">
             <button class="btn small secondary" onclick="cambiaTipoConvocazione()">← Cambia tipo di assemblea</button>
           </div>
@@ -1136,7 +1143,7 @@
         </div>
 
         <div class="frame-dark-title hidden" id="ca-convocati-tabella-wrap-title" style="margin-top:18px;">Elenco convocati</div>
-        <div class="card hidden" id="ca-convocati-tabella-wrap" style="margin-top:0;">
+        <div class="card hidden frame-dark-hover" id="ca-convocati-tabella-wrap" style="margin-top:0;">
           <div id="ca-convocati-avviso" class="hidden" style="margin-bottom:12px;"></div>
           <div class="table-wrap" style="max-height:280px;overflow-y:auto;">
             <table>
@@ -1151,7 +1158,7 @@
 
         <div class="frame-dark" style="margin-bottom:18px;">
         <div class="frame-dark-title">Ordine del giorno</div>
-        <div class="card">
+        <div class="card frame-dark-hover">
           <p class="muted" style="margin-bottom:14px;">Un riquadro per ogni punto: puoi predisporre già qui la votazione, scegliendo la tabella millesimale corretta.</p>
           <div id="ca-odg-list"></div>
           <button class="btn small secondary" id="ca-btn-add-odg-point" onclick="addOdgPoint()">+ Aggiungi punto all'ordine del giorno</button>
@@ -1161,7 +1168,7 @@
 
         <div class="frame-dark" style="margin-bottom:18px;">
         <div class="frame-dark-title">Testo dell'invito</div>
-        <div class="card">
+        <div class="card frame-dark-hover">
           <div class="field" id="ca-luogo-wrap">
             <label>Luogo di svolgimento dell'assemblea in presenza (seconda convocazione)</label>
             <input type="text" id="ca-luogo" placeholder="Es. Sala condominiale, Via Roma 5, Milano">
@@ -1187,7 +1194,7 @@
 
         <div class="frame-dark" style="margin-bottom:18px;">
         <div class="frame-dark-title">Invii programmati</div>
-        <div class="card">
+        <div class="card frame-dark-hover">
           <div class="row-inline">
             <div class="field"><label>Data (GG/MM/AAAA)</label>
               <div class="date-field-wrap">
@@ -1215,7 +1222,7 @@
         </div>
 
         <div class="frame-dark" style="margin-bottom:18px;">
-        <div class="card">
+        <div class="card frame-dark-hover">
           <div class="row-inline">
             <button class="btn brass" onclick="salvaESpedisciAssemblea()">✉ Salva e invia le email</button>
             <button class="btn secondary" onclick="salvaSenzaInviare()">Salva senza inviare</button>
@@ -1225,7 +1232,7 @@
 
         <div class="frame-dark" style="margin-bottom:18px;" id="ca-coda-wrap">
         <div class="frame-dark-title">Assemblea concatenata</div>
-        <div class="card">
+        <div class="card frame-dark-hover">
           <p class="muted" style="margin-bottom:12px;">Per i supercondomìni: aggiungi qui un'assemblea successiva, da tenersi subito dopo questa nella stessa videochiamata (es. un'assemblea generale seguita da una straordinaria di una sola scala). Verrà inviata una convocazione separata, con lo stesso link della sala virtuale.</p>
           <div id="ca-coda-azione"></div>
         </div>
@@ -1244,7 +1251,7 @@
 
         <div class="frame-dark" style="margin:18px 0;" id="ca-tabella-riepilogo-wrap">
         <div class="frame-dark-title">📋 Riepilogo invitati</div>
-        <div class="card">
+        <div class="card frame-dark-hover">
           <div style="overflow-x:auto;">
             <table id="ca-tabella-riepilogo">
               <thead><tr><th>Cognome</th><th>Nome</th><th></th><th>Email</th><th>Indirizzo di accesso all'assemblea</th></tr></thead>
@@ -1263,7 +1270,7 @@
     <!-- PAGE: ASSEMBLEA -->
     <div class="page hidden" id="page-assemblea">
       <div class="page-head">
-        <div style="width:100%;"><div class="eyebrow" style="text-align:center;font-weight:700;font-size:16px;">Sala virtuale</div><div class="page-title-row"><button class="page-back" onclick="tornaIndietro()" aria-label="Indietro"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M14.5 8 10 12l4.5 4"/><path d="M10.3 12h6.2"/></svg></button><h1 id="assemblea-titolo-corrente">Assemblea in corso</h1></div><p class="sub">Videoconferenza, sondaggi ponderati sui millesimi e verbale generato automaticamente.</p></div>
+        <div style="width:100%;"><div class="eyebrow" style="text-align:center;font-weight:700;font-size:23px;font-family:var(--font-body);letter-spacing:normal;text-transform:none;">Sala virtuale</div><div class="page-title-row"><button class="page-back" onclick="tornaIndietro()" aria-label="Indietro"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M14.5 8 10 12l4.5 4"/><path d="M10.3 12h6.2"/></svg></button><h1 id="assemblea-titolo-corrente">Assemblea in corso</h1></div></div>
       </div>
 
       <div id="sezione-video-chat">
@@ -1303,14 +1310,12 @@
       </div>
 
       <div class="frame-dark" style="margin-top:22px;margin-bottom:18px;">
+      <div class="frame-dark-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+        <span><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="vertical-align:-3px;margin-right:5px;"><circle cx="12" cy="12" r="10.2" stroke-width="1.6"/><path d="M15.7 4.7 19.7 8.7 15.2 13.2C14 15.5 12.2 17.3 9.6 18.8L6.7 20 8 17.2C9.4 14.6 11.2 12.8 13.4 11.6z" fill="currentColor" stroke="none"/><circle cx="13.6" cy="10.4" r="1.35" fill="#fff" stroke="none"/></svg>Appello - Partecipanti</span>
+        <button class="btn small secondary" style="min-width:150px;" onclick="toggleAppelloBody()">Comprimi/espandi</button>
+      </div>
       <div id="sezione-appello" class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-          <div class="section-title" style="margin:0;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="vertical-align:-3px;margin-right:5px;"><circle cx="12" cy="12" r="10.2" stroke-width="1.6"/><path d="M15.7 4.7 19.7 8.7 15.2 13.2C14 15.5 12.2 17.3 9.6 18.8L6.7 20 8 17.2C9.4 14.6 11.2 12.8 13.4 11.6z" fill="currentColor" stroke="none"/><circle cx="13.6" cy="10.4" r="1.35" fill="#fff" stroke="none"/></svg>Appello - Partecipanti</div>
-          <span style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="btn small secondary" style="min-width:150px;" onclick="toggleAppelloBody()">Comprimi/espandi</button>
-          </span>
-        </div>
-        <div class="muted" id="appello-summary" style="margin:8px 0 14px;"></div>
+        <div class="muted" id="appello-summary" style="margin:0 0 14px;"></div>
         <div id="appello-body">
           <div class="table-wrap">
             <table>
@@ -1343,8 +1348,8 @@
       </div>
 
       <div class="frame-dark" style="margin-bottom:18px;">
+      <div class="frame-dark-title">👤 Presidente e Segretario dell'assemblea</div>
       <div class="card" id="cariche-assemblea-card">
-        <div class="section-title" style="margin-bottom:10px;">👤 Presidente e Segretario dell'assemblea</div>
         <label>Presidente nominato:</label>
         <input type="text" id="input-presidente-nominato" placeholder="Nome e cognome" oninput="segnaScritturaCaricaAssemblea()" onchange="salvaCaricaAssemblea('Presidente', this.value)">
         <label style="margin-top:10px;display:block;">Segretario nominato:</label>
@@ -1398,20 +1403,20 @@
       </div>
 
       <div id="sezione-odg">
-        <div class="section-title" style="margin-top:22px;">Ordine del giorno — svolgimento</div>
+        <div class="section-title" style="margin-top:22px;font-size:22px;">Ordine del giorno — svolgimento</div>
         <div id="odg-blocks-container"></div>
       </div>
 
       <div class="frame-dark" style="margin-top:18px;">
+      <div class="frame-dark-title">Verbale d'assemblea — generato con AI</div>
       <div id="sezione-verbale" class="card">
-        <div class="section-title">Verbale d'assemblea — generato con IA</div>
         <div class="field">
           <label>Ordine del giorno / appunti presi durante la riunione</label>
           <textarea id="verbale-input" rows="5" placeholder="Es. Punto 1: approvazione bilancio consuntivo 2025...">Punto 1: Approvazione bilancio consuntivo 2025. Il rendiconto è stato illustrato dall'amministratore senza osservazioni rilevanti da parte dei condòmini.
 Punto 2: Rendiconto lavori di rifacimento facciata, conclusi in anticipo di due settimane rispetto al preventivo.
 Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 2027-2029.</textarea>
         </div>
-        <button class="btn" id="gen-verbale-btn" onclick="generaVerbale()">Genera verbale con IA</button>
+        <button class="btn" id="gen-verbale-btn" onclick="generaVerbale()">Genera verbale con AI</button>
         <div id="verbale-output" style="margin-top:16px;"></div>
       </div>
       </div>
@@ -9174,8 +9179,9 @@ function costruisciRiquadroCaricheCondomino(assembleaCorrente){
   if(!pres && !seg) return '';
   return `<div class="assist-panel" style="margin-bottom:14px;">
     <h3 style="margin-bottom:6px;">👤 Presidente e Segretario</h3>
+    <div style="color:#A39C88;margin-bottom:10px;">Vengono nominati dall'assemblea:</div>
     ${pres ? `<div>Presidente: <b>${escapeHtml(pres)}</b></div>` : ''}
-    ${seg ? `<div>Segretario: <b>${escapeHtml(seg)}</b></div>` : ''}
+    ${seg ? `<div style="margin-top:8px;">Segretario: <b>${escapeHtml(seg)}</b></div>` : ''}
   </div>`;
 }
 function costruisciOdgEChiCeCondomino(assembleaCorrente, b){
@@ -9354,7 +9360,7 @@ async function generaVerbale(){
   if(btn){ btn.disabled=true; btn.textContent='Generazione in corso…'; }
   const buildingAttivo = getActiveBuilding();
   const assemblea = getAssembleaInCorso(buildingAttivo);
-  if(!assemblea){ toast('Nessuna assemblea in corso.'); if(btn){ btn.disabled=false; btn.textContent='Genera verbale con IA'; } return; }
+  if(!assemblea){ toast('Nessuna assemblea in corso.'); if(btn){ btn.disabled=false; btn.textContent='Genera verbale con AI'; } return; }
   const convocati = buildingAttivo.condomini.filter(c=>assemblea.convocati.selezionati.includes(c.id));
   const partecipantiTxt = convocati.length
     ? convocati.map(c=>`${c.nome} ${c.cognome||''}`).join(', ')
@@ -9401,7 +9407,7 @@ async function generaVerbale(){
     assemblea.verbale = testoFisso + tabelleTesto;
     salvaStato();
     toast('Verbale generato con i dati essenziali (nessun appunto da riassumere).');
-    if(btn){ btn.disabled=false; btn.textContent='Genera verbale con IA'; }
+    if(btn){ btn.disabled=false; btn.textContent='Genera verbale con AI'; }
     return;
   }
 
@@ -9452,7 +9458,7 @@ Struttura il verbale con: intestazione, presenti/assenti, ordine del giorno nume
     const {aFresco} = recuperaRiferimentiFreschiPerVerbale();
     if(aFresco) aFresco.verbale = testo + tabelleTesto;
     salvaStato();
-    toast('Verbale generato con IA.');
+    toast('Verbale generato con AI.');
   }catch(e){
     // La generazione IA richiede di aprire questo file dentro l'anteprima di Claude: se il
     // file viene invece scaricato e aperto come normale pagina web, questa chiamata fallisce
@@ -9461,16 +9467,16 @@ Struttura il verbale con: intestazione, presenti/assenti, ordine del giorno nume
     // pulsante non risulta "morto" e il flusso dell'assemblea può proseguire.
     const testoFallback = generaVerbaleModelloFisso(buildingAttivo, a, appunti, partecipantiTxt, righeSondaggi, dataAssemblea);
     document.getElementById('verbale-output').innerHTML =
-      `<div class="note" style="border-color:var(--brass);color:var(--ink);margin-bottom:12px;">Generazione con IA non disponibile in questo momento (${escapeHtml(e.message)}) — è stato usato un modello a testo fisso. La generazione IA funziona solo quando questo file è aperto nell'anteprima di Claude, non se scaricato e aperto come pagina normale.</div>
+      `<div class="note" style="border-color:var(--brass);color:var(--ink);margin-bottom:12px;">Generazione con AI non disponibile in questo momento (${escapeHtml(e.message)}) — è stato usato un modello a testo fisso. La generazione AI funziona solo quando questo file è aperto nell'anteprima di Claude, non se scaricato e aperto come pagina normale.</div>
       <div class="verbale-doc">${logoOSigilloVerbale(buildingAttivo.nome)}<h4>Verbale d'assemblea</h4>${escapeHtml(testoFallback)}${tabelleHtml}</div>
        <button class="btn small secondary" style="margin-top:12px;" onclick="scaricaVerbale()">Scarica verbale (.txt)</button>`;
     window._verbaleTesto = testoFallback + tabelleTesto;
     const {aFresco} = recuperaRiferimentiFreschiPerVerbale();
     if(aFresco) aFresco.verbale = testoFallback + tabelleTesto;
     salvaStato();
-    toast('IA non disponibile: generato un verbale con modello a testo fisso.');
+    toast('AI non disponibile: generato un verbale con modello a testo fisso.');
   }
-  if(btn){ btn.disabled=false; btn.textContent='Genera verbale con IA'; }
+  if(btn){ btn.disabled=false; btn.textContent='Genera verbale con AI'; }
 }
 // Verbale generato senza IA, componendo un testo strutturato a partire dai dati raccolti:
 // usato quando la chiamata al modello non è disponibile (es. file aperto fuori da Claude).
