@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-275 — creata il 16/09/2026 alle 15:26
+  Versione: LT-276 — creata il 16/09/2026 alle 15:40
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -739,7 +739,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 16/09/2026 alle 15:26">LT-275</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 16/09/2026 alle 15:40">LT-276</span>
   </div>
 
   <!-- MAIN -->
@@ -8910,12 +8910,21 @@ function costruisciRisultatoSondaggioPerPunto(s, condomino){
 // usata SOLO per mostrare a lei stessa, in pag cell, con quanto peso sta per votare — il
 // conteggio vero dei risultati avviene già correttamente tramite la cascata sui singoli
 // deleganti (vedi impostaVoto), qui serve solo il numero da mostrare in anteprima.
+// Peso in millesimi di un condòmino per il sondaggio in corso, comprese le eventuali unità
+// "Stesso proprietario" unite a lui (unificatoCon) — stesso calcolo già usato nella tabella voti
+// dell'amministratore (vedi millesimiTotaliVoto in renderTabellaVotiSondaggio): senza questa
+// somma, chi ha più proprietà unite risultava mostrato (in pag cell, sia per sé stesso che per
+// chi lo delega) con i soli millesimi della sua prima unità, invece del totale reale.
+function pesoVotoConUnitaUnite(c, b, assemblea){
+  const unitaUnite = (b.condomini||[]).filter(x=>x.unificatoCon===c.id);
+  return arrotondaMillesimi(pesoVoto(c,b,assemblea) + unitaUnite.reduce((s,u)=>s+pesoVoto(u,b,assemblea),0));
+}
 function pesoVotoPersonaEsterna(idEsterno, b, assemblea){
   let somma = 0;
   Object.keys(assemblea.appello.deleghe||{}).forEach(deleganteIdStr=>{
     if(String(assemblea.appello.deleghe[deleganteIdStr]) !== String(idEsterno)) return;
     const delegante = b.condomini.find(x=>String(x.id)===String(deleganteIdStr));
-    if(delegante) somma += pesoVoto(delegante, b, assemblea);
+    if(delegante) somma += pesoVotoConUnitaUnite(delegante, b, assemblea);
   });
   return somma;
 }
@@ -8924,7 +8933,7 @@ function identitaVotanteCv(assemblea, b){
   const idRisolto = risolviIdentificativoPing(b, currentCondomino.id);
   if(idRisolto==null) return { id:null, nome:null, peso:0, estera:true, disattivato:true };
   if(idRisolto === currentCondomino.id){
-    return { id: currentCondomino.id, nome: nomeCompletoCondomino(currentCondomino), peso: pesoVoto(currentCondomino, b, assemblea), estera:false };
+    return { id: currentCondomino.id, nome: nomeCompletoCondomino(currentCondomino), peso: pesoVotoConUnitaUnite(currentCondomino, b, assemblea), estera:false };
   }
   const est = (assemblea.deleghiEsterni||[]).find(e=>e.id===idRisolto);
   return { id: idRisolto, nome: est ? est.nome : 'Delegato', peso: pesoVotoPersonaEsterna(idRisolto, b, assemblea), estera:true };
@@ -8963,7 +8972,7 @@ function costruisciRigheDelegheRicevute(assemblea, b, votanteId){
   return deleganti.map((idStr,i)=>{
     const delegante = (b.condomini||[]).find(x=>String(x.id)===String(idStr));
     if(!delegante) return '';
-    const peso = (delegante.millesimi && delegante.millesimi[activePoll.tabella]) || 0;
+    const peso = pesoVotoConUnitaUnite(delegante, b, assemblea);
     const ultima = i===deleganti.length-1;
     return `<p class="muted" style="color:#A39C88;margin-bottom:${ultima?12:4}px;">Voterai con ${formattaMillesimiIT(peso)} millesimi, delega di ${escapeHtml(nomeCompletoCondomino(delegante))} (tabella: ${escapeHtml(activePoll.tabella)})</p>`;
   }).join('');
