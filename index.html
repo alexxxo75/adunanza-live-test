@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-274 — creata il 16/09/2026 alle 14:34
+  Versione: LT-275 — creata il 16/09/2026 alle 15:26
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -739,7 +739,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 16/09/2026 alle 14:34">LT-274</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 16/09/2026 alle 15:26">LT-275</span>
   </div>
 
   <!-- MAIN -->
@@ -3836,31 +3836,46 @@ function renderCondomini(){
 
   building.condomini.forEach(c=>{
     const tr=document.createElement('tr');
+    // BUG CORRETTO: ogni campo qui sotto catturava l'oggetto "c" del momento in cui la riga è
+    // stata disegnata. Se nel frattempo (anche solo qualche secondo dopo, mentre si compila la
+    // riga) arriva un aggiornamento dal database condiviso, "buildings" viene sostituito con
+    // oggetti nuovi (stessi dati, istanze diverse) — la "c" catturata qui resta orfana, e
+    // scriverci sopra (anche con salvaStato() subito dopo) non ha alcun effetto reale: sembra
+    // andare a buon fine (nessun errore, il valore resta visibile finché non arriva un altro
+    // render) ma si perde in silenzio al primo ridisegno vero. È lo stesso identico problema già
+    // diagnosticato e risolto in confermaCollegamentoDuplicati/confermaUnioneSpeciale. Soluzione:
+    // ogni handler ritrova qui sotto la riga CORRENTE per id, appena prima di scriverci sopra,
+    // invece di fidarsi della "c" catturata alla creazione della riga.
+    const idRiga = c.id;
+    const trovaRigaAttuale = () => {
+      const b = getWorkingBuilding();
+      return b && b.condomini.find(x=>x.id===idRiga);
+    };
 
     const tdCognome=document.createElement('td');
-    const inCognome=document.createElement('input'); inCognome.value=c.cognome||''; inCognome.oninput=()=>c.cognome=inCognome.value; inCognome.onblur=()=>renderCondomini();
+    const inCognome=document.createElement('input'); inCognome.value=c.cognome||''; inCognome.oninput=()=>{ const r=trovaRigaAttuale(); if(r) r.cognome=inCognome.value; }; inCognome.onblur=()=>renderCondomini();
     tdCognome.appendChild(inCognome); tr.appendChild(tdCognome);
 
     const tdNome=document.createElement('td');
-    const inNome=document.createElement('input'); inNome.className='cell-nome'; inNome.value=c.nome; inNome.oninput=()=>c.nome=inNome.value; inNome.onblur=()=>renderCondomini();
+    const inNome=document.createElement('input'); inNome.className='cell-nome'; inNome.value=c.nome; inNome.oninput=()=>{ const r=trovaRigaAttuale(); if(r) r.nome=inNome.value; }; inNome.onblur=()=>renderCondomini();
     tdNome.appendChild(inNome); tr.appendChild(tdNome);
 
     const tdInterno=document.createElement('td');
-    const inInterno=document.createElement('input'); inInterno.value=c.interno||''; inInterno.oninput=()=>c.interno=inInterno.value; inInterno.onblur=()=>salvaStato();
+    const inInterno=document.createElement('input'); inInterno.value=c.interno||''; inInterno.oninput=()=>{ const r=trovaRigaAttuale(); if(r) r.interno=inInterno.value; }; inInterno.onblur=()=>salvaStato();
     tdInterno.appendChild(inInterno); tr.appendChild(tdInterno);
 
     const tdUnita=document.createElement('td');
-    const inUnita=document.createElement('input'); inUnita.value=c.unita||''; inUnita.oninput=()=>c.unita=inUnita.value; inUnita.onblur=()=>salvaStato();
+    const inUnita=document.createElement('input'); inUnita.value=c.unita||''; inUnita.oninput=()=>{ const r=trovaRigaAttuale(); if(r) r.unita=inUnita.value; }; inUnita.onblur=()=>salvaStato();
     tdUnita.appendChild(inUnita); tr.appendChild(tdUnita);
 
     const tdEmail=document.createElement('td');
-    const inEmail=document.createElement('input'); inEmail.className='cell-email'; inEmail.value=c.email; inEmail.oninput=()=>c.email=inEmail.value; inEmail.onblur=()=>salvaStato();
+    const inEmail=document.createElement('input'); inEmail.className='cell-email'; inEmail.value=c.email; inEmail.oninput=()=>{ const r=trovaRigaAttuale(); if(r) r.email=inEmail.value; }; inEmail.onblur=()=>salvaStato();
     tdEmail.appendChild(inEmail); tr.appendChild(tdEmail);
 
     building.tabelleMillesimali.forEach(t=>{
       const tdM=document.createElement('td');
       const inM=document.createElement('input'); inM.type='number'; inM.className='cell-mill'; inM.value=c.millesimi[t]||0;
-      inM.oninput=()=>{ c.millesimi[t]=parseFloat(inM.value)||0; renderTotaliMillesimi(); };
+      inM.oninput=()=>{ const r=trovaRigaAttuale(); if(r) r.millesimi[t]=parseFloat(inM.value)||0; renderTotaliMillesimi(); };
       inM.onblur=()=>salvaStato();
       tdM.appendChild(inM); tr.appendChild(tdM);
     });
@@ -3869,7 +3884,7 @@ function renderCondomini(){
     const selGruppo=document.createElement('select'); selGruppo.style.minWidth='140px';
     selGruppo.innerHTML = '<option value="">— nessuno (persona diversa) —</option>' +
       building.condomini.filter(x=>x.id!==c.id).map(x=>`<option value="${x.id}" ${(c.gruppoCon===x.id||c.unificatoCon===x.id)?'selected':''}>${nomeCompletoCondomino(x)}${x.unita?' ('+x.unita+')':''}</option>`).join('');
-    selGruppo.onchange=()=>{ c.gruppoCon = selGruppo.value?parseInt(selGruppo.value):null; salvaStato(); };
+    selGruppo.onchange=()=>{ const r=trovaRigaAttuale(); if(r){ r.gruppoCon = selGruppo.value?parseInt(selGruppo.value):null; salvaStato(); } };
     tdGruppo.appendChild(selGruppo); tr.appendChild(tdGruppo);
 
     const tdAz=document.createElement('td');
