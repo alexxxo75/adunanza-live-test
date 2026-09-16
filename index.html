@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-273 — creata il 16/09/2026 alle 14:21
+  Versione: LT-274 — creata il 16/09/2026 alle 14:34
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -739,7 +739,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 16/09/2026 alle 14:21">LT-273</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 16/09/2026 alle 14:34">LT-274</span>
   </div>
 
   <!-- MAIN -->
@@ -5898,6 +5898,7 @@ function aprireModuloAssemblea(esistente){
   renderConvocatiControlli();
   aggiornaVistaTipoConvocazione();
   renderConvocatiTable();
+  controllaUnioneSpecialeConDashboard(getActiveBuilding());
   attivaMaschereDataOra();
   renderCodaAssemblea();
   if(a.invitiInviati){
@@ -6038,6 +6039,7 @@ function impostaConvocatiTutti(){
   a.convocati = {modo:'tutti', tabelle:[], selezionati:b.condomini.map(c=>c.id)};
   a.pesiPersonalizzati = null;
   renderConvocatiTable();
+  controllaUnioneSpecialeConDashboard(b);
 }
 function applicaConvocatiTabelleMultiple(){
   const sel=document.getElementById('ca-tabelle-multiple');
@@ -6054,6 +6056,7 @@ function applicaConvocatiTabelleMultiple(){
 // modo (riga unica + unità rientrate), proponiamo di farlo — senza mai deciderlo in automatico.
 function controllaUnioneSpecialeConDashboard(b){
   const a = workingAssembly;
+  if(!a || !a.convocati) return;
   const daProporre = [];
   (a.convocati.selezionati||[]).forEach(id=>{
     const c = b.condomini.find(x=>x.id===id);
@@ -6106,6 +6109,7 @@ function toggleConvocato(condominoId){
   if(idx>=0) a.convocati.selezionati.splice(idx,1); else a.convocati.selezionati.push(condominoId);
   a.convocati.modo='manuale';
   renderConvocatiTable();
+  controllaUnioneSpecialeConDashboard(getActiveBuilding());
 }
 function pesoConvocato(c, a, b){
   if(a.pesiPersonalizzati && a.pesiPersonalizzati[c.id]!=null) return a.pesiPersonalizzati[c.id];
@@ -6267,6 +6271,7 @@ function handleExcelConvocati(evt){
       else{ avviso.classList.add('hidden'); }
       renderConvocatiTable();
       tabelleNuoveDaControllare.forEach(nomeTabella=>controllaDuplicatiNomeDopoNuovaTabella(b, nomeTabella));
+      controllaUnioneSpecialeConDashboard(b);
       const msgPeso = pesiAttivi ? ` (tabelle millesimali create/aggiornate: ${tabelleImportate.join(', ')}, ora selezionabili anche nei sondaggi)` : '';
       if(selezionati.length===0){ toast('Nessun convocato trovato nel file: controlla le email (vedi avviso sopra).'); }
       else{ toast(`${selezionati.length} convocati caricati da Excel${msgPeso}.`); }
