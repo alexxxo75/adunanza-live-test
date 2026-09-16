@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-271 — creata il 16/09/2026 alle 14:01
+  Versione: LT-273 — creata il 16/09/2026 alle 14:21
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -739,7 +739,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 16/09/2026 alle 14:01">LT-271</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 16/09/2026 alle 14:21">LT-273</span>
   </div>
 
   <!-- MAIN -->
@@ -1468,7 +1468,7 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
 
       <div id="delega-conferma-email" class="card hidden" style="margin-bottom:18px;">
         <h3 style="margin-bottom:10px;">Conferma la delega</h3>
-        <p class="muted" style="margin-bottom:10px;">Verrà registrata subito ed inviata via email all'amministratore, con copia di conferma anche a te.</p>
+        <p class="muted" style="margin-bottom:10px;">Verrà registrata subito ed inviata via email all'amministratore e, se hai delegato un altro condòmino, anche a lui/lei.</p>
         <div class="email-preview" id="delega-testo-email" style="white-space:pre-wrap;font-size:13px;background:var(--paper);padding:14px 16px;border-radius:4px;margin-bottom:14px;"></div>
         <button class="btn brass" style="display:block;width:100%;box-sizing:border-box;margin-bottom:10px;" onclick="invaDelegaAdAmministratore()">✉ Invia all'amministratore</button>
         <button class="btn secondary" style="display:block;width:100%;box-sizing:border-box;" onclick="tornaSceltaInizialeDelega()">← Annulla</button>
@@ -4674,6 +4674,30 @@ function invaDelegaAdAmministratore(){
   const risultati = applicaDelegaSuCatenaScelta(b, assembleeCoinvolte, currentCondomino.id, delegatoId);
   __delegaCatenaCvInSospeso = null;
   mostraEsitoDelegaCv(risultati, assembleeCoinvolte);
+  // Invio vero dell'email di delega, in parallelo (non blocca la schermata di esito già
+  // mostrata sopra, che riflette solo la registrazione avvenuta con successo in locale/sul
+  // database condiviso). Stesso testo all'amministratore e, se il delegato è un condòmino
+  // (non una persona esterna) con un indirizzo email in anagrafica, anche a lui/lei.
+  const assembleeRegistrateConEsito = assembleeCoinvolte.filter(ass=>risultati[ass.id] && risultati[ass.id].ok);
+  if(assembleeRegistrateConEsito.length>0){
+    const destinatari = [];
+    if(amministratore.emailContatto && amministratore.emailContatto.trim()) destinatari.push(amministratore.emailContatto.trim());
+    if(delegaScelta.tipo==='condomino'){
+      const condominoDelegato = b.condomini.find(x=>x.id===delegaScelta.id);
+      if(condominoDelegato && condominoDelegato.email && condominoDelegato.email.trim()) destinatari.push(condominoDelegato.email.trim());
+    }
+    const destinatariUnici = [...new Set(destinatari.map(e=>e.toLowerCase()))].map(eLower=>destinatari.find(e=>e.toLowerCase()===eLower));
+    if(destinatariUnici.length>0){
+      const oggettoEmailDelega = assembleeRegistrateConEsito.length===1
+        ? `Delega - ${assembleeRegistrateConEsito[0].oggetto || 'Assemblea'} - ${b.nome}`
+        : `Delega - ${b.nome}`;
+      const corpoEmailDelega = costruisciTestoDichiarazioneDelega(b, assembleeRegistrateConEsito);
+      inviaEmailVeraTramiteEmailJSMultiplo(destinatariUnici, oggettoEmailDelega, corpoEmailDelega).catch(err=>{
+        console.warn('[Adunanza] Invio email di delega non riuscito:', err.message);
+        toast('Delega registrata, ma l\'invio dell\'email non è riuscito. Puoi contattare direttamente l\'amministratore.');
+      });
+    }
+  }
 }
 // Mostra l'esito finale al condòmino, dopo aver scritto (o rifiutato) la delega su una o più
 // assemblee: nasconde tutte le altre schede possibili e mostra la conferma, coerente col
@@ -4700,7 +4724,7 @@ function mostraEsitoDelegaCv(risultati, assembleeCoinvolte){
   const elencoAssemblee = registrate.length>1 ? `<p class="muted" style="margin-bottom:8px;">Vale per: ${registrate.map(ass=>escapeHtml(ass.oggetto||'Assemblea')).join(', ')}.</p>` : '';
   const elencoRifiutate = rifiutate.length>0 ? `<p style="margin-bottom:8px;color:var(--brick);">⚠️ Non registrata per: ${rifiutate.map(ass=>escapeHtml(ass.oggetto||'Assemblea')).join(', ')} — ${escapeHtml(risultati[rifiutate[0].id].motivo)}</p>` : '';
   fatto.innerHTML = `<h3 style="margin-bottom:6px;">✅ Delega registrata e inviata</h3>
-    <p class="muted" style="margin-bottom:12px;">Una copia del messaggio è stata inviata anche a te, come conferma, all'indirizzo che ci risulta per te.</p>
+    <p class="muted" style="margin-bottom:12px;">Il messaggio è stato inviato via email all'amministratore e, se hai delegato un altro condòmino, anche a lui/lei, agli indirizzi che risultano in anagrafica.</p>
     ${elencoAssemblee}${elencoRifiutate}
     ${decaduteTotali>0 ? `<p style="margin-bottom:12px;color:var(--brick);">⚠️ ${decaduteTotali===1?'La delega che avevi ricevuto è decaduta':'Le '+decaduteTotali+' deleghe che avevi ricevuto sono decadute'}, dato che ora hai delegato a tua volta: chi te l'aveva data dovrà eventualmente sceglierne un'altra.</p>` : ''}
     <button class="btn small secondary" onclick="cambiaSceltaDelega()">Cambia la mia scelta</button>`;
@@ -6616,6 +6640,19 @@ function inviaEmailVeraTramiteEmailJS(c, oggetto, corpo){
   const corpoFormattato = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#2B2E33;max-width:600px;">${corpo.replace(/\n/g,'<br>')}</div>`;
   return emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
     to_email: c.email,
+    subject: oggetto,
+    message: corpoFormattato
+  });
+}
+// Variante con PIÙ destinatari nello stesso invio, stesso testo per tutti (es. delega: va sia
+// all'amministratore che al condòmino delegato). destinatariEmail è un array di indirizzi già
+// puliti e senza duplicati.
+function inviaEmailVeraTramiteEmailJSMultiplo(destinatariEmail, oggetto, corpo){
+  if(!window.emailjs) return Promise.reject(new Error('EmailJS non disponibile in questa sessione'));
+  if(!destinatariEmail || destinatariEmail.length===0) return Promise.reject(new Error('Nessun destinatario valido'));
+  const corpoFormattato = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#2B2E33;max-width:600px;">${corpo.replace(/\n/g,'<br>')}</div>`;
+  return emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+    to_email: destinatariEmail.join(', '),
     subject: oggetto,
     message: corpoFormattato
   });
@@ -8908,7 +8945,7 @@ function costruisciRigheDelegheRicevute(assemblea, b, votanteId){
     if(!delegante) return '';
     const peso = (delegante.millesimi && delegante.millesimi[activePoll.tabella]) || 0;
     const ultima = i===deleganti.length-1;
-    return `<p class="muted" style="color:#A39C88;margin-bottom:${ultima?12:4}px;">Voterai con ${peso} millesimi per delega di ${escapeHtml(nomeCompletoCondomino(delegante))} (tabella: ${escapeHtml(activePoll.tabella)})</p>`;
+    return `<p class="muted" style="color:#A39C88;margin-bottom:${ultima?12:4}px;">Voterai con ${formattaMillesimiIT(peso)} millesimi, delega di ${escapeHtml(nomeCompletoCondomino(delegante))} (tabella: ${escapeHtml(activePoll.tabella)})</p>`;
   }).join('');
 }
 function costruisciBloccoSondaggioAttivo(assembleaCorrente, b){
@@ -8951,7 +8988,7 @@ function costruisciBloccoSondaggioAttivo(assembleaCorrente, b){
     const idScelto = activePoll.scelte ? activePoll.scelte[votante.id] : null;
     const optScelta = activePoll.options.find(o=>o.id===idScelto);
     const etichetta = optScelta ? optScelta.label : 'registrato';
-    return `<div id="cv-conferma-voto-box" style="margin-bottom:18px;">${etichettaPunto}Hai votato: ${escapeHtml(etichetta)}<span class="sub">Voto registrato con ${votante.estera?'i millesimi di chi ti ha delegato':'i tuoi'} ${mieiMillesimi} millesimi (${escapeHtml(activePoll.tabella)}). In attesa che l'amministratore chiuda il sondaggio...</span>
+    return `<div id="cv-conferma-voto-box" style="margin-bottom:18px;">${etichettaPunto}Hai votato: ${escapeHtml(etichetta)}<span class="sub">La tua votazione è stata registrata correttamente. Potrai consultare l'esito non appena l'Amministratore avrà chiuso il sondaggio.</span>
       <div class="cv-btn-modifica-scelta-wrap"><button class="btn small cv-btn-modifica-scelta" onclick="modificaSceltaVotoBloccoCv()">Modifica voto</button></div>
     </div>`;
   }
