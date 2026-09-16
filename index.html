@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-270 — creata il 15/09/2026 alle 17:29
+  Versione: LT-271 — creata il 16/09/2026 alle 14:01
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -739,7 +739,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 15/09/2026 alle 17:29">LT-270</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 16/09/2026 alle 14:01">LT-271</span>
   </div>
 
   <!-- MAIN -->
@@ -8825,11 +8825,11 @@ function costruisciRisultatoSondaggioPerPunto(s, condomino){
       <div class="cv-esito-barra-sfondo"><div class="cv-esito-barra-riempita ${eVincitore?'cv-esito-vincitore-barra':''}" style="width:${percentuale}%;"></div></div></div>`;
   }).join('');
   // L'elenco dei votanti compare da solo per la stessa finestra di tempo in cui l'esito resta
-  // "in primo piano" (7 secondi, sia in verticale che in orizzontale — stessa logica di
+  // "in primo piano" (5 secondi, sia in verticale che in orizzontale — stessa logica di
   // trovaRisultatoSondaggioRecentementeChiuso), poi si nasconde da solo lasciando solo l'esito
   // — ma resta richiamabile in qualsiasi momento col bottone, anche molto più tardi.
   const chiaveSondaggio = s.chiusoEpoch || 0;
-  const finestraMs = 7000; // stessi 7 secondi sia in verticale che in orizzontale, su richiesta esplicita
+  const finestraMs = 5000; // stessi 5 secondi sia in verticale che in orizzontale, su richiesta esplicita
   const entroLaFinestra = s.chiusoEpoch && (Date.now()-s.chiusoEpoch) < finestraMs;
   const mostraVotanti = entroLaFinestra || __sondaggiConVotantiVisibili.has(chiaveSondaggio);
   const votanti = mostraVotanti ? costruisciElencoVotantiSondaggio(s, getActiveBuilding()) : [];
@@ -8896,6 +8896,21 @@ function modificaSceltaVotoBloccoCv(){
   sceltaVotoCorrente = null;
   renderCvPollArea();
 }
+// Se questo condòmino ha ricevuto una o più deleghe da altri condòmini (non persone esterne),
+// genera una riga informativa per ciascuna, con il peso in millesimi che porterà quel delegante
+// nella tabella del sondaggio in corso — mostrata sotto "Voterai con i tuoi XXX millesimi".
+function costruisciRigheDelegheRicevute(assemblea, b, votanteId){
+  if(!activePoll || !assemblea.appello || !assemblea.appello.deleghe) return '';
+  const deleganti = Object.keys(assemblea.appello.deleghe).filter(k=>String(assemblea.appello.deleghe[k])===String(votanteId));
+  if(!deleganti.length) return '';
+  return deleganti.map((idStr,i)=>{
+    const delegante = (b.condomini||[]).find(x=>String(x.id)===String(idStr));
+    if(!delegante) return '';
+    const peso = (delegante.millesimi && delegante.millesimi[activePoll.tabella]) || 0;
+    const ultima = i===deleganti.length-1;
+    return `<p class="muted" style="color:#A39C88;margin-bottom:${ultima?12:4}px;">Voterai con ${peso} millesimi per delega di ${escapeHtml(nomeCompletoCondomino(delegante))} (tabella: ${escapeHtml(activePoll.tabella)})</p>`;
+  }).join('');
+}
 function costruisciBloccoSondaggioAttivo(assembleaCorrente, b){
   // "Punto X — [testo del punto]", mostrato sopra la domanda del sondaggio, per dare sempre
   // contesto su quale voce dell'ordine del giorno si sta votando in questo momento.
@@ -8936,7 +8951,9 @@ function costruisciBloccoSondaggioAttivo(assembleaCorrente, b){
     const idScelto = activePoll.scelte ? activePoll.scelte[votante.id] : null;
     const optScelta = activePoll.options.find(o=>o.id===idScelto);
     const etichetta = optScelta ? optScelta.label : 'registrato';
-    return `<div id="cv-conferma-voto-box" style="margin-bottom:18px;">${etichettaPunto}Hai votato: ${escapeHtml(etichetta)}<span class="sub">Voto registrato con ${votante.estera?'i millesimi di chi ti ha delegato':'i tuoi'} ${mieiMillesimi} millesimi (${escapeHtml(activePoll.tabella)}). In attesa che l'amministratore chiuda il sondaggio...</span></div>`;
+    return `<div id="cv-conferma-voto-box" style="margin-bottom:18px;">${etichettaPunto}Hai votato: ${escapeHtml(etichetta)}<span class="sub">Voto registrato con ${votante.estera?'i millesimi di chi ti ha delegato':'i tuoi'} ${mieiMillesimi} millesimi (${escapeHtml(activePoll.tabella)}). In attesa che l'amministratore chiuda il sondaggio...</span>
+      <div class="cv-btn-modifica-scelta-wrap"><button class="btn small cv-btn-modifica-scelta" onclick="modificaSceltaVotoBloccoCv()">Modifica voto</button></div>
+    </div>`;
   }
   // Se questo dispositivo sta votando come persona ESTERNA (delegata da uno o più condòmini,
   // ed è lei stessa a usare il link che le è stato inoltrato): il voto vale di per sé SOLO se
@@ -8951,7 +8968,8 @@ function costruisciBloccoSondaggioAttivo(assembleaCorrente, b){
     }
     return `<div class="assist-panel" id="cv-sondaggio-attivo-blocco" style="border-left:4px solid var(--brass);margin-bottom:18px;">
       ${etichettaPunto}
-      <p class="sub" style="margin-bottom:4px;font-weight:700;font-size:18px;color:#F2F0EC;">${escapeHtml(activePoll.question)}</p>
+      <p class="muted" style="margin-bottom:2px;color:#A39C88;">Domanda:</p>
+      <p class="sub" style="margin-bottom:10px;font-weight:700;font-size:18px;color:#F2F0EC;">${escapeHtml(activePoll.question)}</p>
       <p class="muted" style="color:#A39C88;margin-bottom:12px;">Stai votando come delegato/a: userai i ${mieiMillesimi} millesimi di chi ti ha delegato (tabella: ${escapeHtml(activePoll.tabella)})</p>
       <div id="cv-lista-opzioni"></div>
       <button id="cv-btn-conferma-voto" onclick="confermaVotoCondomino()" disabled>Conferma il voto</button>
@@ -8991,8 +9009,10 @@ function costruisciBloccoSondaggioAttivo(assembleaCorrente, b){
   }
   return `<div class="assist-panel" id="cv-sondaggio-attivo-blocco" style="border-left:4px solid var(--brass);margin-bottom:18px;">
     ${etichettaPunto}
-    <p class="sub" style="margin-bottom:4px;font-weight:700;font-size:18px;color:#F2F0EC;">${escapeHtml(activePoll.question)}</p>
-    <p class="muted" style="color:#A39C88;margin-bottom:12px;">Voterai con i tuoi ${mieiMillesimi} millesimi (tabella: ${escapeHtml(activePoll.tabella)})</p>
+    <p class="muted" style="margin-bottom:2px;color:#A39C88;">Domanda:</p>
+    <p class="sub" style="margin-bottom:10px;font-weight:700;font-size:18px;color:#F2F0EC;">${escapeHtml(activePoll.question)}</p>
+    <p class="muted" style="color:#A39C88;margin-bottom:${costruisciRigheDelegheRicevute(assembleaCorrente, b, votante.id)?4:12}px;">Voterai con i tuoi ${mieiMillesimi} millesimi (tabella: ${escapeHtml(activePoll.tabella)})</p>
+    ${costruisciRigheDelegheRicevute(assembleaCorrente, b, votante.id)}
     <div id="cv-lista-opzioni"></div>
     <button id="cv-btn-conferma-voto" onclick="confermaVotoCondomino()" disabled>Conferma il voto</button>
   </div>`;
@@ -9015,8 +9035,8 @@ function collegaInterazioneSondaggioAttivo(){
 let __cvMomentoVotoConfermato = null; // quando si è confermato il voto, per il conto alla rovescia di 4s in verticale
 function trovaRisultatoSondaggioRecentementeChiuso(assemblea){
   if(!assemblea || !assemblea.odg) return null;
-  // Il risultato resta in primo piano per 7 secondi, sia in verticale che in orizzontale.
-  const finestraMs = 7000; // stessi 7 secondi sia in verticale che in orizzontale, su richiesta esplicita
+  // Il risultato resta in primo piano per 5 secondi, sia in verticale che in orizzontale.
+  const finestraMs = 5000; // stessi 5 secondi sia in verticale che in orizzontale, su richiesta esplicita
   let piuRecente = null;
   assemblea.odg.forEach((p,i)=>{
     const storico = p.storicoSondaggi||[];
