@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-276 — creata il 16/09/2026 alle 15:40
+  Versione: LT-278 — creata il 22/09/2026 alle 16:14
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -282,7 +282,7 @@
   .calendar-nav-btn:hover{background:rgba(255,255,255,.12);}
   .calendar-daylabels-row{display:grid;grid-template-columns:repeat(7, minmax(0, 1fr));gap:3px;margin-bottom:4px;}
   .calendar-daylabel{text-align:center;font-family:var(--font-mono);font-size:8.5px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.04em;}
-  .calendar-grid{display:grid;grid-template-columns:repeat(7, minmax(0, 1fr));grid-auto-rows:34px;gap:3px;width:100%;box-sizing:border-box;}
+  .calendar-grid{display:grid;grid-template-columns:repeat(7, minmax(0, 1fr));grid-auto-rows:34px;gap:3px;width:100%;box-sizing:border-box;align-content:start;}
   .calendar-cell{position:relative;background:#fff;border-radius:3px;font-family:var(--font-mono);color:var(--text);cursor:default;}
   .calendar-cell.cal-empty{background:transparent;}
   .calendar-cell .day-num{position:absolute;top:2px;right:3px;font-size:13px;font-weight:700;}
@@ -739,7 +739,7 @@
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 16/09/2026 alle 15:40">LT-276</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 22/09/2026 alle 16:14">LT-278</span>
   </div>
 
   <!-- MAIN -->
@@ -2979,6 +2979,8 @@ function renderCalendar(){
 
   const grid = document.getElementById('calendar-grid');
   grid.innerHTML='';
+  const numRighe = Math.ceil((startOffset+ultimoGiorno)/7);
+  grid.style.gridTemplateRows = `repeat(${numRighe}, 34px)`;
   for(let i=0;i<startOffset;i++){ const el=document.createElement('div'); el.className='calendar-cell cal-empty'; grid.appendChild(el); }
 
   for(let giorno=1; giorno<=ultimoGiorno; giorno++){
