@@ -8,31 +8,59 @@
 //   DIGITALSAMBA_DEVELOPER_KEY    -> la tua Developer Key
 //   DIGITALSAMBA_ROOM_URL         -> (opzionale) stanza di riserva, default "demo-room"
 //
-// NOVITÀ LT-279 — UNA STANZA DIVERSA PER OGNI ASSEMBLEA.
+// UNA STANZA DIVERSA PER OGNI ASSEMBLEA (introdotto con LT-279).
 // Prima esisteva una sola stanza fissa ("demo-room") condivisa da tutti: due assemblee
 // nello stesso momento avrebbero riversato tutti i partecipanti nella stessa
-// videochiamata. Ora il browser manda anche il campo "stanza" (es. "asm-3-1742..."),
-// questa funzione la cerca su Digital Samba e — se non esiste ancora — la crea al volo,
-// poi genera il token come prima. Se il campo "stanza" non arriva (versioni vecchie del
-// file HTML), si continua a usare la stanza di riserva: nulla si rompe.
+// videochiamata. Ora il browser manda anche il campo "stanza", questa funzione la cerca
+// su Digital Samba e — se non esiste ancora — la crea al volo, poi genera il token come
+// prima. Se il campo "stanza" non arriva (versioni vecchie del file HTML), si continua a
+// usare la stanza di riserva: nulla si rompe.
 //
 // Le stanze create qui sono PRIVATE: senza un token generato da questa funzione non ci
-// si entra, nemmeno conoscendo l'indirizzo. La vecchia demo-room era pubblica, quindi
-// chiunque ne conoscesse l'URL poteva entrare in assemblea.
+// si entra, nemmeno conoscendo l'indirizzo.
 //
-// Il chiamante (il file HTML) manda una POST con { ruolo, nome, stanza } e riceve
-// indietro { url, urlStanza, stanza } — "url" è quello pronto da usare come src
-// dell'iframe.
+// CORREZIONI DI QUESTA VERSIONE (dopo la prima prova dal vivo su LT-281):
+//  1) NOMI DI STANZA TROPPO LUNGHI. Gli identificativi di condominio e assemblea sono
+//     numeri lunghissimi (derivano dall'orologio), e il nome che ne usciva arrivava a 34
+//     caratteri: Digital Samba lo rifiutava. Ora, se il nome supera i 30 caratteri, viene
+//     accorciato in modo RIPETIBILE (stesso nome in ingresso -> sempre stesso nome in
+//     uscita), così tutti i partecipanti della stessa assemblea finiscono comunque nella
+//     stessa stanza. L'accorciamento avviene QUI e non nel file HTML, così il file HTML
+//     non va ricaricato.
+//  2) ERRORI CIECHI. Prima, quando Digital Samba rifiutava qualcosa, il motivo restava
+//     nascosto e il messaggio a schermo diceva solo "non sono riuscito". Ora la risposta
+//     vera di Digital Samba viene riportata dentro il messaggio che l'utente legge.
+//  3) SECONDO TENTATIVO SENZA RUOLI. Se la creazione fallisce indicando i ruoli, la stanza
+//     viene ricreata senza specificarli, lasciando quelli predefiniti del team.
+
+// Riassume una risposta di errore per mostrarla a schermo: niente a capo, lunghezza limitata.
+function riassunto(testo) {
+  if (!testo) return 'nessun dettaglio';
+  return String(testo).replace(/\s+/g, ' ').trim().slice(0, 300);
+}
+
+// Impronta corta e ripetibile di una stringa (algoritmo FNV-1a): serve solo ad accorciare
+// nomi troppo lunghi mantenendoli univoci, non ha alcuno scopo di sicurezza.
+function improntaBreve(testo) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < testo.length; i++) {
+    h ^= testo.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(36);
+}
 
 // Ripulisce il nome stanza che arriva dal browser: solo lettere minuscole, cifre e
 // trattini. È una misura di sicurezza, non un capriccio — quel valore finisce dentro
 // l'indirizzo di una chiamata all'API di Digital Samba, e non deve poter contenere
-// caratteri capaci di alterarla (es. "../" o uno spazio). Se dopo la pulizia non resta
-// nulla di sensato, restituiamo null e il chiamante userà la stanza di riserva.
+// caratteri capaci di alterarla (es. "../" o uno spazio). Poi lo accorcia se necessario.
 function pulisciNomeStanza(valore) {
   if (typeof valore !== 'string') return null;
-  const pulito = valore.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
-  if (pulito.length < 3 || pulito.length > 60) return null;
+  let pulito = valore.trim().toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/^-+/, '');
+  if (pulito.length < 3) return null;
+  if (pulito.length > 30) {
+    pulito = pulito.slice(0, 18).replace(/-+$/, '') + '-' + improntaBreve(pulito);
+  }
   return pulito;
 }
 
@@ -75,10 +103,23 @@ export default async function handler(req, res) {
     // Qualsiasi altro errore (credenziali sbagliate, servizio non raggiungibile) NON è un
     // "non esiste": lo segnaliamo come errore vero, senza provare a creare una stanza che
     // quasi certamente fallirebbe allo stesso modo.
-    const dettaglio = await risposta.text();
-    const errore = new Error('Ricerca della stanza fallita (codice ' + risposta.status + ').');
-    errore.dettaglio = dettaglio;
+    const errore = new Error('Ricerca della stanza fallita (codice ' + risposta.status + '): ' + riassunto(await risposta.text()));
     throw errore;
+  }
+
+  // Crea la stanza. "conRuoli" alla prima chiamata; in caso di rifiuto si riprova senza,
+  // lasciando i ruoli predefiniti del team.
+  async function creaStanza(conRuoli) {
+    const corpo = conRuoli
+      ? { friendly_url: nomeStanza, privacy: 'private', roles: ['moderator', 'attendee'], default_role: 'attendee' }
+      : { friendly_url: nomeStanza, privacy: 'private' };
+    const risposta = await fetch('https://api.digitalsamba.com/api/v1/rooms', {
+      method: 'POST',
+      headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
+      body: JSON.stringify(corpo)
+    });
+    if (risposta.ok) return { dati: await risposta.json(), errore: null };
+    return { dati: null, errore: 'codice ' + risposta.status + ': ' + riassunto(await risposta.text()) };
   }
 
   try {
@@ -87,28 +128,26 @@ export default async function handler(req, res) {
     // La stanza dell'assemblea non esiste ancora: la creiamo adesso. Succede una sola volta
     // per assemblea, alla prima persona che apre il video (di solito l'amministratore).
     if (!datiStanza && eStanzaDiAssemblea) {
-      const rispostaCreazione = await fetch('https://api.digitalsamba.com/api/v1/rooms', {
-        method: 'POST',
-        headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          friendly_url: nomeStanza,
-          privacy: 'private',
-          roles: ['moderator', 'attendee'],
-          default_role: 'attendee'
-        })
-      });
-      if (rispostaCreazione.ok) {
-        datiStanza = await rispostaCreazione.json();
-      } else {
+      let tentativo = await creaStanza(true);
+      let motivi = [];
+      if (!tentativo.dati) {
+        motivi.push('con ruoli -> ' + tentativo.errore);
         // Caso normale, non un guasto: due persone hanno aperto il video nello stesso
-        // istante, la stanza l'ha creata l'altra richiesta un attimo prima e Digital Samba
-        // rifiuta il doppione. Rileggiamo la stanza appena creata dall'altra e proseguiamo.
+        // istante e la stanza l'ha già creata l'altra richiesta. Prima di insistere,
+        // ricontrolliamo se nel frattempo è comparsa.
         datiStanza = await cercaStanza();
         if (!datiStanza) {
-          const dettaglio = await rispostaCreazione.text();
-          res.status(502).json({ error: 'Non sono riuscito a creare la stanza "' + nomeStanza + '" su Digital Samba.', dettaglio });
-          return;
+          tentativo = await creaStanza(false);
+          if (!tentativo.dati) motivi.push('senza ruoli -> ' + tentativo.errore);
         }
+      }
+      if (!datiStanza && tentativo.dati) datiStanza = tentativo.dati;
+      if (!datiStanza) {
+        res.status(502).json({
+          error: 'Digital Samba ha rifiutato la creazione della stanza "' + nomeStanza + '" (' + nomeStanza.length + ' caratteri). ' + motivi.join(' | '),
+          stanza: nomeStanza
+        });
+        return;
       }
     }
 
@@ -129,8 +168,7 @@ export default async function handler(req, res) {
       })
     });
     if (!rispostaToken.ok) {
-      const dettaglio = await rispostaToken.text();
-      res.status(502).json({ error: 'Non sono riuscito a generare il token di ingresso.', dettaglio });
+      res.status(502).json({ error: 'Stanza "' + nomeStanza + '" pronta, ma Digital Samba ha rifiutato il token di ingresso (codice ' + rispostaToken.status + '): ' + riassunto(await rispostaToken.text()) });
       return;
     }
     const datiToken = await rispostaToken.json();
@@ -140,6 +178,6 @@ export default async function handler(req, res) {
 
     res.status(200).json({ url: urlConToken, urlStanza, stanza: nomeStanza });
   } catch (e) {
-    res.status(500).json({ error: 'Errore imprevisto nel generare il link di ingresso.', dettaglio: e.dettaglio || String(e) });
+    res.status(500).json({ error: 'Errore nel preparare l\'ingresso: ' + riassunto(e && e.message ? e.message : e) });
   }
 }
