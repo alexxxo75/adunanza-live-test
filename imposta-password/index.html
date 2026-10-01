@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Riunion — Scegli la tua password</title>
+<style>
+  :root { --sfondo:#f5f6f8; --carta:#fff; --testo:#1c2430; --tenue:#5d6b7e; --linea:#dfe3ea; --primario:#1f4e8c; --primario-testo:#fff; --ok:#1d7a46; --ok-bg:#e5f5ec; --err:#b3261e; --err-bg:#fdecea; }
+  @media (prefers-color-scheme: dark) { :root { --sfondo:#12161c; --carta:#1b212a; --testo:#e8ecf2; --tenue:#9aa6b8; --linea:#2c3542; --primario:#5b9bf0; --primario-testo:#0d1420; --ok:#6fd49a; --ok-bg:#14301f; --err:#ff8c84; --err-bg:#3a1a18; } }
+  * { box-sizing: border-box; }
+  html, body { margin:0; background:var(--sfondo); color:var(--testo); font:16px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  body { padding: env(safe-area-inset-top,0) 16px env(safe-area-inset-bottom,0); }
+  main { max-width: 440px; margin: 8vh auto 0; }
+  .carta { background: var(--carta); border: 1px solid var(--linea); border-radius: 12px; padding: 24px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sotto { color: var(--tenue); margin: 0 0 12px; }
+  label { display:block; font-size:14px; font-weight:600; margin: 14px 0 4px; }
+  input { width:100%; padding: 10px 12px; font: inherit; color: var(--testo); background: var(--carta); border: 1px solid var(--linea); border-radius: 8px; }
+  input:focus, button:focus-visible { outline: 2px solid var(--primario); outline-offset: 1px; }
+  button { font: inherit; cursor: pointer; border-radius: 8px; padding: 10px 16px; border: 1px solid var(--primario); background: var(--primario); color: var(--primario-testo); font-weight: 600; margin-top: 18px; width: 100%; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .msg { margin-top: 14px; padding: 10px 12px; border-radius: 8px; font-size: 15px; }
+  .msg.err { background: var(--err-bg); color: var(--err); }
+  .msg.ok { background: var(--ok-bg); color: var(--ok); }
+  .regole { font-size: 14px; color: var(--tenue); margin: 6px 0 0; }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<main>
+  <div class="carta">
+    <h1>Riunion</h1>
+
+    <div id="v-attesa"><p class="sotto">Verifica del link in corso…</p></div>
+
+    <div id="v-form" hidden>
+      <p class="sotto">Scegli la password con cui accederai.</p>
+      <label for="pw1">Nuova password</label>
+      <input id="pw1" type="password" autocomplete="new-password">
+      <p class="regole">Almeno 12 caratteri. Meglio una frase lunga che una parola complicata.</p>
+      <label for="pw2">Ripeti la password</label>
+      <input id="pw2" type="password" autocomplete="new-password">
+      <button id="btn-salva" type="button">Salva la password</button>
+      <div id="msg" class="msg" hidden></div>
+    </div>
+
+    <div id="v-errore" hidden>
+      <p id="errore-testo" class="sotto"></p>
+      <p class="sotto">Chiedi un nuovo invito oppure, se hai già un account, usa "Password dimenticata?" nella pagina di accesso.</p>
+    </div>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var sb = null;
+  var formMostrato = false;
+
+  function vista(nome) {
+    ['v-attesa', 'v-form', 'v-errore'].forEach(function (v) { $(v).hidden = (v !== nome); });
+  }
+  function messaggio(testo, tipo) {
+    var e = $('msg');
+    e.textContent = testo || '';
+    e.className = 'msg' + (tipo ? ' ' + tipo : '');
+    e.hidden = !testo;
+  }
+  function errore(testo) {
+    $('errore-testo').textContent = testo;
+    vista('v-errore');
+  }
+  // Se il link è scaduto o già usato, Supabase lo scrive nell'indirizzo della pagina.
+  function erroreNelLink() {
+    var p = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
+    if (p.get('error') || p.get('error_code')) {
+      return p.get('error_code') === 'otp_expired' ? 'Il link è scaduto o è già stato usato.' : 'Il link non è valido.';
+    }
+    return null;
+  }
+  function mostraForm() {
+    if (formMostrato) return;
+    formMostrato = true;
+    // Togliamo dall'indirizzo i dati temporanei del link.
+    if (window.history && window.history.replaceState) window.history.replaceState(null, '', window.location.pathname);
+    vista('v-form');
+  }
+
+  async function salva() {
+    var a = $('pw1').value, b = $('pw2').value;
+    if (a.length < 12) { messaggio('La password deve avere almeno 12 caratteri.', 'err'); return; }
+    if (a !== b) { messaggio('Le due password non coincidono.', 'err'); return; }
+    $('btn-salva').disabled = true;
+    messaggio('Salvataggio…');
+    var r = await sb.auth.updateUser({ password: a });
+    if (r.error) {
+      var m = r.error.message || '';
+      if (/same|different from the old/i.test(m)) m = 'Scegli una password diversa dalla precedente.';
+      else if (/weak|short|at least/i.test(m)) m = 'La password non è abbastanza robusta.';
+      messaggio(m || 'Impossibile salvare la password.', 'err');
+      $('btn-salva').disabled = false;
+      return;
+    }
+    messaggio('Password salvata. Ti porto avanti…', 'ok');
+    var dove = '/';
+    try {
+      var u = await sb.auth.getUser();
+      var p = await sb.from('amministratori').select('ruolo').eq('id', u.data.user.id).maybeSingle();
+      if (p.data && p.data.ruolo === 'administrator') dove = '/gestione/';
+    } catch (e) {}
+    setTimeout(function () { window.location.href = dove; }, 1200);
+  }
+
+  async function avvia() {
+    var prima = erroreNelLink();
+    if (prima) { errore(prima); return; }
+    var cfg;
+    try {
+      var r = await fetch('/api/config', { cache: 'no-store' });
+      cfg = await r.json();
+      if (!r.ok || !cfg.url || !cfg.chiavePubblica) throw new Error('config');
+    } catch (e) { errore('Configurazione mancante sul server.'); return; }
+
+    sb = window.supabase.createClient(cfg.url, cfg.chiavePubblica);
+    sb.auth.onAuthStateChange(function (evento, sessione) {
+      if (sessione && (evento === 'SIGNED_IN' || evento === 'PASSWORD_RECOVERY' || evento === 'INITIAL_SESSION')) mostraForm();
+    });
+    $('btn-salva').addEventListener('click', salva);
+    $('pw2').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') salva(); });
+
+    setTimeout(async function () {
+      if (formMostrato) return;
+      var s = await sb.auth.getSession();
+      if (s.data.session) mostraForm(); else errore('Il link non è valido o è scaduto.');
+    }, 2500);
+  }
+  avvia();
+})();
+</script>
+</body>
+</html>

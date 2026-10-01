@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Riunion — Gestione amministratori</title>
+<style>
+  :root { --sfondo:#f5f6f8; --carta:#fff; --testo:#1c2430; --tenue:#5d6b7e; --linea:#dfe3ea; --primario:#1f4e8c; --primario-testo:#fff; --ok:#1d7a46; --ok-bg:#e5f5ec; --err:#b3261e; --err-bg:#fdecea; --spento:#6b7280; --spento-bg:#eceef2; }
+  @media (prefers-color-scheme: dark) { :root { --sfondo:#12161c; --carta:#1b212a; --testo:#e8ecf2; --tenue:#9aa6b8; --linea:#2c3542; --primario:#5b9bf0; --primario-testo:#0d1420; --ok:#6fd49a; --ok-bg:#14301f; --err:#ff8c84; --err-bg:#3a1a18; --spento:#a1abbb; --spento-bg:#252d39; } }
+  * { box-sizing: border-box; }
+  html, body { margin:0; background:var(--sfondo); color:var(--testo); font:16px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  body { padding: env(safe-area-inset-top,0) 16px env(safe-area-inset-bottom,0); }
+  main { max-width: 920px; margin: 0 auto; padding: 24px 0 48px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 17px; margin: 0 0 12px; }
+  .sotto { color: var(--tenue); margin: 0 0 20px; }
+  .carta { background: var(--carta); border: 1px solid var(--linea); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+  .stretta { max-width: 420px; margin: 8vh auto 0; }
+  label { display:block; font-size:14px; font-weight:600; margin: 12px 0 4px; }
+  input, select { width:100%; padding: 10px 12px; font: inherit; color: var(--testo); background: var(--carta); border: 1px solid var(--linea); border-radius: 8px; }
+  input:focus, select:focus, button:focus-visible { outline: 2px solid var(--primario); outline-offset: 1px; }
+  .riga { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 560px) { .riga { grid-template-columns: 1fr; } }
+  button { font: inherit; cursor: pointer; border-radius: 8px; padding: 10px 16px; border: 1px solid var(--linea); background: var(--carta); color: var(--testo); }
+  button.primario { background: var(--primario); color: var(--primario-testo); border-color: var(--primario); font-weight: 600; margin-top: 16px; }
+  button.link { border: 0; background: none; color: var(--primario); padding: 4px 0; text-decoration: underline; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .msg { margin-top: 14px; padding: 10px 12px; border-radius: 8px; font-size: 15px; }
+  .msg.err { background: var(--err-bg); color: var(--err); }
+  .msg.ok { background: var(--ok-bg); color: var(--ok); }
+  .intestazione { display:flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+  .scorri { overflow-x: auto; }
+  table { width:100%; border-collapse: collapse; font-size: 15px; }
+  th, td { text-align:left; padding: 10px 8px; border-bottom: 1px solid var(--linea); vertical-align: middle; }
+  th { font-size: 13px; color: var(--tenue); font-weight: 600; white-space: nowrap; }
+  .badge { display:inline-block; padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; }
+  .badge.on { background: var(--ok-bg); color: var(--ok); }
+  .badge.off { background: var(--spento-bg); color: var(--spento); }
+  .vuoto { color: var(--tenue); padding: 16px 0 4px; }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<main>
+
+  <section id="v-caricamento" class="carta stretta"><p class="sotto" style="margin:0">Caricamento…</p></section>
+
+  <section id="v-login" class="carta stretta" hidden>
+    <h1>Riunion</h1>
+    <p class="sotto">Accesso alla gestione degli amministratori</p>
+    <label for="login-email">Email</label>
+    <input id="login-email" type="email" autocomplete="username" inputmode="email">
+    <label for="login-password">Password</label>
+    <input id="login-password" type="password" autocomplete="current-password">
+    <button id="btn-accedi" class="primario" type="button">Accedi</button>
+    <div id="login-msg" class="msg" hidden></div>
+    <p style="margin:16px 0 0"><button id="btn-dimenticata" class="link" type="button">Password dimenticata?</button></p>
+  </section>
+
+  <section id="v-negato" class="carta stretta" hidden>
+    <h1>Accesso non consentito</h1>
+    <p id="negato-testo" class="sotto"></p>
+    <button id="btn-esci-negato" type="button">Torna all'accesso</button>
+  </section>
+
+  <section id="v-pannello" hidden>
+    <div class="intestazione">
+      <div>
+        <h1>Gestione amministratori</h1>
+        <p class="sotto" style="margin:0">Collegato come <strong id="utente-nome"></strong></p>
+      </div>
+      <button id="btn-esci" type="button">Esci</button>
+    </div>
+
+    <div class="carta">
+      <h2>Invita un nuovo utente</h2>
+      <p class="sotto" style="margin-top:-4px">Riceverà un'email con un link per scegliere la propria password.</p>
+      <div class="riga">
+        <div><label for="inv-nome">Nome</label><input id="inv-nome" type="text" autocomplete="off"></div>
+        <div><label for="inv-cognome">Cognome</label><input id="inv-cognome" type="text" autocomplete="off"></div>
+      </div>
+      <div class="riga">
+        <div><label for="inv-email">Email</label><input id="inv-email" type="email" autocomplete="off" inputmode="email"></div>
+        <div>
+          <label for="inv-ruolo">Tipo di utente</label>
+          <select id="inv-ruolo">
+            <option value="amministratore">Amministratore di condominio</option>
+            <option value="administrator">ADMINISTRATOR (gestione della piattaforma)</option>
+          </select>
+        </div>
+      </div>
+      <button id="btn-invita" class="primario" type="button">Invia invito</button>
+      <div id="inv-msg" class="msg" hidden></div>
+    </div>
+
+    <div class="carta">
+      <h2>Utenti</h2>
+      <div class="scorri">
+        <table>
+          <thead><tr><th>Nome</th><th>Email</th><th>Tipo</th><th>Stato</th><th>Creato il</th><th></th></tr></thead>
+          <tbody id="elenco"></tbody>
+        </table>
+      </div>
+      <p id="elenco-vuoto" class="vuoto" hidden>Nessun utente.</p>
+      <div id="elenco-msg" class="msg" hidden></div>
+    </div>
+  </section>
+
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var sb = null;
+  var io = null; // dati dell'ADMINISTRATOR collegato
+
+  function mostra(vista) {
+    ['v-caricamento', 'v-login', 'v-negato', 'v-pannello'].forEach(function (v) { $(v).hidden = (v !== vista); });
+  }
+  function messaggio(id, testo, tipo) {
+    var e = $(id);
+    e.textContent = testo || '';
+    e.className = 'msg' + (tipo ? ' ' + tipo : '');
+    e.hidden = !testo;
+  }
+  function traduciErrore(e) {
+    var m = (e && e.message) || '';
+    if (/invalid login credentials/i.test(m)) return 'Email o password non corretti.';
+    if (/email not confirmed/i.test(m)) return 'L\'invito non è ancora stato accettato.';
+    if (/banned|user is banned/i.test(m)) return 'Questo account è stato disattivato.';
+    if (/rate limit|too many/i.test(m)) return 'Troppi tentativi. Riprova tra qualche minuto.';
+    return m || 'Errore imprevisto.';
+  }
+  function dataBreve(iso) {
+    if (!iso) return '';
+    return new Date(iso).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+  function cella(testo) { var td = document.createElement('td'); td.textContent = testo; return td; }
+
+  async function chiamaApi(percorso, corpo) {
+    var s = await sb.auth.getSession();
+    if (!s.data.session) throw new Error('Sessione scaduta. Accedi di nuovo.');
+    var r = await fetch(percorso, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + s.data.session.access_token },
+      body: JSON.stringify(corpo)
+    });
+    var j = {};
+    try { j = await r.json(); } catch (e) {}
+    if (!r.ok || j.ok === false) throw new Error(j.errore || 'Operazione non riuscita (' + r.status + ').');
+    return j;
+  }
+
+  async function entra(sessione) {
+    var p = await sb.from('amministratori').select('id, ruolo, attivo, nome, cognome, email').eq('id', sessione.user.id).maybeSingle();
+    if (p.error || !p.data) { await rifiuta('Il tuo account non risulta abilitato.'); return; }
+    if (!p.data.attivo) { await rifiuta('Il tuo account è stato disattivato.'); return; }
+    if (p.data.ruolo !== 'administrator') { await rifiuta('Questa pagina è riservata agli ADMINISTRATOR della piattaforma.'); return; }
+    io = p.data;
+    $('utente-nome').textContent = ((p.data.nome || '') + ' ' + (p.data.cognome || '')).trim() || p.data.email;
+    mostra('v-pannello');
+    await caricaElenco();
+  }
+  async function rifiuta(testo) {
+    $('negato-testo').textContent = testo;
+    await sb.auth.signOut();
+    mostra('v-negato');
+  }
+
+  async function caricaElenco() {
+    messaggio('elenco-msg', '');
+    var r = await sb.rpc('elenco_amministratori');
+    var corpo = $('elenco');
+    corpo.textContent = '';
+    if (r.error) { messaggio('elenco-msg', 'Impossibile caricare l\'elenco: ' + r.error.message, 'err'); return; }
+    var righe = r.data || [];
+    $('elenco-vuoto').hidden = righe.length > 0;
+    righe.forEach(function (u) {
+      var tr = document.createElement('tr');
+      var nomeCompleto = ((u.nome || '') + ' ' + (u.cognome || '')).trim() || '—';
+      tr.appendChild(cella(nomeCompleto));
+      tr.appendChild(cella(u.email));
+      tr.appendChild(cella(u.ruolo === 'administrator' ? 'ADMINISTRATOR' : 'Amministratore'));
+      var tdStato = document.createElement('td');
+      var b = document.createElement('span');
+      b.className = 'badge ' + (u.attivo ? 'on' : 'off');
+      b.textContent = u.attivo ? 'Attivo' : 'Disattivato';
+      tdStato.appendChild(b);
+      tr.appendChild(tdStato);
+      tr.appendChild(cella(dataBreve(u.creato_il)));
+      var tdAz = document.createElement('td');
+      if (u.id !== io.id) {
+        var bt = document.createElement('button');
+        bt.type = 'button';
+        bt.textContent = u.attivo ? 'Disattiva' : 'Riattiva';
+        bt.addEventListener('click', function () { cambiaStato(u, bt); });
+        tdAz.appendChild(bt);
+      } else {
+        tdAz.textContent = '(tu)';
+      }
+      tr.appendChild(tdAz);
+      corpo.appendChild(tr);
+    });
+  }
+
+  async function cambiaStato(utente, bottone) {
+    var nome = ((utente.nome || '') + ' ' + (utente.cognome || '')).trim() || utente.email;
+    var vuoleAttivo = !utente.attivo;
+    var domanda = vuoleAttivo
+      ? 'Riattivare l\'account di ' + nome + '?'
+      : 'Disattivare l\'account di ' + nome + '?\n\nNon potrà più accedere.';
+    if (!window.confirm(domanda)) return;
+    bottone.disabled = true;
+    messaggio('elenco-msg', '');
+    try {
+      var j = await chiamaApi('/api/amministratori/stato', { id: utente.id, attivo: vuoleAttivo });
+      if (j.avviso) messaggio('elenco-msg', j.avviso, 'ok');
+      await caricaElenco();
+    } catch (e) {
+      messaggio('elenco-msg', e.message, 'err');
+      bottone.disabled = false;
+    }
+  }
+
+  async function invita() {
+    var btn = $('btn-invita');
+    var dati = {
+      nome: $('inv-nome').value.trim(),
+      cognome: $('inv-cognome').value.trim(),
+      email: $('inv-email').value.trim(),
+      ruolo: $('inv-ruolo').value
+    };
+    if (!dati.nome || !dati.email) { messaggio('inv-msg', 'Inserisci almeno nome ed email.', 'err'); return; }
+    if (dati.ruolo === 'administrator' &&
+        !window.confirm('Stai per invitare un ADMINISTRATOR: avrà gli stessi poteri tuoi sulla gestione degli account.\n\nProcedere?')) return;
+    btn.disabled = true;
+    messaggio('inv-msg', 'Invio in corso…');
+    try {
+      await chiamaApi('/api/amministratori/invita', dati);
+      messaggio('inv-msg', 'Invito inviato a ' + dati.email + '.', 'ok');
+      ['inv-nome', 'inv-cognome', 'inv-email'].forEach(function (id) { $(id).value = ''; });
+      await caricaElenco();
+    } catch (e) {
+      messaggio('inv-msg', e.message, 'err');
+    }
+    btn.disabled = false;
+  }
+
+  async function accedi() {
+    var email = $('login-email').value.trim();
+    var password = $('login-password').value;
+    if (!email || !password) { messaggio('login-msg', 'Inserisci email e password.', 'err'); return; }
+    $('btn-accedi').disabled = true;
+    messaggio('login-msg', '');
+    var r = await sb.auth.signInWithPassword({ email: email, password: password });
+    $('btn-accedi').disabled = false;
+    if (r.error) { messaggio('login-msg', traduciErrore(r.error), 'err'); return; }
+    $('login-password').value = '';
+    await entra(r.data.session);
+  }
+
+  async function passwordDimenticata() {
+    var email = $('login-email').value.trim();
+    if (!email) { messaggio('login-msg', 'Scrivi la tua email qui sopra, poi premi di nuovo "Password dimenticata?".', 'err'); return; }
+    var r = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/imposta-password/' });
+    if (r.error) { messaggio('login-msg', traduciErrore(r.error), 'err'); return; }
+    messaggio('login-msg', 'Se l\'indirizzo è registrato, riceverai un\'email con le istruzioni.', 'ok');
+  }
+
+  async function esci() {
+    await sb.auth.signOut();
+    io = null;
+    messaggio('login-msg', '');
+    mostra('v-login');
+  }
+
+  async function avvia() {
+    var cfg;
+    try {
+      var r = await fetch('/api/config', { cache: 'no-store' });
+      cfg = await r.json();
+      if (!r.ok || !cfg.url || !cfg.chiavePubblica) throw new Error('config');
+    } catch (e) {
+      $('negato-testo').textContent = 'Configurazione mancante: controlla le variabili d\'ambiente su Vercel.';
+      $('btn-esci-negato').hidden = true;
+      mostra('v-negato');
+      return;
+    }
+    sb = window.supabase.createClient(cfg.url, cfg.chiavePubblica);
+    $('btn-accedi').addEventListener('click', accedi);
+    $('login-password').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') accedi(); });
+    $('btn-dimenticata').addEventListener('click', passwordDimenticata);
+    $('btn-invita').addEventListener('click', invita);
+    $('btn-esci').addEventListener('click', esci);
+    $('btn-esci-negato').addEventListener('click', function () { mostra('v-login'); });
+    var s = await sb.auth.getSession();
+    if (s.data.session) await entra(s.data.session); else mostra('v-login');
+  }
+  avvia();
+})();
+</script>
+</body>
+</html>
