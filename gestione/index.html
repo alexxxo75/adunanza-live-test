@@ -306,11 +306,20 @@
       tr.appendChild(u.ruolo === 'administrator'
         ? badge('ADMINISTRATOR', 'badge-review')
         : badge('Amministratore', 'badge-working'));
-      tr.appendChild(u.attivo ? badge('Attivo', 'badge-done') : badge('Disattivato', 'badge-off'));
+      tr.appendChild(!u.attivo ? badge('Disattivato', 'badge-off') : (u.invito_accettato === false ? badge('Invitato — password da impostare', 'badge-working') : badge('Attivo', 'badge-done')));
       tr.appendChild(cella(dataBreve(u.creato_il), 'piccolo'));
       var tdAz = document.createElement('td');
       tdAz.style.textAlign = 'right';
       if (u.id !== io.id) {
+        if (u.attivo && u.invito_accettato === false) {
+          [['Reinvia email', 'email'], ['Crea link', 'link']].forEach(function (x) {
+            var b2 = document.createElement('button');
+            b2.type = 'button'; b2.className = 'btn btn-piccolo'; b2.style.marginRight = '6px';
+            b2.textContent = x[0];
+            b2.addEventListener('click', function () { reinvia(u, x[1], b2); });
+            tdAz.appendChild(b2);
+          });
+        }
         var bt = document.createElement('button');
         bt.type = 'button';
         bt.className = u.attivo ? 'btn btn-piccolo btn-pericolo' : 'btn btn-piccolo';
@@ -324,6 +333,24 @@
       tr.appendChild(tdAz);
       corpo.appendChild(tr);
     });
+  }
+
+  async function reinvia(utente, modo, bottone) {
+    bottone.disabled = true;
+    messaggio('elenco-msg', modo === 'link' ? 'Creo il link…' : 'Invio l\'email…', 'info');
+    try {
+      var j = await chiamaApi('/api/amministratori/reinvia', { id: utente.id, modo: modo });
+      if (modo === 'link' && j.link) {
+        var copiato = false;
+        try { await navigator.clipboard.writeText(j.link); copiato = true; } catch (e) {}
+        messaggio('elenco-msg', 'Link per ' + utente.email + (copiato ? ' (copiato negli appunti)' : '') + ': ' + j.link + '  — consegnalo solo a lui: chi lo apre sceglie la password dell\'account. Vale una volta sola.', 'info');
+      } else {
+        messaggio('elenco-msg', 'Email inviata a ' + utente.email + '. Se non arriva, controlla la posta indesiderata oppure usa "Crea link".', 'ok');
+      }
+    } catch (e) {
+      messaggio('elenco-msg', e.message, 'err');
+    }
+    bottone.disabled = false;
   }
 
   async function cambiaStato(utente, bottone) {
@@ -360,7 +387,7 @@
     messaggio('inv-msg', 'Invio in corso…', 'info');
     try {
       await chiamaApi('/api/amministratori/invita', dati);
-      messaggio('inv-msg', 'Invito inviato a ' + dati.email + '.', 'ok');
+      messaggio('inv-msg', 'Invito creato per ' + dati.email + '. Nell\'elenco resta "Invitato" finché non imposta la password; se l\'email non arriva usa "Reinvia email" o "Crea link".', 'ok');
       ['inv-nome', 'inv-cognome', 'inv-email'].forEach(function (id) { $(id).value = ''; });
       await caricaElenco();
     } catch (e) {
