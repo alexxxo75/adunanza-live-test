@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="/assets/riunion.css">
+<script src="/assets/tema.js"></script>
+<title>Riunion — Accesso</title>
+</head>
+<body>
+
+<section id="v-caricamento" class="centro"><p class="tenue">Caricamento…</p></section>
+
+<section id="v-login" class="centro" hidden>
+  <div class="centro-barra"><div class="tema" role="group" aria-label="Tema dell'aspetto">
+          <button type="button" data-tema="light" aria-pressed="false" aria-label="Tema chiaro" title="Chiaro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+          <button type="button" data-tema="auto" aria-pressed="false" aria-label="Tema automatico" title="Automatico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v18" /><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></svg></button>
+          <button type="button" data-tema="dark" aria-pressed="false" aria-label="Tema scuro" title="Scuro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+        </div></div>
+  <div class="marchio"><span class="marchio-icona">R</span>Riunion</div>
+  <div class="carta animate-fadeIn">
+    <div class="carta-testa"><h1>Accesso</h1><p>Area riservata agli amministratori di condominio</p></div>
+    <div id="login-avviso" class="msg info" hidden></div>
+    <div class="campo"><label for="login-email">Email</label>
+      <input id="login-email" type="email" autocomplete="username" inputmode="email"></div>
+    <div class="campo"><label for="login-password">Password</label>
+      <input id="login-password" type="password" autocomplete="current-password"></div>
+    <button id="btn-accedi" class="btn btn-primario btn-pieno" type="button">Accedi</button>
+    <div id="login-msg" class="msg" hidden></div>
+    <p style="margin-top:16px"><button id="btn-dimenticata" class="btn-link" type="button">Password dimenticata?</button></p>
+    <p class="tenue" style="margin-top:14px;font-size:13px">Sei un condòmino o un ospite? Non serve nessun accesso: usa il link ricevuto per email.</p>
+  </div>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var sb = null;
+
+  function mostra(vista) {
+    ['v-caricamento', 'v-login'].forEach(function (v) { $(v).hidden = (v !== vista); });
+  }
+  function messaggio(id, testo, tipo) {
+    var e = $(id);
+    e.textContent = testo || '';
+    e.className = 'msg' + (tipo ? ' ' + tipo : '');
+    e.hidden = !testo;
+  }
+  function traduciErrore(e) {
+    var m = (e && e.message) || '';
+    if (/invalid login credentials/i.test(m)) return 'Email o password non corretti.';
+    if (/email not confirmed/i.test(m)) return 'L\'invito non è ancora stato accettato.';
+    if (/banned|user is banned/i.test(m)) return 'Questo account è stato disattivato.';
+    if (/rate limit|too many/i.test(m)) return 'Troppi tentativi. Riprova tra qualche minuto.';
+    return m || 'Errore imprevisto.';
+  }
+
+  // Dopo il login decide dove mandare la persona, in base al ruolo scritto nel database
+  // (non in base a ciò che dichiara il browser): ADMINISTRATOR → gestione utenti,
+  // amministratore attivo → app vera, tutti gli altri → fuori.
+  async function instrada(sessione) {
+    var p = await sb.from('amministratori').select('ruolo, attivo').eq('id', sessione.user.id).maybeSingle();
+    if (p.error || !p.data) { await rifiuta('Il tuo account non risulta abilitato.'); return; }
+    if (!p.data.attivo) { await rifiuta('Il tuo account è stato disattivato. Contatta chi gestisce la piattaforma.'); return; }
+    window.location.replace(p.data.ruolo === 'administrator' ? '/gestione/' : '/');
+  }
+  async function rifiuta(testo) {
+    await sb.auth.signOut();
+    mostra('v-login');
+    messaggio('login-msg', testo, 'err');
+  }
+
+  async function accedi() {
+    var email = $('login-email').value.trim();
+    var password = $('login-password').value;
+    if (!email || !password) { messaggio('login-msg', 'Inserisci email e password.', 'err'); return; }
+    $('btn-accedi').disabled = true;
+    messaggio('login-msg', '');
+    var r = await sb.auth.signInWithPassword({ email: email, password: password });
+    if (r.error) { $('btn-accedi').disabled = false; messaggio('login-msg', traduciErrore(r.error), 'err'); return; }
+    $('login-password').value = '';
+    await instrada(r.data.session);
+    $('btn-accedi').disabled = false;
+  }
+
+  async function passwordDimenticata() {
+    var email = $('login-email').value.trim();
+    if (!email) { messaggio('login-msg', 'Scrivi la tua email qui sopra, poi premi di nuovo "Password dimenticata?".', 'err'); return; }
+    var r = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/imposta-password/' });
+    if (r.error) { messaggio('login-msg', traduciErrore(r.error), 'err'); return; }
+    messaggio('login-msg', 'Se l\'indirizzo è registrato, riceverai un\'email con le istruzioni.', 'ok');
+  }
+
+  async function avvia() {
+    var cfg;
+    try {
+      var r = await fetch('/api/config', { cache: 'no-store' });
+      cfg = await r.json();
+      if (!r.ok || !cfg.url || !cfg.chiavePubblica) throw new Error('config');
+    } catch (e) {
+      mostra('v-login');
+      $('btn-accedi').disabled = true;
+      messaggio('login-msg', 'Configurazione mancante: controlla le variabili d\'ambiente su Vercel.', 'err');
+      return;
+    }
+    sb = window.supabase.createClient(cfg.url, cfg.chiavePubblica);
+    $('btn-accedi').addEventListener('click', accedi);
+    $('login-password').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') accedi(); });
+    $('btn-dimenticata').addEventListener('click', passwordDimenticata);
+
+    // Messaggio lasciato dall'app quando ti rimanda qui (es. sessione scaduta).
+    var motivo = new URLSearchParams(window.location.search).get('motivo');
+    if (motivo === 'scaduta') messaggio('login-avviso', 'La sessione è scaduta: accedi di nuovo.', 'info');
+    if (motivo === 'disattivato') messaggio('login-avviso', 'Il tuo account è stato disattivato. Contatta chi gestisce la piattaforma.', 'err');
+
+    var s = await sb.auth.getSession();
+    if (s.data.session) await instrada(s.data.session); else mostra('v-login');
+  }
+  avvia();
+})();
+</script>
+</body>
+</html>
