@@ -46,27 +46,40 @@
   </div>
 </section>
 
-<div id="v-pannello" class="app" hidden>
-  <aside class="sidebar">
-    <div class="marchio"><span class="marchio-icona">R</span>Riunion</div>
-    <nav class="nav" aria-label="Menu">
+<div id="v-pannello" hidden>
+  <header class="topbar">
+    <a class="marchio" href="/gestione/" aria-label="Riunion"><span class="marchio-icona">R</span><span class="marchio-testo">Riunion</span></a>
+    <nav class="menu" aria-label="Menu principale">
       <a href="/gestione/" aria-current="page">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         Utenti
       </a>
     </nav>
-    <div class="sidebar-fondo">
-      <div class="utente-riga"><strong id="utente-nome"></strong><span id="utente-email"></span></div>
-      <div class="sidebar-azioni">
-        <div class="tema" role="group" aria-label="Tema dell'aspetto">
+    <div class="profilo">
+      <button id="btn-profilo" class="profilo-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="menu-profilo" title="Il mio profilo">
+        <span class="avatar" id="avatar" aria-hidden="true"></span>
+        <span class="profilo-nome" id="utente-nome"></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <div id="menu-profilo" class="dropdown" role="menu" hidden>
+        <div class="dropdown-testa"><strong id="menu-nome"></strong><span id="utente-email"></span></div>
+        <button id="btn-apri-profilo" class="dropdown-voce" type="button" role="menuitem">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Il mio profilo
+        </button>
+        <div class="dropdown-riga"><span>Tema</span><div class="tema" role="group" aria-label="Tema dell'aspetto">
           <button type="button" data-tema="light" aria-pressed="false" aria-label="Tema chiaro" title="Chiaro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
           <button type="button" data-tema="auto" aria-pressed="false" aria-label="Tema automatico" title="Automatico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v18" /><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></svg></button>
           <button type="button" data-tema="dark" aria-pressed="false" aria-label="Tema scuro" title="Scuro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
-        </div>
-        <button id="btn-esci" class="btn-esci" type="button">Esci</button>
+        </div></div>
+        <div class="dropdown-sep"></div>
+        <button id="btn-esci" class="dropdown-voce" type="button" role="menuitem">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+          Esci
+        </button>
       </div>
     </div>
-  </aside>
+  </header>
 
   <main class="contenuto animate-fadeIn">
     <div class="testata">
@@ -109,6 +122,37 @@
       <div id="elenco-msg" class="msg" hidden></div>
     </section>
   </main>
+
+  <dialog id="dlg-profilo" class="dialogo" aria-labelledby="dlg-titolo">
+    <div class="dialogo-testa">
+      <h2 id="dlg-titolo">Il mio profilo</h2>
+      <button id="btn-chiudi-profilo" class="btn-chiudi" type="button" aria-label="Chiudi">&times;</button>
+    </div>
+    <div class="dialogo-corpo">
+      <div class="griglia">
+        <div><label for="pf-nome">Nome</label><input id="pf-nome" type="text" autocomplete="given-name"></div>
+        <div><label for="pf-cognome">Cognome</label><input id="pf-cognome" type="text" autocomplete="family-name"></div>
+      </div>
+      <div class="griglia">
+        <div><label for="pf-email">Email</label><input id="pf-email" type="email" disabled></div>
+        <div><label for="pf-telefono">Telefono</label><input id="pf-telefono" type="tel" autocomplete="tel" inputmode="tel"></div>
+      </div>
+      <p class="regole">L'email è quella con cui accedi e non si cambia da qui.</p>
+      <button id="btn-salva-profilo" class="btn btn-primario" type="button" style="margin-top:16px">Salva modifiche</button>
+      <div id="pf-msg" class="msg" hidden></div>
+
+      <div class="sezione">
+        <h3>Cambia password</h3>
+        <p class="regole" style="margin:0 0 12px">Almeno 12 caratteri. Meglio una frase lunga che una parola complicata.</p>
+        <div class="griglia">
+          <div><label for="pw-nuova">Nuova password</label><input id="pw-nuova" type="password" autocomplete="new-password"></div>
+          <div><label for="pw-ripeti">Ripeti la password</label><input id="pw-ripeti" type="password" autocomplete="new-password"></div>
+        </div>
+        <button id="btn-cambia-pw" class="btn" type="button" style="margin-top:16px">Cambia password</button>
+        <div id="pw-msg" class="msg" hidden></div>
+      </div>
+    </div>
+  </dialog>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
@@ -155,6 +199,66 @@
     return td;
   }
 
+  function nomeVisibile(u) { return ((u.nome || '') + ' ' + (u.cognome || '')).trim() || u.email; }
+  function iniziali(u) {
+    var n = ((u.nome || '').trim().charAt(0)) + ((u.cognome || '').trim().charAt(0));
+    return (n || (u.email || '?').charAt(0)).toUpperCase();
+  }
+  function aggiornaIntestazione() {
+    $('avatar').textContent = iniziali(io);
+    $('utente-nome').textContent = nomeVisibile(io);
+    $('menu-nome').textContent = nomeVisibile(io);
+    $('utente-email').textContent = io.email;
+  }
+  function apriMenu(aperto) {
+    $('menu-profilo').hidden = !aperto;
+    $('btn-profilo').setAttribute('aria-expanded', aperto ? 'true' : 'false');
+  }
+  function apriProfilo() {
+    apriMenu(false);
+    $('pf-nome').value = io.nome || '';
+    $('pf-cognome').value = io.cognome || '';
+    $('pf-email').value = io.email || '';
+    $('pf-telefono').value = io.telefono || '';
+    ['pw-nuova', 'pw-ripeti'].forEach(function (id) { $(id).value = ''; });
+    messaggio('pf-msg', ''); messaggio('pw-msg', '');
+    $('dlg-profilo').showModal();
+  }
+  async function salvaProfilo() {
+    var nome = $('pf-nome').value.trim();
+    var cognome = $('pf-cognome').value.trim();
+    var telefono = $('pf-telefono').value.trim().slice(0, 40);
+    if (!nome) { messaggio('pf-msg', 'Il nome è obbligatorio.', 'err'); return; }
+    $('btn-salva-profilo').disabled = true;
+    messaggio('pf-msg', 'Salvataggio…', 'info');
+    var r = await sb.from('amministratori').update({ nome: nome, cognome: cognome, telefono: telefono })
+      .eq('id', io.id).select('nome, cognome, telefono').maybeSingle();
+    $('btn-salva-profilo').disabled = false;
+    if (r.error || !r.data) { messaggio('pf-msg', 'Impossibile salvare le modifiche. Riprova.', 'err'); return; }
+    io.nome = r.data.nome; io.cognome = r.data.cognome; io.telefono = r.data.telefono;
+    aggiornaIntestazione();
+    messaggio('pf-msg', 'Profilo aggiornato.', 'ok');
+    await caricaElenco();
+  }
+  async function cambiaPassword() {
+    var a = $('pw-nuova').value, b = $('pw-ripeti').value;
+    if (a.length < 12) { messaggio('pw-msg', 'La password deve avere almeno 12 caratteri.', 'err'); return; }
+    if (a !== b) { messaggio('pw-msg', 'Le due password non coincidono.', 'err'); return; }
+    $('btn-cambia-pw').disabled = true;
+    messaggio('pw-msg', 'Salvataggio…', 'info');
+    var r = await sb.auth.updateUser({ password: a });
+    $('btn-cambia-pw').disabled = false;
+    if (r.error) {
+      var m = r.error.message || '';
+      if (/same|different from the old/i.test(m)) m = 'Scegli una password diversa dalla precedente.';
+      else if (/weak|short|at least/i.test(m)) m = 'La password non è abbastanza robusta.';
+      messaggio('pw-msg', m || 'Impossibile cambiare la password.', 'err');
+      return;
+    }
+    ['pw-nuova', 'pw-ripeti'].forEach(function (id) { $(id).value = ''; });
+    messaggio('pw-msg', 'Password cambiata.', 'ok');
+  }
+
   async function chiamaApi(percorso, corpo) {
     var s = await sb.auth.getSession();
     if (!s.data.session) throw new Error('Sessione scaduta. Accedi di nuovo.');
@@ -170,13 +274,13 @@
   }
 
   async function entra(sessione) {
-    var p = await sb.from('amministratori').select('id, ruolo, attivo, nome, cognome, email').eq('id', sessione.user.id).maybeSingle();
+    var p = await sb.from('amministratori').select('id, ruolo, attivo, nome, cognome, email, telefono').eq('id', sessione.user.id).maybeSingle();
     if (p.error || !p.data) { await rifiuta('Il tuo account non risulta abilitato.'); return; }
     if (!p.data.attivo) { await rifiuta('Il tuo account è stato disattivato.'); return; }
     if (p.data.ruolo !== 'administrator') { await rifiuta('Questa pagina è riservata agli ADMINISTRATOR della piattaforma.'); return; }
     io = p.data;
-    $('utente-nome').textContent = ((p.data.nome || '') + ' ' + (p.data.cognome || '')).trim() || p.data.email;
-    $('utente-email').textContent = p.data.email;
+    aggiornaIntestazione();
+    apriMenu(false);
     mostra('v-pannello');
     await caricaElenco();
   }
@@ -287,6 +391,7 @@
   }
 
   async function esci() {
+    apriMenu(false);
     await sb.auth.signOut();
     io = null;
     messaggio('login-msg', '');
@@ -311,6 +416,18 @@
     $('btn-dimenticata').addEventListener('click', passwordDimenticata);
     $('btn-invita').addEventListener('click', invita);
     $('btn-esci').addEventListener('click', esci);
+    $('btn-profilo').addEventListener('click', function () { apriMenu($('menu-profilo').hidden); });
+    $('btn-apri-profilo').addEventListener('click', apriProfilo);
+    $('btn-salva-profilo').addEventListener('click', salvaProfilo);
+    $('btn-cambia-pw').addEventListener('click', cambiaPassword);
+    $('btn-chiudi-profilo').addEventListener('click', function () { $('dlg-profilo').close(); });
+    $('dlg-profilo').addEventListener('click', function (ev) { if (ev.target === $('dlg-profilo')) $('dlg-profilo').close(); });
+    document.addEventListener('click', function (ev) {
+      if (!$('menu-profilo').hidden && !ev.target.closest('.profilo')) apriMenu(false);
+    });
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape' && !$('menu-profilo').hidden) { apriMenu(false); $('btn-profilo').focus(); }
+    });
     $('btn-esci-negato').addEventListener('click', function () { mostra('v-login'); });
     var s = await sb.auth.getSession();
     if (s.data.session) await entra(s.data.session); else mostra('v-login');

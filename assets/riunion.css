@@ -27,12 +27,12 @@
   --text-secondary: #475569;
   --text-muted: #94a3b8;
 
-  --sidebar-bg: #0f172a;
-  --sidebar-border: #0f172a;
-  --sidebar-hover: #1e293b;
-  --sidebar-active: #1e40af;
-  --sidebar-text: #cbd5e1;
-  --sidebar-active-text: #ffffff;
+  --barra-bg: #0f172a;
+  --barra-border: #0f172a;
+  --barra-hover: #1e293b;
+  --barra-active: #1e40af;
+  --barra-text: #cbd5e1;
+  --barra-active-text: #ffffff;
 
   --accent: var(--brand-600);
   --accent-hover: var(--brand-700);
@@ -61,9 +61,9 @@
     --text-primary: #f1f5f9;
     --text-secondary: #b6c2d4;
     --text-muted: #7c8ba1;
-    --sidebar-bg: #0a1020;
-    --sidebar-border: #1b2639;
-    --sidebar-hover: #16213a;
+    --barra-bg: #0a1020;
+    --barra-border: #1b2639;
+    --barra-hover: #16213a;
     --focus: #60a5fa;
     --accent-hover: #3b82f6;
     --status-waiting-bg: #3a2a0a; --status-waiting-text: #fcd34d;
@@ -84,9 +84,9 @@
   --text-primary: #f1f5f9;
   --text-secondary: #b6c2d4;
   --text-muted: #7c8ba1;
-  --sidebar-bg: #0a1020;
-  --sidebar-border: #1b2639;
-  --sidebar-hover: #16213a;
+  --barra-bg: #0a1020;
+  --barra-border: #1b2639;
+  --barra-hover: #16213a;
   --focus: #60a5fa;
   --accent-hover: #3b82f6;
   --status-waiting-bg: #3a2a0a; --status-waiting-text: #fcd34d;
@@ -143,10 +143,6 @@ p { margin: 0; }
 .tema svg { width: 16px; height: 16px; display: block; }
 :root[data-theme="dark"] .tema button[aria-pressed="true"] { background: #1e3a8a; color: #dbeafe; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tema button[aria-pressed="true"] { background: #1e3a8a; color: #dbeafe; } }
-.sidebar .tema { background: transparent; border-color: var(--sidebar-hover); }
-.sidebar .tema button { color: var(--sidebar-text); opacity: .7; }
-.sidebar .tema button:hover { opacity: 1; background: var(--sidebar-hover); color: #fff; }
-.sidebar .tema button[aria-pressed="true"] { background: var(--sidebar-active) !important; color: #fff !important; opacity: 1; }
 
 /* ---------- SCHERMATA CENTRATA (accesso, scelta password, errori) ---------- */
 .centro { min-height: 100%; display: flex; flex-direction: column; align-items: center; padding: 6vh 16px 32px; }
@@ -154,46 +150,76 @@ p { margin: 0; }
 .centro .marchio { margin-bottom: 20px; }
 .centro .carta { width: 100%; max-width: 400px; }
 
-/* ---------- STRUTTURA A DUE COLONNE (pannello) ---------- */
-.app { display: grid; grid-template-columns: 240px minmax(0, 1fr); min-height: 100%; }
-.sidebar {
-  position: sticky; top: 0; height: 100vh; height: 100dvh;
-  display: flex; flex-direction: column; gap: 24px; padding: 20px 14px;
-  background: var(--sidebar-bg); color: var(--sidebar-text); border-right: 1px solid var(--sidebar-border);
+/* ---------- BARRA SUPERIORE E CONTENUTO (pannello) ---------- */
+.topbar {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 8px 24px;
+  min-height: 56px; padding: env(safe-area-inset-top, 0px) 20px 0;
+  background: var(--barra-bg); color: var(--barra-text); border-bottom: 1px solid var(--barra-border);
 }
-.sidebar .marchio { color: #fff; padding: 0 6px; }
-.nav { display: flex; flex-direction: column; gap: 2px; }
-.nav a {
-  display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px;
-  color: var(--sidebar-text); text-decoration: none; font-weight: 500;
+.topbar .marchio { color: #fff; text-decoration: none; flex: none; }
+.menu { display: flex; align-items: center; gap: 4px; overflow-x: auto; min-width: 0; }
+.menu a {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 8px;
+  color: var(--barra-text); text-decoration: none; font-weight: 500; white-space: nowrap;
 }
-.nav a:hover { background: var(--sidebar-hover); }
-.nav a[aria-current="page"] { background: var(--sidebar-active); color: var(--sidebar-active-text); }
-.nav svg { width: 18px; height: 18px; flex: none; }
-.sidebar-fondo { margin-top: auto; display: flex; flex-direction: column; gap: 12px; padding: 0 6px; }
-.utente-riga { font-size: 13px; line-height: 1.35; }
-.utente-riga strong { display: block; color: #fff; font-weight: 600; overflow-wrap: anywhere; }
-.utente-riga span { color: var(--sidebar-text); opacity: .75; overflow-wrap: anywhere; }
-.sidebar-azioni { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.sidebar .btn-esci {
-  background: transparent; color: var(--sidebar-text); border: 1px solid var(--sidebar-hover);
-  padding: 6px 12px; border-radius: 8px; cursor: pointer; font: inherit; font-size: 13px; font-weight: 500;
+.menu a:hover { background: var(--barra-hover); color: #fff; }
+.menu a[aria-current="page"] { background: var(--barra-active); color: var(--barra-active-text); }
+.menu svg { width: 18px; height: 18px; flex: none; }
+
+.profilo { position: relative; margin-left: auto; flex: none; }
+.profilo-btn {
+  display: flex; align-items: center; gap: 10px; padding: 5px 10px 5px 5px; border-radius: 999px;
+  border: 1px solid var(--barra-hover); background: transparent; color: #fff; cursor: pointer;
+  font: inherit; font-size: 14px; font-weight: 500;
 }
-.sidebar .btn-esci:hover { background: var(--sidebar-hover); color: #fff; }
-.contenuto { padding: 28px 32px 56px; max-width: 1040px; width: 100%; min-width: 0; }
+.profilo-btn:hover, .profilo-btn[aria-expanded="true"] { background: var(--barra-hover); }
+.profilo-btn svg { width: 16px; height: 16px; opacity: .7; flex: none; }
+.profilo-nome { max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.avatar {
+  width: 30px; height: 30px; border-radius: 50%; flex: none; background: var(--brand-600); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; letter-spacing: .02em;
+}
+.dropdown {
+  position: absolute; right: 0; top: calc(100% + 8px); width: 290px; max-width: calc(100vw - 24px);
+  background: var(--surface-card); color: var(--text-primary); border: 1px solid var(--border);
+  border-radius: var(--raggio); box-shadow: 0 10px 30px rgba(15, 23, 42, .22); padding: 6px;
+}
+.dropdown-testa { padding: 10px 12px 12px; border-bottom: 1px solid var(--border-soft); margin-bottom: 6px; display: flex; flex-direction: column; gap: 2px; }
+.dropdown-testa strong { font-weight: 600; overflow-wrap: anywhere; }
+.dropdown-testa span { font-size: 13px; color: var(--text-secondary); overflow-wrap: anywhere; }
+.dropdown-voce {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; border: 0; background: none;
+  color: inherit; font: inherit; font-size: 14px; text-align: left; border-radius: 8px; cursor: pointer;
+}
+.dropdown-voce:hover { background: var(--border-soft); }
+.dropdown-voce svg { width: 16px; height: 16px; color: var(--text-secondary); flex: none; }
+.dropdown-riga { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 12px; font-size: 14px; }
+.dropdown-sep { height: 1px; background: var(--border-soft); margin: 6px 0; }
+
+.contenuto { padding: 28px 24px 56px; max-width: 1100px; width: 100%; margin: 0 auto; min-width: 0; }
 .testata { margin-bottom: 22px; }
 .testata p { margin-top: 4px; color: var(--text-secondary); }
 
-@media (max-width: 820px) {
-  .app { grid-template-columns: minmax(0, 1fr); }
-  .sidebar {
-    position: sticky; z-index: 5; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center;
-    gap: 10px 16px; padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 10px; border-right: 0; border-bottom: 1px solid var(--sidebar-border);
-  }
-  .nav, .utente-riga { display: none; }
-  .sidebar-fondo { margin: 0 0 0 auto; flex-direction: row; align-items: center; padding: 0; }
+@media (max-width: 640px) {
+  .topbar { padding-left: 14px; padding-right: 14px; gap: 8px 12px; }
+  .marchio-testo, .profilo-nome { display: none; }
+  .profilo-btn { padding-right: 8px; }
   .contenuto { padding: 20px 16px 48px; }
 }
+
+/* ---------- FINESTRA (dialog) ---------- */
+.dialogo {
+  border: 1px solid var(--border); border-radius: 14px; padding: 0; background: var(--surface-card); color: var(--text-primary);
+  width: min(520px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); box-shadow: 0 20px 50px rgba(15, 23, 42, .35);
+}
+.dialogo::backdrop { background: rgba(2, 6, 23, .55); }
+.dialogo-testa { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--border-soft); }
+.dialogo-corpo { padding: 18px 20px 22px; overflow: auto; max-height: calc(100dvh - 90px); }
+.btn-chiudi { width: 32px; height: 32px; border: 0; border-radius: 8px; background: none; color: var(--text-secondary); cursor: pointer; font-size: 22px; line-height: 1; }
+.btn-chiudi:hover { background: var(--border-soft); }
+.sezione { border-top: 1px solid var(--border-soft); margin-top: 22px; padding-top: 18px; }
+.sezione h3 { font-size: 15px; margin: 0 0 4px; font-weight: 600; }
 
 /* ---------- COMPONENTI ---------- */
 .carta {
@@ -211,6 +237,7 @@ input, select {
   border: 1px solid var(--border); border-radius: 8px;
 }
 input::placeholder { color: var(--text-muted); }
+input:disabled { background: var(--border-soft); color: var(--text-secondary); cursor: not-allowed; }
 input:focus, select:focus { outline: 2px solid var(--focus); outline-offset: 0; border-color: var(--focus); }
 .griglia { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .griglia + .griglia { margin-top: 14px; }
