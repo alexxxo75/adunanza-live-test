@@ -8,6 +8,18 @@
 <link rel="stylesheet" href="/assets/riunion.css">
 <script src="/assets/tema.js"></script>
 <title>Riunion — Gestione utenti</title>
+<style>
+.stato-pallino{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;color:#fff;font-weight:700;font-size:13px;line-height:1;cursor:default;user-select:none}
+.stato-i{background:#f59e0b}.stato-a{background:#16a34a}.stato-d{background:#dc2626}
+.azioni{display:inline-flex;gap:6px;justify-content:flex-end;flex-wrap:nowrap}
+.ico-btn{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;border:1px solid var(--border);border-radius:8px;background:var(--surface,transparent);color:var(--text,inherit);cursor:pointer}
+.ico-btn:hover{background:var(--border-soft)}
+.ico-btn:disabled{opacity:.5;cursor:default}
+.ico-btn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ico-btn.pericolo{color:var(--danger);border-color:var(--danger-border)}
+.ico-btn.pericolo:hover{background:var(--danger-bg)}
+#tip-flottante{position:fixed;z-index:9999;background:#0f172a;color:#fff;font-size:12px;font-weight:600;padding:6px 9px;border-radius:6px;pointer-events:none;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.25)}
+</style>
 </head>
 <body>
 
@@ -290,6 +302,45 @@
     mostra('v-negato');
   }
 
+  var SVG = {
+    mail: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>',
+    link: '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>',
+    x: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+    su: '<svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>'
+  };
+  var tipEl = null;
+  function tip(el, testo) {
+    el.setAttribute('aria-label', testo);
+    function mostra() {
+      nascondi();
+      tipEl = document.createElement('div'); tipEl.id = 'tip-flottante'; tipEl.textContent = testo;
+      document.body.appendChild(tipEl);
+      var r = el.getBoundingClientRect();
+      var w = tipEl.offsetWidth;
+      var x = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), window.innerWidth - w - 8);
+      tipEl.style.left = x + 'px';
+      tipEl.style.top = (r.top - tipEl.offsetHeight - 8 < 4 ? r.bottom + 8 : r.top - tipEl.offsetHeight - 8) + 'px';
+    }
+    function nascondi() { if (tipEl) { tipEl.remove(); tipEl = null; } }
+    el.addEventListener('mouseenter', mostra); el.addEventListener('mouseleave', nascondi);
+    el.addEventListener('focus', mostra); el.addEventListener('blur', nascondi); el.addEventListener('click', nascondi);
+  }
+  function pallino(lettera, classe, testo) {
+    var td = document.createElement('td');
+    var b = document.createElement('span');
+    b.className = 'stato-pallino ' + classe; b.textContent = lettera; b.tabIndex = 0;
+    tip(b, testo);
+    td.appendChild(b);
+    return td;
+  }
+  function iconaBtn(svg, testo, classe, onclick) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'ico-btn' + (classe ? ' ' + classe : ''); b.innerHTML = svg;
+    tip(b, testo);
+    b.addEventListener('click', onclick);
+    return b;
+  }
+
   async function caricaElenco() {
     messaggio('elenco-msg', '');
     var r = await sb.rpc('elenco_amministratori');
@@ -306,26 +357,21 @@
       tr.appendChild(u.ruolo === 'administrator'
         ? badge('ADMINISTRATOR', 'badge-review')
         : badge('Amministratore', 'badge-working'));
-      tr.appendChild(!u.attivo ? badge('Disattivato', 'badge-off') : (u.invito_accettato === false ? badge('Invitato — password da impostare', 'badge-working') : badge('Attivo', 'badge-done')));
+      tr.appendChild(!u.attivo ? pallino('D', 'stato-d', 'DISATTIVO')
+        : (u.invito_accettato === false ? pallino('I', 'stato-i', 'INVITATO - IN ATTESA DI ACCETTAZIONE') : pallino('A', 'stato-a', 'ATTIVO')));
       tr.appendChild(cella(dataBreve(u.creato_il), 'piccolo'));
       var tdAz = document.createElement('td');
       tdAz.style.textAlign = 'right';
       if (u.id !== io.id) {
+        var box = document.createElement('div'); box.className = 'azioni';
         if (u.attivo && u.invito_accettato === false) {
-          [['Reinvia email', 'email'], ['Crea link', 'link']].forEach(function (x) {
-            var b2 = document.createElement('button');
-            b2.type = 'button'; b2.className = 'btn btn-piccolo'; b2.style.marginRight = '6px';
-            b2.textContent = x[0];
-            b2.addEventListener('click', function () { reinvia(u, x[1], b2); });
-            tdAz.appendChild(b2);
-          });
+          box.appendChild(iconaBtn(SVG.mail, 'Reinvia l\'email di invito', '', function (ev) { reinvia(u, 'email', ev.currentTarget); }));
+          box.appendChild(iconaBtn(SVG.link, 'Copia il link per impostare la password', '', function (ev) { reinvia(u, 'link', ev.currentTarget); }));
         }
-        var bt = document.createElement('button');
-        bt.type = 'button';
-        bt.className = u.attivo ? 'btn btn-piccolo btn-pericolo' : 'btn btn-piccolo';
-        bt.textContent = u.attivo ? 'Disattiva' : 'Riattiva';
-        bt.addEventListener('click', function () { cambiaStato(u, bt); });
-        tdAz.appendChild(bt);
+        box.appendChild(u.attivo
+          ? iconaBtn(SVG.x, 'Disattiva utente', 'pericolo', function (ev) { cambiaStato(u, ev.currentTarget); })
+          : iconaBtn(SVG.su, 'Riattiva utente', '', function (ev) { cambiaStato(u, ev.currentTarget); }));
+        tdAz.appendChild(box);
       } else {
         tdAz.className = 'piccolo';
         tdAz.textContent = '(tu)';
