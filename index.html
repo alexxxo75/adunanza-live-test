@@ -71,6 +71,26 @@
     messagingSenderId: "48185167083",
     appId: "1:48185167083:web:a881ebb92b6d1ea9e1c2ae"
   };
+  // LT-286 — INTERRUTTORE "FIREBASE SPENTO". Con "?senzafirebase=1" nel link (solo in QUESTO
+  // browser) nessuna chiamata parte verso Firebase: ogni tentativo viene contato e annotato in
+  // window.__dipFirebase, così si vede esattamente cosa dipende ancora da lì. I link dei
+  // partecipanti con "&sb=1" lavorano sempre così: i loro dati arrivano solo da Supabase.
+  const __pFb = new URLSearchParams(window.location.search);
+  const FB_SPENTO = __pFb.has('senzafirebase') || (__pFb.has('sb') && !!(__pFb.get('token') || __pFb.get('ospite')));
+  if(FB_SPENTO){
+    window.__fbSpento = true;
+    window.__dipFirebase = {};
+    const reg = (nome)=>{
+      window.__dipFirebase[nome] = (window.__dipFirebase[nome]||0) + 1;
+      const el = document.getElementById('fb-stato-connessione');
+      if(el) el.textContent = '🔴 Firebase spento (test) — chiamate bloccate: ' + Object.values(window.__dipFirebase).reduce((x,y)=>x+y,0);
+    };
+    window.__fbScriviStato = ()=>{ reg('scriviStato'); return Promise.resolve(); };
+    window.__fbTransazioneMerge = ()=>{ reg('transazioneMerge'); return Promise.resolve({committed:true}); };
+    window.__fbAscoltaStato = ()=>{ reg('ascoltaStato'); };
+    window.__fbScriviBattito = ()=>{ reg('scriviBattito'); return Promise.resolve(); };
+    window.__fbAscoltaBattiti = ()=>{ reg('ascoltaBattiti'); };
+  }else{
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
   // Tutto lo stato dell'app (condomìni, assemblee, profilo...) vive in un unico "nodo" del
@@ -147,6 +167,7 @@
   window.__fbAscoltaBattiti = function(callback){
     onValue(battitiRef, (snapshot)=>{ callback(snapshot.val()); });
   };
+  } // fine ramo Firebase acceso
   // Questo script "a moduli" parte necessariamente dopo il resto del programma (è una regola
   // del browser, non qualcosa che dipende dalla connessione): segnaliamo con un evento preciso
   // il momento in cui è davvero pronto, invece di sperare che i tempi coincidano per caso.
@@ -792,7 +813,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/10/2026 alle 14:12">LT-285</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/10/2026">LT-286</span>
   </div>
 
   <!-- MAIN -->
@@ -3599,7 +3620,7 @@ function addCondomino(){
   if(!nome||!email){toast('Compila almeno nome ed email.');return;}
   const millesimi={};
   document.querySelectorAll('.c-mill-input').forEach(inp=>{ millesimi[inp.dataset.tabella] = parseFloat(inp.value)||0; });
-  getWorkingBuilding().condomini.push({id:idCounter++, nome, cognome, interno, unita, email, millesimi, invitato:false, gruppoCon:null, token: Math.random().toString(36).slice(2,10)});
+  getWorkingBuilding().condomini.push({id:idCounter++, nome, cognome, interno, unita, email, millesimi, invitato:false, gruppoCon:null, token: generaTokenForte()});
   ['c-nome','c-cognome','c-interno','c-unita','c-email'].forEach(id=>document.getElementById(id).value='');
   document.querySelectorAll('.c-mill-input').forEach(inp=>inp.value='');
   renderCondomini();
@@ -3767,7 +3788,7 @@ function handleExcelUpload(evt){
         const millesimi={};
         building.tabelleMillesimali.forEach(t=>millesimi[t]=0);
         millesimiCols.forEach(mc=>{ millesimi[mc.tabella] = arrotondaMillesimi(ri.millesimiGrezzi[mc.tabella]*fattoreScala[mc.tabella]); });
-        building.condomini.push({id:idCounter++, nome:ri.nome, cognome:ri.cognome, interno:ri.interno, unita:ri.unita, email:ri.email, millesimi, invitato:false, gruppoCon:null, unificatoCon:null, token: Math.random().toString(36).slice(2,10)});
+        building.condomini.push({id:idCounter++, nome:ri.nome, cognome:ri.cognome, interno:ri.interno, unita:ri.unita, email:ri.email, millesimi, invitato:false, gruppoCon:null, unificatoCon:null, token: generaTokenForte()});
         importati++;
         if(!ri.email) senzaEmail++;
       });
@@ -4215,6 +4236,7 @@ function recordAttivoConSecondarieSenzaVotoAutonomo(building, assemblea, condomi
 // Se il delegato non è ancora presente, il collegamento del delegante resta invece attivo (per
 // mostrargli lo stato della delega) — vedi costruisciBloccoSondaggioAttivo.
 function haDelegatoAdCondominoPresente(assemblea, condominoId){
+  if(!assemblea || !assemblea.appello || !assemblea.appello.deleghe) return false;
   const delegatoId = assemblea.appello.deleghe[condominoId];
   if(delegatoId==null || typeof delegatoId === 'string') return false; // nessuna delega, o delega a un esterno: non riguarda questa regola
   return !!recordAttivo(assemblea, delegatoId);
@@ -6952,8 +6974,16 @@ Distinti saluti
 {{firma_amministratore}}`;
 
 let __contatoreOspiti = 1;
+// LT-286 — Token dei link personali: 30 caratteri casuali (circa 155 bit) presi dal generatore
+// sicuro del browser, al posto di Math.random (prevedibile e di soli 8 caratteri).
+function generaTokenForte(){
+  const alfabeto = 'abcdefghijkmnpqrstuvwxyz23456789';
+  const b = new Uint8Array(30); crypto.getRandomValues(b);
+  let t = ''; for(const x of b) t += alfabeto[x % alfabeto.length];
+  return t;
+}
 function generaTokenOspite(){
-  return 'osp-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,8);
+  return generaTokenForte();
 }
 function ospitiAssemblea(a){
   if(!a) return [];
@@ -10950,6 +10980,19 @@ async function sbCaricaAnagrafica(){
   const sb = window.__cancello.sb;
   const lette = await Promise.all(SB_SPEC.map(s=>sbLeggiTutto(sb, s.t, s.pk)));
   const D = {}; SB_SPEC.forEach((s,i)=>{ D[s.t] = lette[i]; });
+  sbCostruisci(D);
+  // La copia di riferimento è ciò che c'è DAVVERO sul database: le differenze con la memoria
+  // (es. valori che il database non ha ancora) verranno inviate al primo salvataggio.
+  const snap = {};
+  SB_SPEC.forEach(s=>{ snap[s.t] = new Map(D[s.t].map(r=>[sbPk(s, r), r])); });
+  __sbAn.snap = snap;
+  __sbAn.attivo = true;
+  sbMostraStato();
+}
+
+// Ricostruisce "buildings" a partire dalle righe delle tabelle (lette dall'amministratore con le
+// sue regole, oppure consegnate a un partecipante dalla funzione partecipa_carica).
+function sbCostruisci(D){
   const m = {stabili:new Map(), tabelle:new Map(), condomini:new Map(), assemblee:new Map(), odg:new Map(), ospiti:new Map()};
   let prossimo = Date.now();
   D.stabili.forEach(s=>{ if(s.id_app==null) s.id_app = prossimo++; });
@@ -11048,13 +11091,61 @@ async function sbCaricaAnagrafica(){
   buildings = nuovi;
   if(!buildings.some(b=>b.id===activeBuildingId)) activeBuildingId = null;
   ricalcolaContatoriId();
-  // La copia di riferimento è ciò che c'è DAVVERO sul database: le differenze con la memoria
-  // (es. valori che il database non ha ancora) verranno inviate al primo salvataggio.
-  const snap = {};
-  SB_SPEC.forEach(s=>{ snap[s.t] = new Map(D[s.t].map(r=>[sbPk(s, r), r])); });
-  __sbAn.snap = snap;
-  __sbAn.attivo = true;
-  sbMostraStato();
+}
+
+// LT-286 — Accesso di condòmini e ospiti con il link, SENZA login: l'unica cosa che il database
+// accetta è il token. La funzione partecipa_carica restituisce solo ciò che quella persona può
+// vedere (dei vicini: nome, interno, millesimi; mai email né token).
+async function sbCaricaPartecipante(token){
+  const r = await fetch('/api/config', {cache:'no-store'});
+  const cfg = await r.json();
+  if(!r.ok || !cfg.url || !cfg.chiavePubblica) throw new Error('config');
+  await caricaScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js');
+  const sb = window.supabase.createClient(cfg.url, cfg.chiavePubblica, {auth:{persistSession:false, autoRefreshToken:false, detectSessionInUrl:false}});
+  const ris = await sb.rpc('partecipa_carica', {p_token: token});
+  if(ris.error) throw ris.error;
+  const D = ris.data;
+  if(!D || D.ok !== true) return {ok:false, motivo:(D&&D.motivo)||'token'};
+  sbCostruisci(D);
+  // "In corso" = avviata dall'amministratore e non ancora conclusa.
+  buildings.forEach(b=>{
+    const inCorso = (b.assemblee||[]).filter(a=>a.iniziata && a.stato!=='conclusa');
+    b.assembleaInCorsoId = inCorso.length ? inCorso[inCorso.length-1].id : null;
+  });
+  __sbAn.partecipante = true;
+  return {ok:true, meta:D.meta};
+}
+function mostraErroreLinkPartecipante(testo){
+  rimuoviMessaggioAttesaLinkPersonale();
+  let box = document.getElementById('overlay-attesa-link-personale');
+  if(!box){
+    box = document.createElement('div');
+    box.id = 'overlay-attesa-link-personale';
+    box.style.cssText = 'position:fixed;inset:0;background:#1b1b1c;color:#eee;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;z-index:99999;font-family:inherit;';
+    document.body.appendChild(box);
+  }
+  box.innerHTML = '<div style="max-width:340px;"><div style="font-size:32px;margin-bottom:12px;">⚠️</div><div style="font-size:15px;margin-bottom:16px;"></div><button class="btn brass" onclick="location.reload()">Riprova</button></div>';
+  box.querySelector('div > div:nth-child(2)').textContent = testo;
+}
+async function avviaPartecipanteSupabase(){
+  mostraMessaggioAttesaLinkPersonale();
+  const token = __paramsIniziali.get('token') || __paramsIniziali.get('ospite');
+  let esito;
+  try{ esito = await sbCaricaPartecipante(token); }
+  catch(e){
+    console.error('[Riunion] accesso con link: lettura da Supabase non riuscita:', e);
+    mostraErroreLinkPartecipante('Non riesco a collegarmi. Controlla la connessione e riprova.');
+    return;
+  }
+  if(!esito.ok){
+    mostraErroreLinkPartecipante('Questo link non è valido o non è più attivo. Se pensi sia un errore, chiedi un nuovo invito al tuo amministratore.');
+    return;
+  }
+  const ind = document.getElementById('sb-stato');
+  if(ind) ind.textContent = '🟢 Dati da Supabase (accesso con link)';
+  const fb = document.getElementById('fb-stato-connessione');
+  if(fb) fb.textContent = '🔴 Firebase spento';
+  instradamentoIniziale();
 }
 
 // ---- Unione con i dati arrivati dal database condiviso (Firebase).
@@ -11192,6 +11283,10 @@ window.addEventListener('beforeunload', function(e){
 
 let __versioneStatoLocale = 0;
 function salvaStato(soloLocale){
+  // LT-286: chi entra col link da Supabase ha solo i dati ridotti che gli spettano: non deve mai
+  // scrivere lo stato completo (né in locale né altrove). Le sue azioni passeranno da funzioni
+  // dedicate del database (tappa 5).
+  if(__sbAn.partecipante) return true;
   // LT-283: finché l'amministratore non è stato verificato (o dopo che è uscito) non si scrive
   // NIENTE: altrimenti la copia locale di un dispositivo non autenticato — anche solo allo
   // "beforeunload" mentre viene rimandato alla pagina di accesso — potrebbe sovrascrivere i
@@ -11790,6 +11885,7 @@ function eseguiCicloPing(){
 // LT-283: l'avvio vero e proprio è in una funzione, chiamata subito per i link personali
 // (nessun login) oppure solo dopo la verifica dell'amministratore (cancello, qui sotto).
 function avviaApp(){
+  if(__haTokenNelLink && __paramsIniziali.has('sb')){ avviaPartecipanteSupabase(); return; }
   if(!__haTokenNelLink){
     // Nessun link personale: è l'amministratore, che vede subito la sua home (con i dati che ha
     // già in locale) — si aggiornerà da sola appena arrivano i dati veri dal database condiviso.
