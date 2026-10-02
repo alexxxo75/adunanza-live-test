@@ -19,6 +19,16 @@
 .ico-btn.pericolo{color:var(--danger);border-color:var(--danger-border)}
 .ico-btn.pericolo:hover{background:var(--danger-bg)}
 #tip-flottante{position:fixed;z-index:9999;background:#0f172a;color:#fff;font-size:12px;font-weight:600;padding:6px 9px;border-radius:6px;pointer-events:none;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.25)}
+.contenuto{max-width:1500px !important;width:94%}
+.testata-riga{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.ico-grande{width:44px;height:44px;border-radius:12px;background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+.ico-grande:hover{background:var(--accent-hover)}
+.ico-grande svg{width:22px;height:22px;stroke-width:2.4}
+.modale{position:fixed;inset:0;z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:8vh 16px 16px;overflow:auto}
+.modale[hidden]{display:none}
+.modale-sfondo{position:fixed;inset:0;background:rgba(2,6,23,.6)}
+.modale-carta{position:relative;width:100%;max-width:640px;margin:0;box-shadow:0 20px 50px rgba(0,0,0,.4)}
+.modale-x{position:absolute;top:14px;right:14px}
 </style>
 </head>
 <body>
@@ -94,16 +104,26 @@
   </header>
 
   <main class="contenuto animate-fadeIn">
-    <div class="testata">
-      <h1>Utenti</h1>
-      <p>Invita nuovi utenti e gestisci chi può accedere alla piattaforma.</p>
+    <div class="testata testata-riga">
+      <div>
+        <h1>Utenti</h1>
+        <p>Invita nuovi utenti e gestisci chi può accedere alla piattaforma.</p>
+      </div>
+      <button id="btn-nuovo" class="ico-btn ico-grande" type="button" aria-haspopup="dialog">
+        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
     </div>
 
-    <section class="carta">
-      <div class="carta-testa">
-        <h2>Invita un nuovo utente</h2>
-        <p>Riceverà un'email con un link per scegliere la propria password.</p>
-      </div>
+    <div id="modale-invito" class="modale" hidden>
+      <div class="modale-sfondo" data-chiudi="1"></div>
+      <section class="carta modale-carta" role="dialog" aria-modal="true" aria-labelledby="modale-titolo">
+        <button id="btn-chiudi-modale" class="ico-btn modale-x" type="button" aria-label="Chiudi">
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+        <div class="carta-testa">
+          <h2 id="modale-titolo">Invita un nuovo utente</h2>
+          <p>Riceverà un'email con un link per scegliere la propria password.</p>
+        </div>
       <div class="griglia">
         <div><label for="inv-nome">Nome</label><input id="inv-nome" type="text" autocomplete="off"></div>
         <div><label for="inv-cognome">Cognome</label><input id="inv-cognome" type="text" autocomplete="off"></div>
@@ -120,7 +140,8 @@
       </div>
       <button id="btn-invita" class="btn btn-primario" type="button" style="margin-top:18px">Invia invito</button>
       <div id="inv-msg" class="msg" hidden></div>
-    </section>
+      </section>
+    </div>
 
     <section class="carta">
       <div class="carta-testa"><h2>Elenco utenti</h2></div>
@@ -418,6 +439,13 @@
     }
   }
 
+  function apriModale() {
+    messaggio('inv-msg', '');
+    $('modale-invito').hidden = false;
+    setTimeout(function () { $('inv-nome').focus(); }, 30);
+  }
+  function chiudiModale() { $('modale-invito').hidden = true; if (tipEl) { tipEl.remove(); tipEl = null; } $('btn-nuovo').focus(); }
+
   async function invita() {
     var btn = $('btn-invita');
     var dati = {
@@ -488,6 +516,11 @@
     $('login-password').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') accedi(); });
     $('btn-dimenticata').addEventListener('click', passwordDimenticata);
     $('btn-invita').addEventListener('click', invita);
+    tip($('btn-nuovo'), 'Invita un nuovo utente');
+    $('btn-nuovo').addEventListener('click', apriModale);
+    $('btn-chiudi-modale').addEventListener('click', chiudiModale);
+    $('modale-invito').querySelector('.modale-sfondo').addEventListener('click', chiudiModale);
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('modale-invito').hidden) chiudiModale(); });
     $('btn-esci').addEventListener('click', esci);
     $('btn-profilo').addEventListener('click', function () { apriMenu($('menu-profilo').hidden); });
     $('btn-apri-profilo').addEventListener('click', apriProfilo);
