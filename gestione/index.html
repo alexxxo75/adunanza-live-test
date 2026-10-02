@@ -2,85 +2,88 @@
 <html lang="it">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
 <meta name="robots" content="noindex, nofollow">
-<title>Riunion — Gestione amministratori</title>
-<style>
-  :root { --sfondo:#f5f6f8; --carta:#fff; --testo:#1c2430; --tenue:#5d6b7e; --linea:#dfe3ea; --primario:#1f4e8c; --primario-testo:#fff; --ok:#1d7a46; --ok-bg:#e5f5ec; --err:#b3261e; --err-bg:#fdecea; --spento:#6b7280; --spento-bg:#eceef2; }
-  @media (prefers-color-scheme: dark) { :root { --sfondo:#12161c; --carta:#1b212a; --testo:#e8ecf2; --tenue:#9aa6b8; --linea:#2c3542; --primario:#5b9bf0; --primario-testo:#0d1420; --ok:#6fd49a; --ok-bg:#14301f; --err:#ff8c84; --err-bg:#3a1a18; --spento:#a1abbb; --spento-bg:#252d39; } }
-  * { box-sizing: border-box; }
-  html, body { margin:0; background:var(--sfondo); color:var(--testo); font:16px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-  body { padding: env(safe-area-inset-top,0) 16px env(safe-area-inset-bottom,0); }
-  main { max-width: 920px; margin: 0 auto; padding: 24px 0 48px; }
-  h1 { font-size: 22px; margin: 0 0 4px; }
-  h2 { font-size: 17px; margin: 0 0 12px; }
-  .sotto { color: var(--tenue); margin: 0 0 20px; }
-  .carta { background: var(--carta); border: 1px solid var(--linea); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
-  .stretta { max-width: 420px; margin: 8vh auto 0; }
-  label { display:block; font-size:14px; font-weight:600; margin: 12px 0 4px; }
-  input, select { width:100%; padding: 10px 12px; font: inherit; color: var(--testo); background: var(--carta); border: 1px solid var(--linea); border-radius: 8px; }
-  input:focus, select:focus, button:focus-visible { outline: 2px solid var(--primario); outline-offset: 1px; }
-  .riga { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  @media (max-width: 560px) { .riga { grid-template-columns: 1fr; } }
-  button { font: inherit; cursor: pointer; border-radius: 8px; padding: 10px 16px; border: 1px solid var(--linea); background: var(--carta); color: var(--testo); }
-  button.primario { background: var(--primario); color: var(--primario-testo); border-color: var(--primario); font-weight: 600; margin-top: 16px; }
-  button.link { border: 0; background: none; color: var(--primario); padding: 4px 0; text-decoration: underline; }
-  button:disabled { opacity: .5; cursor: not-allowed; }
-  .msg { margin-top: 14px; padding: 10px 12px; border-radius: 8px; font-size: 15px; }
-  .msg.err { background: var(--err-bg); color: var(--err); }
-  .msg.ok { background: var(--ok-bg); color: var(--ok); }
-  .intestazione { display:flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
-  .scorri { overflow-x: auto; }
-  table { width:100%; border-collapse: collapse; font-size: 15px; }
-  th, td { text-align:left; padding: 10px 8px; border-bottom: 1px solid var(--linea); vertical-align: middle; }
-  th { font-size: 13px; color: var(--tenue); font-weight: 600; white-space: nowrap; }
-  .badge { display:inline-block; padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; }
-  .badge.on { background: var(--ok-bg); color: var(--ok); }
-  .badge.off { background: var(--spento-bg); color: var(--spento); }
-  .vuoto { color: var(--tenue); padding: 16px 0 4px; }
-  [hidden] { display:none !important; }
-</style>
+<link rel="stylesheet" href="/assets/riunion.css">
+<script src="/assets/tema.js"></script>
+<title>Riunion — Gestione utenti</title>
 </head>
 <body>
-<main>
 
-  <section id="v-caricamento" class="carta stretta"><p class="sotto" style="margin:0">Caricamento…</p></section>
+<section id="v-caricamento" class="centro"><p class="tenue">Caricamento…</p></section>
 
-  <section id="v-login" class="carta stretta" hidden>
-    <h1>Riunion</h1>
-    <p class="sotto">Accesso alla gestione degli amministratori</p>
-    <label for="login-email">Email</label>
-    <input id="login-email" type="email" autocomplete="username" inputmode="email">
-    <label for="login-password">Password</label>
-    <input id="login-password" type="password" autocomplete="current-password">
-    <button id="btn-accedi" class="primario" type="button">Accedi</button>
+<section id="v-login" class="centro" hidden>
+  <div class="centro-barra"><div class="tema" role="group" aria-label="Tema dell'aspetto">
+          <button type="button" data-tema="light" aria-pressed="false" aria-label="Tema chiaro" title="Chiaro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+          <button type="button" data-tema="auto" aria-pressed="false" aria-label="Tema automatico" title="Automatico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v18" /><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></svg></button>
+          <button type="button" data-tema="dark" aria-pressed="false" aria-label="Tema scuro" title="Scuro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+        </div></div>
+  <div class="marchio"><span class="marchio-icona">R</span>Riunion</div>
+  <div class="carta animate-fadeIn">
+    <div class="carta-testa"><h1>Accesso</h1><p>Gestione degli utenti della piattaforma</p></div>
+    <div class="campo"><label for="login-email">Email</label>
+      <input id="login-email" type="email" autocomplete="username" inputmode="email"></div>
+    <div class="campo"><label for="login-password">Password</label>
+      <input id="login-password" type="password" autocomplete="current-password"></div>
+    <button id="btn-accedi" class="btn btn-primario btn-pieno" type="button">Accedi</button>
     <div id="login-msg" class="msg" hidden></div>
-    <p style="margin:16px 0 0"><button id="btn-dimenticata" class="link" type="button">Password dimenticata?</button></p>
-  </section>
+    <p style="margin-top:16px"><button id="btn-dimenticata" class="btn-link" type="button">Password dimenticata?</button></p>
+  </div>
+</section>
 
-  <section id="v-negato" class="carta stretta" hidden>
-    <h1>Accesso non consentito</h1>
-    <p id="negato-testo" class="sotto"></p>
-    <button id="btn-esci-negato" type="button">Torna all'accesso</button>
-  </section>
+<section id="v-negato" class="centro" hidden>
+  <div class="centro-barra"><div class="tema" role="group" aria-label="Tema dell'aspetto">
+          <button type="button" data-tema="light" aria-pressed="false" aria-label="Tema chiaro" title="Chiaro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+          <button type="button" data-tema="auto" aria-pressed="false" aria-label="Tema automatico" title="Automatico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v18" /><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></svg></button>
+          <button type="button" data-tema="dark" aria-pressed="false" aria-label="Tema scuro" title="Scuro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+        </div></div>
+  <div class="marchio"><span class="marchio-icona">R</span>Riunion</div>
+  <div class="carta animate-fadeIn">
+    <div class="carta-testa"><h1>Accesso non consentito</h1></div>
+    <p id="negato-testo" class="tenue"></p>
+    <button id="btn-esci-negato" class="btn btn-pieno" type="button">Torna all'accesso</button>
+  </div>
+</section>
 
-  <section id="v-pannello" hidden>
-    <div class="intestazione">
-      <div>
-        <h1>Gestione amministratori</h1>
-        <p class="sotto" style="margin:0">Collegato come <strong id="utente-nome"></strong></p>
+<div id="v-pannello" class="app" hidden>
+  <aside class="sidebar">
+    <div class="marchio"><span class="marchio-icona">R</span>Riunion</div>
+    <nav class="nav" aria-label="Menu">
+      <a href="/gestione/" aria-current="page">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Utenti
+      </a>
+    </nav>
+    <div class="sidebar-fondo">
+      <div class="utente-riga"><strong id="utente-nome"></strong><span id="utente-email"></span></div>
+      <div class="sidebar-azioni">
+        <div class="tema" role="group" aria-label="Tema dell'aspetto">
+          <button type="button" data-tema="light" aria-pressed="false" aria-label="Tema chiaro" title="Chiaro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+          <button type="button" data-tema="auto" aria-pressed="false" aria-label="Tema automatico" title="Automatico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v18" /><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></svg></button>
+          <button type="button" data-tema="dark" aria-pressed="false" aria-label="Tema scuro" title="Scuro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+        </div>
+        <button id="btn-esci" class="btn-esci" type="button">Esci</button>
       </div>
-      <button id="btn-esci" type="button">Esci</button>
+    </div>
+  </aside>
+
+  <main class="contenuto animate-fadeIn">
+    <div class="testata">
+      <h1>Utenti</h1>
+      <p>Invita nuovi utenti e gestisci chi può accedere alla piattaforma.</p>
     </div>
 
-    <div class="carta">
-      <h2>Invita un nuovo utente</h2>
-      <p class="sotto" style="margin-top:-4px">Riceverà un'email con un link per scegliere la propria password.</p>
-      <div class="riga">
+    <section class="carta">
+      <div class="carta-testa">
+        <h2>Invita un nuovo utente</h2>
+        <p>Riceverà un'email con un link per scegliere la propria password.</p>
+      </div>
+      <div class="griglia">
         <div><label for="inv-nome">Nome</label><input id="inv-nome" type="text" autocomplete="off"></div>
         <div><label for="inv-cognome">Cognome</label><input id="inv-cognome" type="text" autocomplete="off"></div>
       </div>
-      <div class="riga">
+      <div class="griglia">
         <div><label for="inv-email">Email</label><input id="inv-email" type="email" autocomplete="off" inputmode="email"></div>
         <div>
           <label for="inv-ruolo">Tipo di utente</label>
@@ -90,13 +93,13 @@
           </select>
         </div>
       </div>
-      <button id="btn-invita" class="primario" type="button">Invia invito</button>
+      <button id="btn-invita" class="btn btn-primario" type="button" style="margin-top:18px">Invia invito</button>
       <div id="inv-msg" class="msg" hidden></div>
-    </div>
+    </section>
 
-    <div class="carta">
-      <h2>Utenti</h2>
-      <div class="scorri">
+    <section class="carta">
+      <div class="carta-testa"><h2>Elenco utenti</h2></div>
+      <div class="tabella-scorri">
         <table>
           <thead><tr><th>Nome</th><th>Email</th><th>Tipo</th><th>Stato</th><th>Creato il</th><th></th></tr></thead>
           <tbody id="elenco"></tbody>
@@ -104,10 +107,9 @@
       </div>
       <p id="elenco-vuoto" class="vuoto" hidden>Nessun utente.</p>
       <div id="elenco-msg" class="msg" hidden></div>
-    </div>
-  </section>
-
-</main>
+    </section>
+  </main>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
 <script>
@@ -115,9 +117,10 @@
   var $ = function (id) { return document.getElementById(id); };
   var sb = null;
   var io = null; // dati dell'ADMINISTRATOR collegato
+  var VISTE = ['v-caricamento', 'v-login', 'v-negato', 'v-pannello'];
 
   function mostra(vista) {
-    ['v-caricamento', 'v-login', 'v-negato', 'v-pannello'].forEach(function (v) { $(v).hidden = (v !== vista); });
+    VISTE.forEach(function (v) { $(v).hidden = (v !== vista); });
   }
   function messaggio(id, testo, tipo) {
     var e = $(id);
@@ -137,7 +140,20 @@
     if (!iso) return '';
     return new Date(iso).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
   }
-  function cella(testo) { var td = document.createElement('td'); td.textContent = testo; return td; }
+  function cella(testo, classe) {
+    var td = document.createElement('td');
+    td.textContent = testo;
+    if (classe) td.className = classe;
+    return td;
+  }
+  function badge(testo, classe) {
+    var td = document.createElement('td');
+    var b = document.createElement('span');
+    b.className = 'badge ' + classe;
+    b.textContent = testo;
+    td.appendChild(b);
+    return td;
+  }
 
   async function chiamaApi(percorso, corpo) {
     var s = await sb.auth.getSession();
@@ -160,6 +176,7 @@
     if (p.data.ruolo !== 'administrator') { await rifiuta('Questa pagina è riservata agli ADMINISTRATOR della piattaforma.'); return; }
     io = p.data;
     $('utente-nome').textContent = ((p.data.nome || '') + ' ' + (p.data.cognome || '')).trim() || p.data.email;
+    $('utente-email').textContent = p.data.email;
     mostra('v-pannello');
     await caricaElenco();
   }
@@ -180,24 +197,24 @@
     righe.forEach(function (u) {
       var tr = document.createElement('tr');
       var nomeCompleto = ((u.nome || '') + ' ' + (u.cognome || '')).trim() || '—';
-      tr.appendChild(cella(nomeCompleto));
-      tr.appendChild(cella(u.email));
-      tr.appendChild(cella(u.ruolo === 'administrator' ? 'ADMINISTRATOR' : 'Amministratore'));
-      var tdStato = document.createElement('td');
-      var b = document.createElement('span');
-      b.className = 'badge ' + (u.attivo ? 'on' : 'off');
-      b.textContent = u.attivo ? 'Attivo' : 'Disattivato';
-      tdStato.appendChild(b);
-      tr.appendChild(tdStato);
-      tr.appendChild(cella(dataBreve(u.creato_il)));
+      tr.appendChild(cella(nomeCompleto, 'nome'));
+      tr.appendChild(cella(u.email, 'piccolo'));
+      tr.appendChild(u.ruolo === 'administrator'
+        ? badge('ADMINISTRATOR', 'badge-review')
+        : badge('Amministratore', 'badge-working'));
+      tr.appendChild(u.attivo ? badge('Attivo', 'badge-done') : badge('Disattivato', 'badge-off'));
+      tr.appendChild(cella(dataBreve(u.creato_il), 'piccolo'));
       var tdAz = document.createElement('td');
+      tdAz.style.textAlign = 'right';
       if (u.id !== io.id) {
         var bt = document.createElement('button');
         bt.type = 'button';
+        bt.className = u.attivo ? 'btn btn-piccolo btn-pericolo' : 'btn btn-piccolo';
         bt.textContent = u.attivo ? 'Disattiva' : 'Riattiva';
         bt.addEventListener('click', function () { cambiaStato(u, bt); });
         tdAz.appendChild(bt);
       } else {
+        tdAz.className = 'piccolo';
         tdAz.textContent = '(tu)';
       }
       tr.appendChild(tdAz);
@@ -216,7 +233,7 @@
     messaggio('elenco-msg', '');
     try {
       var j = await chiamaApi('/api/amministratori/stato', { id: utente.id, attivo: vuoleAttivo });
-      if (j.avviso) messaggio('elenco-msg', j.avviso, 'ok');
+      if (j.avviso) messaggio('elenco-msg', j.avviso, 'info');
       await caricaElenco();
     } catch (e) {
       messaggio('elenco-msg', e.message, 'err');
@@ -236,7 +253,7 @@
     if (dati.ruolo === 'administrator' &&
         !window.confirm('Stai per invitare un ADMINISTRATOR: avrà gli stessi poteri tuoi sulla gestione degli account.\n\nProcedere?')) return;
     btn.disabled = true;
-    messaggio('inv-msg', 'Invio in corso…');
+    messaggio('inv-msg', 'Invio in corso…', 'info');
     try {
       await chiamaApi('/api/amministratori/invita', dati);
       messaggio('inv-msg', 'Invito inviato a ' + dati.email + '.', 'ok');
