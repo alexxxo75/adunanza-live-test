@@ -1,11 +1,10 @@
-
 <!--
   Riunion — Gestione assemblee condominiali online
   (la piattaforma si chiamava Adunanza fino a LT-280: il nome è cambiato in LT-281)
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-282 — creata il 24/09/2026 alle 07:53
+  Versione: LT-284 — creata il 02/10/2026 alle 11:57
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -748,6 +747,25 @@
 </style>
 </head>
 <body>
+<script>
+// LT-283 — CANCELLO DI ACCESSO (parte 1: decide SUBITO, prima che parta qualunque altro codice).
+// Chi apre un link personale (condòmino "?token=", delega, ospite "?ospite=") NON deve fare
+// nessun login: per lui non cambia nulla rispetto a LT-282. Chi apre l'indirizzo "nudo" è
+// l'amministratore: finché non è stato verificato (parte 2, in fondo al file) l'app resta
+// coperta e NON scrive niente, né in locale né sul database condiviso.
+window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profilo: null, uscita: false };
+(function(){
+  var q = new URLSearchParams(window.location.search);
+  if(q.get('token') || q.get('ospite')) return;
+  window.__cancello.attivo = true;
+  window.__cancello.aperto = false;
+  var c = document.createElement('div');
+  c.id = 'cancello-copertura';
+  c.style.cssText = 'position:fixed;inset:0;z-index:100000;background:#1b1b1c;color:#eee;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;font-family:inherit;';
+  c.innerHTML = '<div style="font-size:14px;">Verifica dell\'accesso…</div>';
+  document.body.appendChild(c);
+})();
+</script>
 <div class="app">
 
   <!-- TOPBAR -->
@@ -758,6 +776,7 @@
       <div class="nav-item" id="nav-condomini" data-page="condomini"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M12 1.5v4"/><path d="M9.8 6 12 5l2.2 1L15 21H9z"/><path d="M9 21V11.5L3.5 14v7z"/><path d="M10.4 9.5h3.2M10.2 13h3.6M10 16.5h4M9.8 20h4.4"/><path d="M5 16.5h1.2M5 19h1.2"/></svg>Condomìni</div>
       <div class="nav-item" id="nav-profilo" data-page="profilo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c1.2-4 4.2-6 7.5-6s6.3 2 7.5 6"/></svg>Profilo</div>
       <div class="nav-item" id="nav-preferenze" data-page="preferenze"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="3"/><path d="M19.4 13.5c.04-.5.04-1 0-1.5l1.8-1.4c.2-.15.25-.4.13-.62l-1.7-2.94a.5.5 0 0 0-.6-.22l-2.12.85a7.4 7.4 0 0 0-1.3-.75l-.32-2.25A.5.5 0 0 0 14.8 4h-3.4a.5.5 0 0 0-.5.43l-.32 2.25c-.47.2-.9.45-1.3.75l-2.12-.85a.5.5 0 0 0-.6.22L4.86 9.74a.5.5 0 0 0 .13.62l1.8 1.4c-.04.5-.04 1 0 1.5l-1.8 1.4a.5.5 0 0 0-.13.62l1.7 2.94c.12.2.37.3.6.22l2.12-.85c.4.3.83.55 1.3.75l.32 2.25c.04.25.25.43.5.43h3.4c.25 0 .46-.18.5-.43l.32-2.25c.47-.2.9-.45 1.3-.75l2.12.85c.23.08.48-.02.6-.22l1.7-2.94a.5.5 0 0 0-.13-.62z"/></svg>Preferenze</div>
+      <div class="nav-item hidden" id="nav-esci" onclick="esciDallApp()" title="Esci dall'account"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>Esci</div>
       <div class="nav-item hidden" id="topbar-assemblea-label" style="cursor:default;font-weight:600;color:#fff;">Assemblea</div>
       <div class="nav hidden" id="nav-assemblea-sezioni">
         <div class="nav-item" onclick="scrollToSezione('sezione-video-chat')">Video &amp; Chat</div>
@@ -770,9 +789,10 @@
   <div class="footbar-diagnostica" id="footbar-diagnostica-principale">
     <span id="fb-stato-connessione" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">⏳ Collegamento al database condiviso...</span>
     <span id="fb-ultimo-ping" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);">—</span>
+    <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 24/09/2026 alle 07:53">LT-282</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/10/2026 alle 11:57">LT-284</span>
   </div>
 
   <!-- MAIN -->
@@ -1983,7 +2003,67 @@ function salvaProfiloAmministratore(){
   p.modalitaDefault = document.getElementById('prof-modalita-default').value;
   salvaStato();
   aggiornaNomeStudioTopbar();
-  toast(currentPage==='preferenze' ? 'Preferenze salvate.' : 'Profilo salvato.');
+  const etichetta = currentPage==='preferenze' ? 'Preferenze' : 'Profilo';
+  // LT-283: la fonte vera del profilo è Supabase (tabella "amministratori"). Il toast di
+  // conferma compare solo se il salvataggio lì è riuscito davvero.
+  salvaProfiloSuSupabase().then(ok=>{
+    toast(ok ? etichetta+(etichetta==='Profilo'?' salvato.':' salvate.') : 'Non sono riuscito a salvare su Supabase: controlla la connessione e riprova.');
+  });
+}
+
+// ---------- LT-283: PROFILO SU SUPABASE ----------
+// Corrispondenza fra i nomi dei campi dell'app (a sinistra) e le colonne della tabella
+// "amministratori" (a destra). Restano fuori, perché non hanno una colonna: il logo
+// (logoDataUrl), metodoPagamento e testoBaseConvocazione — per ora continuano a vivere come
+// prima nei dati condivisi, finché non faremo la migrazione completa.
+const CAMPI_PROFILO_SUPABASE = {
+  nome:'nome', cognome:'cognome', ragioneSociale:'ragione_sociale', codiceFiscale:'codice_fiscale',
+  partitaIva:'partita_iva', numeroRegistro:'numero_registro', indirizzoStudio:'indirizzo_studio',
+  emailContatto:'email_contatto', telefono:'telefono', testoBasePresenza:'testo_base_presenza',
+  testoBaseMista:'testo_base_mista', testoBaseOnline:'testo_base_online', firmaEmail:'firma_email',
+  indirizzoMittente:'indirizzo_mittente', modalitaDefault:'modalita_default',
+  durataRegistrazioneGiorni:'durata_registrazione_giorni'
+};
+// Traduce la riga arrivata da Supabase nei nomi usati dall'app.
+function profiloDaRiga(riga){
+  const out = {};
+  if(!riga) return out;
+  for(const [campoApp, colonna] of Object.entries(CAMPI_PROFILO_SUPABASE)){
+    if(riga[colonna] !== undefined && riga[colonna] !== null) out[campoApp] = riga[colonna];
+  }
+  return out;
+}
+function profiloDaSupabase(){
+  return (window.__cancello && window.__cancello.profilo) || {};
+}
+// Copia dell'amministratore senza campi riservati (vecchi dati demo con password/email di
+// accesso che potrebbero ancora trovarsi nei dati condivisi): li scarta ad ogni passaggio.
+function amministratoreSenzaSegreti(){
+  const copia = Object.assign({}, amministratore);
+  delete copia.password;
+  delete copia.emailAccesso;
+  return copia;
+}
+async function salvaProfiloSuSupabase(){
+  const c = window.__cancello;
+  if(!c || !c.sb || !c.utente) return false;
+  const riga = {};
+  for(const [campoApp, colonna] of Object.entries(CAMPI_PROFILO_SUPABASE)){
+    let v = amministratore[campoApp];
+    if(colonna==='durata_registrazione_giorni'){ v = parseInt(v,10); if(!(v>0)) v = 60; }
+    else if(colonna==='modalita_default'){ if(!['in-presenza','mista','online'].includes(v)) v = 'mista'; }
+    else{ v = (v===undefined || v===null) ? '' : String(v); }
+    riga[colonna] = v;
+  }
+  try{
+    const r = await c.sb.from('amministratori').update(riga).eq('id', c.utente.id).select('id').maybeSingle();
+    if(r.error || !r.data){ console.error('[Riunion] salvataggio profilo su Supabase non riuscito:', r.error); return false; }
+    c.profilo = profiloDaRiga(Object.assign({}, riga));
+    return true;
+  }catch(e){
+    console.error('[Riunion] salvataggio profilo su Supabase non riuscito:', e);
+    return false;
+  }
 }
 function amministratoreVuoto(){
   return {
@@ -1994,8 +2074,8 @@ function amministratoreVuoto(){
     logoDataUrl:'', testoBaseConvocazione:'', testoBasePresenza:'', testoBaseMista:'', testoBaseOnline:'', firmaEmail:'', indirizzoMittente:'',
     // Preferenze operative
     modalitaDefault:'mista', durataRegistrazioneGiorni:60,
-    // Sicurezza account (nella demo solo campi dimostrativi, senza sicurezza reale dietro)
-    emailAccesso:'', password:''
+    // LT-283: i campi demo "emailAccesso" e "password" sono stati tolti: l'accesso vero è
+    // gestito da Supabase (pagina /accesso/) e nessuna password deve più stare nei dati.
   };
 }
 let amministratore = amministratoreVuoto();
@@ -10671,14 +10751,250 @@ function esportaDatiDiagnostica(){
     toast('Errore durante l\'esportazione: '+e.message);
   }
 }
+// ---------- LT-284: ANAGRAFICA SU SUPABASE ----------
+// Condomìni (stabili), tabelle millesimali, condòmini e millesimi vivono ora su Supabase.
+// L'app continua a lavorare sugli stessi oggetti di sempre ("buildings") con gli stessi numeri
+// di sempre (id_app): al caricamento li ricostruisce dalle tabelle, e ad ogni salvataggio
+// confronta ciò che c'è in memoria con l'ultima copia nota del database e invia SOLO le
+// differenze. Le assemblee (e tutto ciò che c'è dentro) restano per ora nel database condiviso
+// Firebase, finché non le spostiamo (tappa 3).
+const __sbAn = {
+  attivo:false,                       // diventa vero solo DOPO una lettura riuscita (mai prima)
+  uuid:{stabili:new Map(), tabelle:new Map(), condomini:new Map()},   // numero dell'app -> UUID
+  snap:null,                          // ultima copia nota del database
+  inCorso:false, richiesta:false, timer:null, tentativi:0
+};
+function sbNuovoUuid(){
+  if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c=>{ const r=Math.random()*16|0; return (c==='x'?r:(r&3|8)).toString(16); });
+}
+function sbUuid(mappa, chiave){
+  let u = mappa.get(chiave);
+  if(!u){ u = sbNuovoUuid(); mappa.set(chiave, u); }
+  return u;
+}
+// Stringa "stabile" di una riga (chiavi in ordine fisso) per confrontare prima/dopo.
+function sbChiave(o){
+  if(o===null || typeof o!=='object') return JSON.stringify(o);
+  if(Array.isArray(o)) return '['+o.map(sbChiave).join(',')+']';
+  return '{'+Object.keys(o).sort().map(k=>JSON.stringify(k)+':'+sbChiave(o[k])).join(',')+'}';
+}
+const sbNum4 = v => Math.round(Number(v)*10000)/10000;
+
+// Da "buildings" (memoria) alle righe che dovrebbero esserci sul database.
+function sbRigheDesiderate(){
+  const m = __sbAn.uuid;
+  const R = {stabili:new Map(), tabelle:new Map(), condomini:new Map(), millesimi:new Map()};
+  for(const b of buildings){
+    const sid = sbUuid(m.stabili, b.id);
+    const extra = {};
+    if(Array.isArray(b.tabelleGiaControllatePerDuplicati) && b.tabelleGiaControllatePerDuplicati.length) extra.tabelleGiaControllatePerDuplicati = b.tabelleGiaControllatePerDuplicati;
+    R.stabili.set(sid, {id:sid, id_app:b.id, nome:String(b.nome||''), denominazione:String(b.denominazione||''), via:String(b.via||''),
+      cap:String(b.cap||''), comune:String(b.comune||''), provincia:String(b.provincia||''), codice_fiscale:String(b.cf||''),
+      attivo:b.attivo!==false, criterio_principale:b.criterioPrincipale||null, criterio_voto:b.criterioVoto||null, extra});
+    const nomiTab = [];
+    (b.tabelleMillesimali||[]).forEach(t=>{ if(!nomiTab.includes(t)) nomiTab.push(t); });
+    (b.condomini||[]).forEach(c=>Object.keys(c.millesimi||{}).forEach(t=>{ if(!nomiTab.includes(t)) nomiTab.push(t); }));
+    const tid = {};
+    nomiTab.forEach((t,i)=>{
+      tid[t] = sbUuid(m.tabelle, b.id+':'+t);
+      R.tabelle.set(tid[t], {id:tid[t], stabile_id:sid, nome:t, ordine:i});
+    });
+    const idsCond = new Set((b.condomini||[]).map(c=>c.id));
+    for(const c of (b.condomini||[])){
+      const cid = sbUuid(m.condomini, b.id+':'+c.id);
+      R.condomini.set(cid, {id:cid, stabile_id:sid, id_app:c.id, nome:String(c.nome||''), cognome:String(c.cognome||''), interno:String(c.interno||''),
+        unita:String(c.unita||''), email:String(c.email||''), invitato:!!c.invitato, token:String(c.token||''),
+        stesso_proprietario_di: (c.gruppoCon!=null && idsCond.has(c.gruppoCon)) ? sbUuid(m.condomini, b.id+':'+c.gruppoCon) : null,
+        unificato_con: (c.unificatoCon!=null && idsCond.has(c.unificatoCon)) ? sbUuid(m.condomini, b.id+':'+c.unificatoCon) : null});
+      for(const [t,v] of Object.entries(c.millesimi||{})){
+        const n = sbNum4(v);
+        if(v===null || v==='' || !isFinite(n) || n<0) continue;
+        R.millesimi.set(cid+'|'+tid[t], {condomino_id:cid, tabella_id:tid[t], valore:n});
+      }
+    }
+  }
+  return R;
+}
+
+// Lettura a pagine (Supabase restituisce al massimo 1000 righe per richiesta).
+async function sbLeggiTutto(sb, tabella, ordina){
+  let da = 0, tutte = [];
+  for(;;){
+    let q = sb.from(tabella).select('*');
+    for(const o of ordina) q = q.order(o);
+    const r = await q.range(da, da+999);
+    if(r.error) throw r.error;
+    const pezzo = r.data || [];
+    tutte = tutte.concat(pezzo);
+    if(pezzo.length < 1000) break;
+    da += 1000;
+  }
+  return tutte;
+}
+// Legge l'anagrafica dal database e ricostruisce "buildings". Chiamata una volta, al login.
+async function sbCaricaAnagrafica(){
+  const sb = window.__cancello.sb;
+  const [st, tb, co, mi] = await Promise.all([
+    sbLeggiTutto(sb,'stabili',['id']), sbLeggiTutto(sb,'tabelle_millesimali',['id']),
+    sbLeggiTutto(sb,'condomini',['id']), sbLeggiTutto(sb,'millesimi',['condomino_id','tabella_id'])]);
+  const m = {stabili:new Map(), tabelle:new Map(), condomini:new Map()};
+  // righe create senza numero dell'app (non dovrebbe succedere): gliene assegniamo uno
+  let prossimo = Date.now();
+  st.forEach(s=>{ if(s.id_app==null) s.id_app = prossimo++; });
+  const appStabile = new Map(st.map(s=>[s.id, s.id_app]));
+  const idAppCond = new Map();
+  const perStabile = new Map();
+  co.forEach(c=>{
+    if(c.id_app==null) c.id_app = (idAppCond.size+1) + 1000000;   // numero fuori dal normale intervallo
+    idAppCond.set(c.id, c.id_app);
+  });
+  const tabPerStabile = new Map(), tabNome = new Map();
+  tb.sort((a,b)=>(a.ordine-b.ordine)||a.nome.localeCompare(b.nome));
+  tb.forEach(t=>{
+    if(!tabPerStabile.has(t.stabile_id)) tabPerStabile.set(t.stabile_id, []);
+    tabPerStabile.get(t.stabile_id).push(t.nome);
+    tabNome.set(t.id, t.nome);
+    m.tabelle.set(appStabile.get(t.stabile_id)+':'+t.nome, t.id);
+  });
+  const milPerCond = new Map();
+  mi.forEach(x=>{
+    if(!tabNome.has(x.tabella_id)) return;
+    if(!milPerCond.has(x.condomino_id)) milPerCond.set(x.condomino_id, {});
+    milPerCond.get(x.condomino_id)[tabNome.get(x.tabella_id)] = Number(x.valore);
+  });
+  const vecchi = new Map(buildings.map(b=>[b.id,b]));      // per recuperare le assemblee già in memoria
+  const nuovi = [];
+  st.sort((a,b)=>a.id_app-b.id_app).forEach(s=>{
+    m.stabili.set(s.id_app, s.id);
+    const conds = co.filter(c=>c.stabile_id===s.id).sort((a,b)=>a.id_app-b.id_app).map(c=>{
+      m.condomini.set(s.id_app+':'+c.id_app, c.id);
+      const o = {id:c.id_app, nome:c.nome, cognome:c.cognome, interno:c.interno, unita:c.unita, email:c.email, invitato:c.invitato,
+        token:c.token, millesimi:milPerCond.get(c.id)||{}, gruppoCon: c.stesso_proprietario_di ? (idAppCond.get(c.stesso_proprietario_di)??null) : null};
+      if(c.unificato_con) o.unificatoCon = idAppCond.get(c.unificato_con)??null;
+      return o;
+    });
+    const b = {id:s.id_app, nome:s.nome, denominazione:s.denominazione, via:s.via, cap:s.cap, comune:s.comune, provincia:s.provincia, cf:s.codice_fiscale,
+      attivo:s.attivo, tabelleMillesimali:tabPerStabile.get(s.id)||[], condomini:conds};
+    if(s.criterio_principale) b.criterioPrincipale = s.criterio_principale;
+    if(s.criterio_voto) b.criterioVoto = s.criterio_voto;
+    if(s.extra && s.extra.tabelleGiaControllatePerDuplicati) b.tabelleGiaControllatePerDuplicati = s.extra.tabelleGiaControllatePerDuplicati;
+    const v = vecchi.get(s.id_app);
+    b.assemblee = v && Array.isArray(v.assemblee) ? v.assemblee : [];
+    b.assembleaInCorsoId = v && v.assembleaInCorsoId!==undefined ? v.assembleaInCorsoId : null;
+    nuovi.push(miglioraSchemaBuilding(b));
+  });
+  __sbAn.uuid = m;
+  buildings = nuovi;
+  if(!buildings.some(b=>b.id===activeBuildingId)) activeBuildingId = null;
+  ricalcolaContatoriId();
+  // La copia di riferimento è ciò che abbiamo appena letto: se nulla cambia, non si invia nulla.
+  __sbAn.snap = sbRigheDesiderate();
+  __sbAn.attivo = true;
+  sbMostraStato();
+}
+
+function sbMostraStato(msg, errore){
+  const el = document.getElementById('sb-stato');
+  if(!el) return;
+  el.textContent = msg ? msg : (__sbAn.attivo ? '🟢 Anagrafica su Supabase' : '');
+  el.style.color = errore ? '#ffb4a8' : 'rgba(255,255,255,.6)';
+}
+// Chiamata da salvaStato: raggruppa più salvataggi ravvicinati in un solo invio.
+function sbPianificaSync(){
+  if(!__sbAn.attivo) return;
+  __sbAn.richiesta = true;
+  clearTimeout(__sbAn.timer);
+  __sbAn.timer = setTimeout(()=>{ __sbAn.timer = null; sbSincronizza(); }, 400);
+}
+function sbADaFare(){ return __sbAn.attivo && (__sbAn.inCorso || __sbAn.timer || __sbAn.richiesta); }
+async function sbInvia(sb, tabella, righe, conflitto){
+  for(let i=0; i<righe.length; i+=200){
+    const r = await sb.from(tabella).upsert(righe.slice(i,i+200), {onConflict:conflitto});
+    if(r.error) throw r.error;
+  }
+}
+async function sbCancellaPerId(sb, tabella, ids){
+  for(let i=0; i<ids.length; i+=100){
+    const r = await sb.from(tabella).delete().in('id', ids.slice(i,i+100));
+    if(r.error) throw r.error;
+  }
+}
+async function sbSincronizza(){
+  if(!__sbAn.attivo) return;
+  if(__sbAn.inCorso){ __sbAn.richiesta = true; return; }
+  __sbAn.inCorso = true;
+  try{
+    while(__sbAn.richiesta){
+      __sbAn.richiesta = false;
+      const sb = window.__cancello.sb, vecchio = __sbAn.snap, nuovo = sbRigheDesiderate();
+      const cambiate = (nu, ve)=>[...nu.entries()].filter(([k,r])=>!ve.has(k) || sbChiave(ve.get(k))!==sbChiave(r)).map(([,r])=>r);
+      const sparite = (nu, ve)=>[...ve.keys()].filter(k=>!nu.has(k));
+      const stSp = sparite(nuovo.stabili, vecchio.stabili);
+      // Salvaguardia: un condominio sparisce dal database solo se l'utente l'ha eliminato
+      // davvero (con le tre conferme). Qualunque altra sparizione è un errore del programma
+      // e NON deve cancellare dati.
+      for(const sid of stSp){
+        const appId = vecchio.stabili.get(sid).id_app;
+        if(!__idBuildingEliminatiSessione.has(appId)) throw new Error('Cancellazione di un condominio non richiesta: operazione bloccata per sicurezza.');
+      }
+      // 1) in avanti: condomìni, tabelle, condòmini (in due giri per i collegamenti fra condòmini), millesimi
+      await sbInvia(sb,'stabili', cambiate(nuovo.stabili, vecchio.stabili), 'id');
+      await sbInvia(sb,'tabelle_millesimali', cambiate(nuovo.tabelle, vecchio.tabelle), 'id');
+      const co = cambiate(nuovo.condomini, vecchio.condomini);
+      const giaSulDb = k=>vecchio.condomini.has(k);
+      const primoGiro = co.map(r=>Object.assign({}, r, {
+        stesso_proprietario_di: r.stesso_proprietario_di && giaSulDb(r.stesso_proprietario_di) ? r.stesso_proprietario_di : null,
+        unificato_con: r.unificato_con && giaSulDb(r.unificato_con) ? r.unificato_con : null}));
+      await sbInvia(sb,'condomini', primoGiro, 'id');
+      const daCompletare = co.filter((r,i)=>r.stesso_proprietario_di!==primoGiro[i].stesso_proprietario_di || r.unificato_con!==primoGiro[i].unificato_con);
+      if(daCompletare.length) await sbInvia(sb,'condomini', daCompletare, 'id');
+      await sbInvia(sb,'millesimi', cambiate(nuovo.millesimi, vecchio.millesimi), 'condomino_id,tabella_id');
+      // 2) all'indietro: cancellazioni (prima i figli, poi i genitori)
+      const milSp = sparite(nuovo.millesimi, vecchio.millesimi).filter(k=>{
+        const r = vecchio.millesimi.get(k);
+        return nuovo.condomini.has(r.condomino_id) && nuovo.tabelle.has(r.tabella_id);   // altrimenti li porta via il genitore
+      });
+      for(const k of milSp){
+        const r = vecchio.millesimi.get(k);
+        const x = await sb.from('millesimi').delete().eq('condomino_id', r.condomino_id).eq('tabella_id', r.tabella_id);
+        if(x.error) throw x.error;
+      }
+      await sbCancellaPerId(sb,'condomini', sparite(nuovo.condomini, vecchio.condomini));
+      await sbCancellaPerId(sb,'tabelle_millesimali', sparite(nuovo.tabelle, vecchio.tabelle));
+      await sbCancellaPerId(sb,'stabili', stSp);
+      __sbAn.snap = nuovo;
+    }
+    __sbAn.tentativi = 0;
+    sbMostraStato();
+  }catch(e){
+    console.error('[Riunion] sincronizzazione anagrafica con Supabase non riuscita:', e);
+    __sbAn.tentativi++;
+    __sbAn.richiesta = true;
+    sbMostraStato('⚠️ Salvataggio su Supabase non riuscito — riprovo…', true);
+    clearTimeout(__sbAn.timer);
+    __sbAn.timer = setTimeout(()=>{ __sbAn.timer = null; sbSincronizza(); }, Math.min(30000, 3000*__sbAn.tentativi));
+  }finally{
+    __sbAn.inCorso = false;
+  }
+}
+window.addEventListener('beforeunload', function(e){
+  if(sbADaFare()){ e.preventDefault(); e.returnValue = ''; }
+});
+
 let __versioneStatoLocale = 0;
 function salvaStato(soloLocale){
+  // LT-283: finché l'amministratore non è stato verificato (o dopo che è uscito) non si scrive
+  // NIENTE: altrimenti la copia locale di un dispositivo non autenticato — anche solo allo
+  // "beforeunload" mentre viene rimandato alla pagina di accesso — potrebbe sovrascrivere i
+  // dati condivisi con dati vecchi.
+  if(window.__cancello && ((window.__cancello.attivo && !window.__cancello.aperto) || window.__cancello.uscita)) return false;
   try{
     __versioneStatoLocale++;
     const statoCompleto = {
       buildings, activeBuildingId,
       activePoll: serializzaPoll(activePoll),
-      activePollOdgId, amministratore,
+      activePollOdgId, amministratore: amministratoreSenzaSegreti(),
       // Numero che cresce ad ogni salvataggio: serve a riconoscere se un aggiornamento in
       // arrivo dal database condiviso è più vecchio di uno che abbiamo già applicato (può
       // capitare facendo più azioni di fila velocemente) — senza, rischieremmo di "tornare
@@ -10694,6 +11010,7 @@ function salvaStato(soloLocale){
     if(!soloLocale && window.__fbScriviStato){
       window.__fbScriviStato(statoCompleto).catch(e=>console.error('[Adunanza] Scrittura sul database condiviso fallita:', e));
     }
+    if(!soloLocale) sbPianificaSync();
     return true;
   }catch(e){
     console.error('[Adunanza] salvaStato FALLITO:', e);
@@ -10878,7 +11195,21 @@ function applicaDatiRicevuti(parsed, aggiornaAncheNavigazioneLocale){
   // server, ignorando questo controllo. Il database condiviso (Firebase) consegna sempre lo
   // stato più recente confermato: non serve un controllo di "vecchiaia" lato client.
   if(typeof parsed.__versione === 'number'){ __versioneStatoLocale = parsed.__versione; }
-  buildings = parsed.buildings.map(miglioraSchemaBuilding).filter(b=>!__idBuildingEliminatiSessione.has(b.id));
+  if(__sbAn.attivo){
+    // LT-284: l'anagrafica dei condomìni viene da Supabase e non va sovrascritta da ciò che
+    // arriva dal database condiviso: da lì prendiamo SOLO le assemblee (e quale è in corso).
+    const dalBlob = new Map(parsed.buildings.map(x=>[x.id,x]));
+    buildings = buildings.map(mio=>{
+      const bl = dalBlob.get(mio.id);
+      if(bl){
+        mio.assemblee = Array.isArray(bl.assemblee) ? bl.assemblee : [];
+        mio.assembleaInCorsoId = bl.assembleaInCorsoId===undefined ? null : bl.assembleaInCorsoId;
+      }
+      return miglioraSchemaBuilding(mio);
+    }).filter(b=>!__idBuildingEliminatiSessione.has(b.id));
+  }else{
+    buildings = parsed.buildings.map(miglioraSchemaBuilding).filter(b=>!__idBuildingEliminatiSessione.has(b.id));
+  }
   // currentCondomino (chi è "autenticato" nella pagina personale, lato cellulare) punta a un
   // preciso oggetto in memoria: dopo aver sostituito "buildings" con i dati appena arrivati,
   // quel riferimento resterebbe "staccato" dai nuovi oggetti — cosa che succede in
@@ -10906,7 +11237,8 @@ function applicaDatiRicevuti(parsed, aggiornaAncheNavigazioneLocale){
   }
   activePoll = deserializzaPoll(parsed.activePoll);
   activePollOdgId = parsed.activePollOdgId || null;
-  amministratore = Object.assign(amministratoreVuoto(), parsed.amministratore||{});
+  amministratore = Object.assign(amministratoreVuoto(), parsed.amministratore||{}, profiloDaSupabase());
+  amministratore = amministratoreSenzaSegreti();
   ricalcolaContatoriId();
   // Verifica di coerenza: se il sondaggio ripristinato non corrisponde più a un punto
   // O.d.G. realmente esistente nell'assemblea in corso di questo condominio, lo scartiamo:
@@ -11243,22 +11575,99 @@ function eseguiCicloPing(){
   }
 }
 
-if(!__haTokenNelLink){
-  // Nessun link personale: è l'amministratore, che vede subito la sua home (con i dati che ha
-  // già in locale) — si aggiornerà da sola appena arrivano i dati veri dal database condiviso.
-  instradamentoIniziale();
-}
-// Se invece c'è un token, non facciamo nulla qui: l'instradamento avviene sopra, dentro
-// collegaAscoltoFirebase, appena arriva il primo dato vero (o comunque entro pochi secondi,
-// grazie al limite di sicurezza qui sotto).
+// LT-283: l'avvio vero e proprio è in una funzione, chiamata subito per i link personali
+// (nessun login) oppure solo dopo la verifica dell'amministratore (cancello, qui sotto).
+function avviaApp(){
+  if(!__haTokenNelLink){
+    // Nessun link personale: è l'amministratore, che vede subito la sua home (con i dati che ha
+    // già in locale) — si aggiornerà da sola appena arrivano i dati veri dal database condiviso.
+    instradamentoIniziale();
+  }
+  // Se invece c'è un token, non facciamo nulla qui: l'instradamento avviene sopra, dentro
+  // collegaAscoltoFirebase, appena arriva il primo dato vero (o comunque entro pochi secondi,
+  // grazie al limite di sicurezza qui sotto).
 
-if(window.__fbAscoltaStato){
-  collegaAscoltoFirebase();
-}else{
-  let arrivato = false;
-  window.addEventListener('adunanza-firebase-pronto', ()=>{ arrivato=true; collegaAscoltoFirebase(); }, {once:true});
-  setTimeout(()=>{ if(!arrivato){ arrivato=true; collegaAscoltoFirebase(); } }, 5000);
+  if(window.__fbAscoltaStato){
+    collegaAscoltoFirebase();
+  }else{
+    let arrivato = false;
+    window.addEventListener('adunanza-firebase-pronto', ()=>{ arrivato=true; collegaAscoltoFirebase(); }, {once:true});
+    setTimeout(()=>{ if(!arrivato){ arrivato=true; collegaAscoltoFirebase(); } }, 5000);
+  }
 }
+
+// ---------- LT-283: CANCELLO DI ACCESSO (parte 2) ----------
+function cancelloMostraErrore(testo){
+  const box = document.getElementById('cancello-copertura');
+  if(!box) return;
+  box.innerHTML = '<div style="max-width:340px;"><div style="font-size:15px;margin-bottom:16px;"></div><button class="btn brass" id="cancello-riprova">Riprova</button> <a href="/accesso/" style="color:#ccc;margin-left:10px;">Vai all\'accesso</a></div>';
+  box.querySelector('div > div').textContent = testo;
+  document.getElementById('cancello-riprova').onclick = ()=>location.reload();
+}
+function caricaScript(url){
+  return new Promise((ok, ko)=>{
+    const s = document.createElement('script');
+    s.src = url; s.onload = ok; s.onerror = ()=>ko(new Error('script non caricato'));
+    document.head.appendChild(s);
+  });
+}
+async function avviaCancello(){
+  const c = window.__cancello;
+  try{
+    const r = await fetch('/api/config', {cache:'no-store'});
+    const cfg = await r.json();
+    if(!r.ok || !cfg.url || !cfg.chiavePubblica) throw new Error('config');
+    await caricaScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js');
+    c.sb = window.supabase.createClient(cfg.url, cfg.chiavePubblica);
+  }catch(e){
+    // Se non si riesce a verificare chi è, l'app NON si apre ("a porta chiusa").
+    cancelloMostraErrore('Non riesco a verificare l\'accesso. Controlla la connessione e riprova.');
+    return;
+  }
+  const s = await c.sb.auth.getSession();
+  if(!s.data.session){ window.location.replace('/accesso/'); return; }
+  const p = await c.sb.from('amministratori').select('*').eq('id', s.data.session.user.id).maybeSingle();
+  if(p.error){ cancelloMostraErrore('Non riesco a leggere il tuo profilo. Riprova fra poco.'); return; }
+  if(!p.data || !p.data.attivo){
+    await c.sb.auth.signOut();
+    window.location.replace('/accesso/?motivo=disattivato');
+    return;
+  }
+  if(p.data.ruolo === 'administrator'){ window.location.replace('/gestione/'); return; }
+  c.utente = { id: p.data.id, email: p.data.email };
+  c.profilo = profiloDaRiga(p.data);
+  // LT-284: anche i condomìni si leggono da Supabase. Se non ci si riesce l'app NON si apre:
+  // partire con un elenco vuoto e poi salvare rischierebbe di sovrascrivere i dati veri.
+  try{ await sbCaricaAnagrafica(); }
+  catch(e){
+    console.error('[Riunion] lettura anagrafica da Supabase non riuscita:', e);
+    cancelloMostraErrore('Non riesco a leggere i tuoi condomìni da Supabase. Controlla la connessione e riprova.');
+    return;
+  }
+  // Se la sessione termina (altra scheda, scadenza), si torna all'accesso.
+  c.sb.auth.onAuthStateChange((evento)=>{
+    if(evento === 'SIGNED_OUT' && !c.uscita){ c.uscita = true; window.location.replace('/accesso/?motivo=scaduta'); }
+  });
+  // Il profilo di Supabase vince su quello (vecchio) rimasto nei dati condivisi/locali.
+  amministratore = Object.assign(amministratoreVuoto(), amministratore, c.profilo);
+  amministratore = amministratoreSenzaSegreti();
+  aggiornaNomeStudioTopbar();
+  c.aperto = true;
+  const box = document.getElementById('cancello-copertura');
+  if(box) box.remove();
+  const esci = document.getElementById('nav-esci');
+  if(esci) esci.classList.remove('hidden');
+  avviaApp();
+}
+async function esciDallApp(){
+  const c = window.__cancello;
+  if(!c || !c.sb) return;
+  c.uscita = true; // da qui salvaStato non scrive più nulla
+  try{ localStorage.removeItem('adunanza_stato_v1'); }catch(e){}
+  try{ await c.sb.auth.signOut(); }catch(e){}
+  window.location.replace('/accesso/');
+}
+if(window.__cancello.attivo){ avviaCancello(); } else { avviaApp(); }
 </script>
 </body>
 </html>
