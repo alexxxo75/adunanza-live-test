@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-284 — creata il 02/10/2026 alle 11:57
+  Versione: LT-285 — creata il 02/10/2026 alle 14:12
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -792,7 +792,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/10/2026 alle 11:57">LT-284</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/10/2026 alle 14:12">LT-285</span>
   </div>
 
   <!-- MAIN -->
@@ -7406,6 +7406,7 @@ function eliminaAssembleaCorrente(){
   if(!confirm('Vuoi eliminare l\'assemblea corrente?')) return;
   if(!confirm('Premendo Sì l\'intera assemblea, tutti i sondaggi e le modifiche apportate alla stessa saranno eliminati. Sei certo di voler procedere?')) return;
   const b=getActiveBuilding();
+  __idAssembleeEliminateSessione.add(a.id);   // LT-285: eliminazione voluta, il database può cancellarla
   b.assemblee = b.assemblee.filter(x=>x.id!==a.id);
   if(b.assembleaInCorsoId===a.id) b.assembleaInCorsoId=null;
   salvaStato();
@@ -10751,19 +10752,59 @@ function esportaDatiDiagnostica(){
     toast('Errore durante l\'esportazione: '+e.message);
   }
 }
-// ---------- LT-284: ANAGRAFICA SU SUPABASE ----------
-// Condomìni (stabili), tabelle millesimali, condòmini e millesimi vivono ora su Supabase.
+// ---------- LT-285: DATI SU SUPABASE (anagrafica + assemblee) ----------
+// Condomìni, condòmini, tabelle millesimali, millesimi (LT-284) e ora anche le assemblee con
+// ordine del giorno, convocati, invii programmati, ospiti e verbale vivono su Supabase.
 // L'app continua a lavorare sugli stessi oggetti di sempre ("buildings") con gli stessi numeri
-// di sempre (id_app): al caricamento li ricostruisce dalle tabelle, e ad ogni salvataggio
-// confronta ciò che c'è in memoria con l'ultima copia nota del database e invia SOLO le
-// differenze. Le assemblee (e tutto ciò che c'è dentro) restano per ora nel database condiviso
-// Firebase, finché non le spostiamo (tappa 3).
+// di sempre (id_app): al caricamento li ricostruisce dalle tabelle e, ad ogni salvataggio,
+// confronta la memoria con l'ultima copia nota del database e invia SOLO le differenze.
+// Restano nel database condiviso (Firebase) i dati "vivi" scritti anche dai condòmini durante
+// l'assemblea: appello, presenze, chat, mani alzate, voti e risultati dei sondaggi, ping.
 const __sbAn = {
   attivo:false,                       // diventa vero solo DOPO una lettura riuscita (mai prima)
-  uuid:{stabili:new Map(), tabelle:new Map(), condomini:new Map()},   // numero dell'app -> UUID
-  snap:null,                          // ultima copia nota del database
-  inCorso:false, richiesta:false, timer:null, tentativi:0
+  uuid:{stabili:new Map(), tabelle:new Map(), condomini:new Map(), assemblee:new Map(), odg:new Map(), ospiti:new Map()},
+  snap:null,                          // ultima copia nota del database (per tabella)
+  inCorso:false, richiesta:false, timer:null, tentativi:0, primoEcoFatto:false
 };
+const __idAssembleeEliminateSessione = new Set();   // assemblee che l'utente ha eliminato davvero (con conferma)
+
+// Elenco delle tabelle, dal "genitore" al "figlio". Per ognuna: chiave, colonne che l'app gestisce,
+// tipo delle colonne che il database restituisce in forma diversa da come le scriviamo,
+// "rif" = collegamenti verso righe della stessa tabella, "padri" = da quali righe dipende.
+const SB_SPEC = [
+  {t:'stabili', pk:['id'], campi:['id','id_app','nome','denominazione','via','cap','comune','provincia','codice_fiscale','attivo','criterio_principale','criterio_voto','extra'], padri:[]},
+  {t:'tabelle_millesimali', pk:['id'], campi:['id','stabile_id','nome','ordine'], padri:[['stabile_id','stabili']]},
+  {t:'condomini', pk:['id'], campi:['id','stabile_id','id_app','nome','cognome','interno','unita','email','invitato','token','stesso_proprietario_di','unificato_con'],
+    rif:['stesso_proprietario_di','unificato_con'], padri:[['stabile_id','stabili']]},
+  {t:'millesimi', pk:['condomino_id','tabella_id'], campi:['condomino_id','tabella_id','valore'], tipi:{valore:'num'}, padri:[['condomino_id','condomini'],['tabella_id','tabelle_millesimali']]},
+  {t:'assemblee', pk:['id'], campi:['id','stabile_id','id_app','oggetto','tipo','modalita','data_prima','ora_prima','data_seconda','ora_seconda','luogo','testo','tipo_convocazione','convocati_modo',
+    'inviti_inviati','stato','iniziata','ora_inizio','registrazione_attiva','promemoria_verbale_nascosto','descrizione_allegati','testo_ospiti','presidente_nominato','segretario_nominato',
+    'cariche_cronologia','extra','assemblea_precedente_id','assemblea_successiva_id'],
+    tipi:{ora_prima:'time', ora_seconda:'time', ora_inizio:'ts'}, rif:['assemblea_precedente_id','assemblea_successiva_id'], padri:[['stabile_id','stabili']]},
+  {t:'assemblea_tabelle', pk:['assemblea_id','tabella_id'], campi:['assemblea_id','tabella_id'], padri:[['assemblea_id','assemblee'],['tabella_id','tabelle_millesimali']]},
+  {t:'convocati_selezionati', pk:['assemblea_id','condomino_id'], campi:['assemblea_id','condomino_id'], padri:[['assemblea_id','assemblee'],['condomino_id','condomini']]},
+  {t:'punti_odg', pk:['id'], campi:['id','assemblea_id','id_app','posizione','testo','domanda_sondaggio','sondaggio_abilitato','opzioni','tabella_id','extra'], padri:[['assemblea_id','assemblee']]},
+  {t:'invii_programmati', pk:['id'], campi:['id','assemblea_id','data','ora','tipo'], tipi:{ora:'time'}, padri:[['assemblea_id','assemblee']]},
+  {t:'ospiti', pk:['id'], campi:['id','assemblea_id','id_app','nome','ditta','email','token','extra'], padri:[['assemblea_id','assemblee']]},
+  {t:'verbali', pk:['assemblea_id'], campi:['assemblea_id','contenuto'], padri:[['assemblea_id','assemblee']]}
+];
+const SB_PER_NOME = Object.fromEntries(SB_SPEC.map(s=>[s.t, s]));
+const sbPk = (spec, r) => spec.pk.map(c=>r[c]).join('|');
+// Forma "confrontabile" di una riga: solo le colonne gestite, con i tipi portati a un formato unico.
+function sbNorm(spec, r){
+  const o = {};
+  for(const c of spec.campi){
+    let v = r[c]; if(v===undefined) v = null;
+    const tipo = spec.tipi && spec.tipi[c];
+    if(v!==null){
+      if(tipo==='time') v = String(v).slice(0,5);
+      else if(tipo==='ts') v = new Date(v).getTime();
+      else if(tipo==='num') v = Math.round(Number(v)*10000)/10000;
+    }
+    o[c] = v;
+  }
+  return sbChiave(o);
+}
 function sbNuovoUuid(){
   if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c=>{ const r=Math.random()*16|0; return (c==='x'?r:(r&3|8)).toString(16); });
@@ -10773,45 +10814,117 @@ function sbUuid(mappa, chiave){
   if(!u){ u = sbNuovoUuid(); mappa.set(chiave, u); }
   return u;
 }
-// Stringa "stabile" di una riga (chiavi in ordine fisso) per confrontare prima/dopo.
+// Stringa "stabile" (chiavi in ordine) per confrontare prima/dopo.
 function sbChiave(o){
-  if(o===null || typeof o!=='object') return JSON.stringify(o);
+  if(o===null || o===undefined) return 'null';
+  if(typeof o!=='object') return JSON.stringify(o);
   if(Array.isArray(o)) return '['+o.map(sbChiave).join(',')+']';
   return '{'+Object.keys(o).sort().map(k=>JSON.stringify(k)+':'+sbChiave(o[k])).join(',')+'}';
 }
-const sbNum4 = v => Math.round(Number(v)*10000)/10000;
+// Conversioni fra i formati dell'app (gg/mm/aaaa, hh:mm) e quelli del database.
+function sbData(s){
+  s = String(s||'').trim();
+  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  const iso = m ? `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}` : (/^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null);
+  return iso && !isNaN(Date.parse(iso)) ? iso : null;
+}
+const sbDataIt = iso => iso ? iso.slice(8,10)+'/'+iso.slice(5,7)+'/'+iso.slice(0,4) : '';
+function sbOra(s){ const m = String(s||'').trim().match(/^(\d{1,2}):(\d{2})/); return m ? m[1].padStart(2,'0')+':'+m[2] : null; }
+const sbOraApp = v => v ? String(v).slice(0,5) : '';
 
-// Da "buildings" (memoria) alle righe che dovrebbero esserci sul database.
+// Da "buildings" (memoria) alle righe che dovrebbero esserci sul database: una Map per tabella.
 function sbRigheDesiderate(){
-  const m = __sbAn.uuid;
-  const R = {stabili:new Map(), tabelle:new Map(), condomini:new Map(), millesimi:new Map()};
+  const m = __sbAn.uuid, snap = __sbAn.snap;
+  const R = {}; SB_SPEC.forEach(s=>{ R[s.t] = new Map(); });
+  const put = (t, r)=>R[t].set(sbPk(SB_PER_NOME[t], r), r);
+  // per riconoscere gli invii programmati già presenti ed evitare di rigenerarne l'id
+  const inviiNoti = new Map();
+  if(snap) snap.invii_programmati.forEach(r=>inviiNoti.set(r.assemblea_id+'|'+r.data+'|'+String(r.ora).slice(0,5)+'|'+r.tipo, r.id));
   for(const b of buildings){
     const sid = sbUuid(m.stabili, b.id);
-    const extra = {};
-    if(Array.isArray(b.tabelleGiaControllatePerDuplicati) && b.tabelleGiaControllatePerDuplicati.length) extra.tabelleGiaControllatePerDuplicati = b.tabelleGiaControllatePerDuplicati;
-    R.stabili.set(sid, {id:sid, id_app:b.id, nome:String(b.nome||''), denominazione:String(b.denominazione||''), via:String(b.via||''),
+    const extraS = {};
+    if(Array.isArray(b.tabelleGiaControllatePerDuplicati) && b.tabelleGiaControllatePerDuplicati.length) extraS.tabelleGiaControllatePerDuplicati = b.tabelleGiaControllatePerDuplicati;
+    put('stabili', {id:sid, id_app:b.id, nome:String(b.nome||''), denominazione:String(b.denominazione||''), via:String(b.via||''),
       cap:String(b.cap||''), comune:String(b.comune||''), provincia:String(b.provincia||''), codice_fiscale:String(b.cf||''),
-      attivo:b.attivo!==false, criterio_principale:b.criterioPrincipale||null, criterio_voto:b.criterioVoto||null, extra});
+      attivo:b.attivo!==false, criterio_principale:b.criterioPrincipale||null, criterio_voto:b.criterioVoto||null, extra:extraS});
     const nomiTab = [];
     (b.tabelleMillesimali||[]).forEach(t=>{ if(!nomiTab.includes(t)) nomiTab.push(t); });
     (b.condomini||[]).forEach(c=>Object.keys(c.millesimi||{}).forEach(t=>{ if(!nomiTab.includes(t)) nomiTab.push(t); }));
     const tid = {};
     nomiTab.forEach((t,i)=>{
       tid[t] = sbUuid(m.tabelle, b.id+':'+t);
-      R.tabelle.set(tid[t], {id:tid[t], stabile_id:sid, nome:t, ordine:i});
+      put('tabelle_millesimali', {id:tid[t], stabile_id:sid, nome:t, ordine:i});
     });
     const idsCond = new Set((b.condomini||[]).map(c=>c.id));
     for(const c of (b.condomini||[])){
       const cid = sbUuid(m.condomini, b.id+':'+c.id);
-      R.condomini.set(cid, {id:cid, stabile_id:sid, id_app:c.id, nome:String(c.nome||''), cognome:String(c.cognome||''), interno:String(c.interno||''),
+      put('condomini', {id:cid, stabile_id:sid, id_app:c.id, nome:String(c.nome||''), cognome:String(c.cognome||''), interno:String(c.interno||''),
         unita:String(c.unita||''), email:String(c.email||''), invitato:!!c.invitato, token:String(c.token||''),
         stesso_proprietario_di: (c.gruppoCon!=null && idsCond.has(c.gruppoCon)) ? sbUuid(m.condomini, b.id+':'+c.gruppoCon) : null,
         unificato_con: (c.unificatoCon!=null && idsCond.has(c.unificatoCon)) ? sbUuid(m.condomini, b.id+':'+c.unificatoCon) : null});
       for(const [t,v] of Object.entries(c.millesimi||{})){
-        const n = sbNum4(v);
+        const n = Math.round(Number(v)*10000)/10000;
         if(v===null || v==='' || !isFinite(n) || n<0) continue;
-        R.millesimi.set(cid+'|'+tid[t], {condomino_id:cid, tabella_id:tid[t], valore:n});
+        put('millesimi', {condomino_id:cid, tabella_id:tid[t], valore:n});
       }
+    }
+    // ---- assemblee
+    const idsAss = new Set((b.assemblee||[]).map(a=>a.id));
+    for(const a of (b.assemblee||[])){
+      if(a.id==null) continue;     // bozza non ancora salvata nell'elenco
+      const aid = sbUuid(m.assemblee, b.id+':'+a.id);
+      const conv = a.convocati || {};
+      const modoApp = conv.modo || 'tutti';
+      const modoDb = ['tutti','manuale','tabella','excel'].includes(modoApp) ? modoApp : (modoApp==='tabelle' ? 'tabella' : 'manuale');
+      const vecchia = snap && snap.assemblee.get(aid);
+      // lo spazio "extra" conserva ciò che era già lì (es. dati di contorno) e vi aggiunge i valori
+      // "grezzi" nel formato dell'app, che non si possono ricavare con certezza dalle colonne
+      const extra = Object.assign({}, vecchia && vecchia.extra || {}, {
+        convocati_modo: modoApp, convocati_tabelle: Array.isArray(conv.tabelle) ? conv.tabelle : [],
+        oraInizio: a.oraInizio ?? null, registrazioneScadenza: a.registrazioneScadenza ?? null,
+        assembleaPrecedenteId: a.assembleaPrecedenteId ?? null, assembleaSuccessivaId: a.assembleaSuccessivaId ?? null });
+      put('assemblee', {id:aid, stabile_id:sid, id_app:a.id, oggetto:String(a.oggetto||''), tipo:String(a.tipo||'ordinaria'),
+        modalita:['in-presenza','mista','online'].includes(a.modalita) ? a.modalita : 'mista',
+        data_prima:sbData(a.dataPrima), ora_prima:sbOra(a.oraPrima), data_seconda:sbData(a.dataSeconda), ora_seconda:sbOra(a.oraSeconda),
+        luogo:String(a.luogo||''), testo:String(a.testo||''), tipo_convocazione:a.tipoConvocazione||null, convocati_modo:modoDb,
+        inviti_inviati:!!a.invitiInviati, stato:String(a.stato||'bozza'), iniziata:!!a.iniziata,
+        ora_inizio: a.oraInizioEpoch ? new Date(a.oraInizioEpoch).toISOString() : null,
+        registrazione_attiva:!!a.registrazioneAttiva, promemoria_verbale_nascosto:!!a.promemoriaVerbaleNascosto,
+        descrizione_allegati:String(a.descrizioneAllegati||''), testo_ospiti:String(a.testoOspiti||''),
+        presidente_nominato:String(a.presidenteNominato||''), segretario_nominato:String(a.segretarioNominato||''),
+        cariche_cronologia:Array.isArray(a.cronologiaCarichePresidenzaSegreteria) ? a.cronologiaCarichePresidenzaSegreteria : [],
+        extra,
+        assemblea_precedente_id: a.assembleaPrecedenteId!=null && idsAss.has(a.assembleaPrecedenteId) ? sbUuid(m.assemblee, b.id+':'+a.assembleaPrecedenteId) : null,
+        assemblea_successiva_id: a.assembleaSuccessivaId!=null && idsAss.has(a.assembleaSuccessivaId) ? sbUuid(m.assemblee, b.id+':'+a.assembleaSuccessivaId) : null});
+      for(const cid2 of new Set(conv.selezionati||[])){
+        if(idsCond.has(cid2)) put('convocati_selezionati', {assemblea_id:aid, condomino_id:sbUuid(m.condomini, b.id+':'+cid2)});
+      }
+      const usate = new Set();
+      const visti = new Set();
+      (a.odg||[]).forEach((p,i)=>{
+        if(p.id==null || visti.has(p.id)) return; visti.add(p.id);
+        const pid = sbUuid(m.odg, aid+':'+p.id);
+        if(tid[p.tabella]) usate.add(tid[p.tabella]);
+        const ex = {}; if(p.prossimoNumeroDuplicato!==undefined) ex.prossimoNumeroDuplicato = p.prossimoNumeroDuplicato;
+        put('punti_odg', {id:pid, assemblea_id:aid, id_app:p.id, posizione:i, testo:String(p.testo||''), domanda_sondaggio:String(p.domandaSondaggio||''),
+          sondaggio_abilitato:!!p.sondaggioAbilitato, opzioni:String(p.opzioni||''), tabella_id:tid[p.tabella]||null, extra:ex});
+      });
+      usate.forEach(t=>put('assemblea_tabelle', {assemblea_id:aid, tabella_id:t}));
+      for(const p of (a.programmati||[])){
+        const d = sbData(p.data), o = sbOra(p.ora), tipo = String(p.tipo||'');
+        if(!d || !o) continue;
+        const k = aid+'|'+d+'|'+o+'|'+tipo;
+        const id = inviiNoti.get(k) || sbNuovoUuid();
+        inviiNoti.set(k, id);
+        put('invii_programmati', {id, assemblea_id:aid, data:d, ora:o, tipo});
+      }
+      const viOsp = new Set();
+      for(const o of (a.ospiti||[])){
+        if(o.id==null || viOsp.has(o.id)) continue; viOsp.add(o.id);
+        put('ospiti', {id:sbUuid(m.ospiti, aid+':'+o.id), assemblea_id:aid, id_app:String(o.id), nome:String(o.nome||''), ditta:String(o.ditta||''),
+          email:String(o.email||''), token:String(o.token||''), extra:{invitoInviato:o.invitoInviato ?? null}});
+      }
+      if(typeof a.verbale==='string' && a.verbale) put('verbali', {assemblea_id:aid, contenuto:a.verbale});
     }
   }
   return R;
@@ -10832,42 +10945,42 @@ async function sbLeggiTutto(sb, tabella, ordina){
   }
   return tutte;
 }
-// Legge l'anagrafica dal database e ricostruisce "buildings". Chiamata una volta, al login.
+// Legge tutto dal database e ricostruisce "buildings". Chiamata una volta, al login.
 async function sbCaricaAnagrafica(){
   const sb = window.__cancello.sb;
-  const [st, tb, co, mi] = await Promise.all([
-    sbLeggiTutto(sb,'stabili',['id']), sbLeggiTutto(sb,'tabelle_millesimali',['id']),
-    sbLeggiTutto(sb,'condomini',['id']), sbLeggiTutto(sb,'millesimi',['condomino_id','tabella_id'])]);
-  const m = {stabili:new Map(), tabelle:new Map(), condomini:new Map()};
-  // righe create senza numero dell'app (non dovrebbe succedere): gliene assegniamo uno
+  const lette = await Promise.all(SB_SPEC.map(s=>sbLeggiTutto(sb, s.t, s.pk)));
+  const D = {}; SB_SPEC.forEach((s,i)=>{ D[s.t] = lette[i]; });
+  const m = {stabili:new Map(), tabelle:new Map(), condomini:new Map(), assemblee:new Map(), odg:new Map(), ospiti:new Map()};
   let prossimo = Date.now();
-  st.forEach(s=>{ if(s.id_app==null) s.id_app = prossimo++; });
-  const appStabile = new Map(st.map(s=>[s.id, s.id_app]));
+  D.stabili.forEach(s=>{ if(s.id_app==null) s.id_app = prossimo++; });
+  const appStabile = new Map(D.stabili.map(s=>[s.id, s.id_app]));
   const idAppCond = new Map();
-  const perStabile = new Map();
-  co.forEach(c=>{
-    if(c.id_app==null) c.id_app = (idAppCond.size+1) + 1000000;   // numero fuori dal normale intervallo
-    idAppCond.set(c.id, c.id_app);
-  });
+  D.condomini.forEach(c=>{ if(c.id_app==null) c.id_app = idAppCond.size + 1000001; idAppCond.set(c.id, c.id_app); });
+  const idAppAss = new Map();
+  D.assemblee.forEach(a=>{ if(a.id_app==null) a.id_app = prossimo++ ; idAppAss.set(a.id, a.id_app); });
+  // tabelle millesimali
   const tabPerStabile = new Map(), tabNome = new Map();
-  tb.sort((a,b)=>(a.ordine-b.ordine)||a.nome.localeCompare(b.nome));
-  tb.forEach(t=>{
+  D.tabelle_millesimali.slice().sort((a,b)=>(a.ordine-b.ordine)||a.nome.localeCompare(b.nome)).forEach(t=>{
     if(!tabPerStabile.has(t.stabile_id)) tabPerStabile.set(t.stabile_id, []);
     tabPerStabile.get(t.stabile_id).push(t.nome);
     tabNome.set(t.id, t.nome);
     m.tabelle.set(appStabile.get(t.stabile_id)+':'+t.nome, t.id);
   });
   const milPerCond = new Map();
-  mi.forEach(x=>{
+  D.millesimi.forEach(x=>{
     if(!tabNome.has(x.tabella_id)) return;
     if(!milPerCond.has(x.condomino_id)) milPerCond.set(x.condomino_id, {});
     milPerCond.get(x.condomino_id)[tabNome.get(x.tabella_id)] = Number(x.valore);
   });
-  const vecchi = new Map(buildings.map(b=>[b.id,b]));      // per recuperare le assemblee già in memoria
+  const per = (righe, col)=>{ const g = new Map(); righe.forEach(r=>{ if(!g.has(r[col])) g.set(r[col], []); g.get(r[col]).push(r); }); return g; };
+  const condPerStabile = per(D.condomini, 'stabile_id'), assPerStabile = per(D.assemblee, 'stabile_id');
+  const odgPerAss = per(D.punti_odg, 'assemblea_id'), ospPerAss = per(D.ospiti, 'assemblea_id'), invPerAss = per(D.invii_programmati, 'assemblea_id');
+  const convPerAss = per(D.convocati_selezionati, 'assemblea_id'), verbPerAss = new Map(D.verbali.map(v=>[v.assemblea_id, v.contenuto]));
+  const vecchi = new Map(buildings.map(b=>[b.id,b]));      // per recuperare le parti "vive" già in memoria
   const nuovi = [];
-  st.sort((a,b)=>a.id_app-b.id_app).forEach(s=>{
+  D.stabili.slice().sort((a,b)=>a.id_app-b.id_app).forEach(s=>{
     m.stabili.set(s.id_app, s.id);
-    const conds = co.filter(c=>c.stabile_id===s.id).sort((a,b)=>a.id_app-b.id_app).map(c=>{
+    const conds = (condPerStabile.get(s.id)||[]).slice().sort((a,b)=>a.id_app-b.id_app).map(c=>{
       m.condomini.set(s.id_app+':'+c.id_app, c.id);
       const o = {id:c.id_app, nome:c.nome, cognome:c.cognome, interno:c.interno, unita:c.unita, email:c.email, invitato:c.invitato,
         token:c.token, millesimi:milPerCond.get(c.id)||{}, gruppoCon: c.stesso_proprietario_di ? (idAppCond.get(c.stesso_proprietario_di)??null) : null};
@@ -10880,24 +10993,108 @@ async function sbCaricaAnagrafica(){
     if(s.criterio_voto) b.criterioVoto = s.criterio_voto;
     if(s.extra && s.extra.tabelleGiaControllatePerDuplicati) b.tabelleGiaControllatePerDuplicati = s.extra.tabelleGiaControllatePerDuplicati;
     const v = vecchi.get(s.id_app);
-    b.assemblee = v && Array.isArray(v.assemblee) ? v.assemblee : [];
     b.assembleaInCorsoId = v && v.assembleaInCorsoId!==undefined ? v.assembleaInCorsoId : null;
+    const vAss = new Map(((v&&v.assemblee)||[]).map(x=>[x.id,x]));
+    b.assemblee = (assPerStabile.get(s.id)||[]).slice().sort((a,b2)=>a.id_app-b2.id_app).map(ar=>{
+      m.assemblee.set(s.id_app+':'+ar.id_app, ar.id);
+      const mem = vAss.get(ar.id_app);
+      const ex = ar.extra || {};
+      const conv = convPerAss.get(ar.id)||[];
+      const a = {
+        id:ar.id_app, oggetto:ar.oggetto, tipo:ar.tipo, modalita:ar.modalita,
+        dataPrima:sbDataIt(ar.data_prima), oraPrima:sbOraApp(ar.ora_prima), dataSeconda:sbDataIt(ar.data_seconda), oraSeconda:sbOraApp(ar.ora_seconda),
+        luogo:ar.luogo, testo:ar.testo, tipoConvocazione:ar.tipo_convocazione ?? null,
+        convocati:{ modo: ex.convocati_modo || ar.convocati_modo, tabelle: Array.isArray(ex.convocati_tabelle) ? ex.convocati_tabelle : [],
+                    selezionati: conv.map(x=>idAppCond.get(x.condomino_id)).filter(x=>x!=null).sort((x,y)=>x-y) },
+        invitiInviati:ar.inviti_inviati, stato:ar.stato, iniziata:ar.iniziata,
+        registrazioneAttiva:ar.registrazione_attiva, promemoriaVerbaleNascosto:ar.promemoria_verbale_nascosto,
+        descrizioneAllegati:ar.descrizione_allegati, testoOspiti:ar.testo_ospiti,
+        presidenteNominato:ar.presidente_nominato, segretarioNominato:ar.segretario_nominato,
+        cronologiaCarichePresidenzaSegreteria:Array.isArray(ar.cariche_cronologia) ? ar.cariche_cronologia : [],
+        programmati:(invPerAss.get(ar.id)||[]).slice().sort((x,y)=>(x.data+String(x.ora)).localeCompare(y.data+String(y.ora))).map(p=>({data:sbDataIt(p.data), ora:sbOraApp(p.ora), tipo:p.tipo})),
+        verbale: verbPerAss.has(ar.id) ? verbPerAss.get(ar.id) : null
+      };
+      // valori "grezzi": se non sono ancora sul database si prendono da ciò che l'app aveva in memoria
+      a.oraInizio = ex.oraInizio ?? (mem && mem.oraInizio) ?? null;
+      a.registrazioneScadenza = ex.registrazioneScadenza ?? (mem && mem.registrazioneScadenza) ?? null;
+      const prec = ex.assembleaPrecedenteId ?? (ar.assemblea_precedente_id ? idAppAss.get(ar.assemblea_precedente_id) : null) ?? (mem && mem.assembleaPrecedenteId) ?? null;
+      const succ = ex.assembleaSuccessivaId ?? (ar.assemblea_successiva_id ? idAppAss.get(ar.assemblea_successiva_id) : null) ?? (mem && mem.assembleaSuccessivaId) ?? null;
+      a.assembleaPrecedenteId = prec; a.assembleaSuccessivaId = succ;
+      if(ar.ora_inizio) a.oraInizioEpoch = new Date(ar.ora_inizio).getTime();
+      else if(mem && mem.oraInizioEpoch) a.oraInizioEpoch = mem.oraInizioEpoch;
+      const memOdg = new Map(((mem&&mem.odg)||[]).map(x=>[x.id,x]));
+      a.odg = (odgPerAss.get(ar.id)||[]).slice().sort((x,y)=>x.posizione-y.posizione).map(p=>{
+        m.odg.set(ar.id+':'+p.id_app, p.id);
+        const o = {id:p.id_app, testo:p.testo, domandaSondaggio:p.domanda_sondaggio, opzioni:p.opzioni, tabella: tabNome.get(p.tabella_id), sondaggioAbilitato:p.sondaggio_abilitato};
+        if(p.extra && p.extra.prossimoNumeroDuplicato!==undefined) o.prossimoNumeroDuplicato = p.extra.prossimoNumeroDuplicato;
+        const mo = memOdg.get(p.id_app);
+        o.storicoSondaggi = mo && mo.storicoSondaggi ? mo.storicoSondaggi : [];
+        return o;
+      });
+      const memOsp = new Map(((mem&&mem.ospiti)||[]).map(x=>[String(x.id),x]));
+      a.ospiti = (ospPerAss.get(ar.id)||[]).slice().sort((x,y)=>String(x.id_app).localeCompare(String(y.id_app))).map(o=>{
+        m.ospiti.set(ar.id+':'+o.id_app, o.id);
+        const mo = memOsp.get(String(o.id_app));
+        return { id:o.id_app, nome:o.nome, ditta:o.ditta, email:o.email, token:o.token,
+          invitoInviato: (o.extra && o.extra.invitoInviato) ?? (mo && mo.invitoInviato) ?? null,
+          ingressi: mo && mo.ingressi ? mo.ingressi : [], uscite: mo && mo.uscite ? mo.uscite : [] };
+      });
+      // tutto il resto (appello, chat, mani alzate, ping, ...) viene dalla memoria e poi dal database condiviso
+      return mem ? Object.assign({}, mem, a) : Object.assign(nuovaAssembleaVuota(), a);
+    });
     nuovi.push(miglioraSchemaBuilding(b));
   });
   __sbAn.uuid = m;
   buildings = nuovi;
   if(!buildings.some(b=>b.id===activeBuildingId)) activeBuildingId = null;
   ricalcolaContatoriId();
-  // La copia di riferimento è ciò che abbiamo appena letto: se nulla cambia, non si invia nulla.
-  __sbAn.snap = sbRigheDesiderate();
+  // La copia di riferimento è ciò che c'è DAVVERO sul database: le differenze con la memoria
+  // (es. valori che il database non ha ancora) verranno inviate al primo salvataggio.
+  const snap = {};
+  SB_SPEC.forEach(s=>{ snap[s.t] = new Map(D[s.t].map(r=>[sbPk(s, r), r])); });
+  __sbAn.snap = snap;
   __sbAn.attivo = true;
   sbMostraStato();
+}
+
+// ---- Unione con i dati arrivati dal database condiviso (Firebase).
+// Da lì si prendono SOLO le parti "vive"; ciò che sta su Supabase resta com'è in memoria.
+const SB_CHIAVI_ASS = ['oggetto','tipo','modalita','dataPrima','oraPrima','dataSeconda','oraSeconda','luogo','testo','tipoConvocazione','convocati','invitiInviati','stato','iniziata',
+  'registrazioneAttiva','promemoriaVerbaleNascosto','descrizioneAllegati','testoOspiti','presidenteNominato','segretarioNominato','cronologiaCarichePresidenzaSegreteria','programmati','verbale'];
+const SB_CHIAVI_ASS_SE_PRESENTI = ['oraInizio','oraInizioEpoch','registrazioneScadenza','assembleaPrecedenteId','assembleaSuccessivaId'];   // la memoria vince solo se ha un valore
+const SB_CHIAVI_ODG = ['testo','domandaSondaggio','opzioni','tabella','sondaggioAbilitato','prossimoNumeroDuplicato'];
+const SB_CHIAVI_OSPITE = ['nome','ditta','email','token'];
+function sbCopia(da, a, chiavi, soloSePresenti){
+  for(const k of chiavi){
+    if(!(k in da)) continue;
+    if(soloSePresenti && (da[k]===null || da[k]===undefined)) continue;
+    a[k] = da[k];
+  }
+  return a;
+}
+function sbUnisciAssemblea(blob, mem){
+  const out = sbCopia(mem, Object.assign({}, blob), SB_CHIAVI_ASS, false);
+  sbCopia(mem, out, SB_CHIAVI_ASS_SE_PRESENTI, true);
+  const odgBlob = new Map((Array.isArray(blob.odg)?blob.odg:[]).filter(x=>x).map(x=>[x.id,x]));
+  out.odg = (mem.odg||[]).map(po=>{
+    const bo = odgBlob.get(po.id);
+    return bo ? sbCopia(po, Object.assign({}, bo), SB_CHIAVI_ODG, false) : po;
+  });
+  const ospBlob = new Map((Array.isArray(blob.ospiti)?blob.ospiti:[]).filter(x=>x).map(x=>[x.id,x]));
+  out.ospiti = (mem.ospiti||[]).map(po=>{
+    const bo = ospBlob.get(po.id);
+    if(!bo) return po;
+    const r = sbCopia(po, Object.assign({}, bo), SB_CHIAVI_OSPITE, false);
+    sbCopia(po, r, ['invitoInviato'], true);
+    return r;
+  });
+  return out;
 }
 
 function sbMostraStato(msg, errore){
   const el = document.getElementById('sb-stato');
   if(!el) return;
-  el.textContent = msg ? msg : (__sbAn.attivo ? '🟢 Anagrafica su Supabase' : '');
+  el.textContent = msg ? msg : (__sbAn.attivo ? '🟢 Dati su Supabase' : '');
   el.style.color = errore ? '#ffb4a8' : 'rgba(255,255,255,.6)';
 }
 // Chiamata da salvaStato: raggruppa più salvataggi ravvicinati in un solo invio.
@@ -10908,16 +11105,28 @@ function sbPianificaSync(){
   __sbAn.timer = setTimeout(()=>{ __sbAn.timer = null; sbSincronizza(); }, 400);
 }
 function sbADaFare(){ return __sbAn.attivo && (__sbAn.inCorso || __sbAn.timer || __sbAn.richiesta); }
-async function sbInvia(sb, tabella, righe, conflitto){
+async function sbInvia(sb, spec, righe){
   for(let i=0; i<righe.length; i+=200){
-    const r = await sb.from(tabella).upsert(righe.slice(i,i+200), {onConflict:conflitto});
+    const r = await sb.from(spec.t).upsert(righe.slice(i,i+200), {onConflict:spec.pk.join(',')});
     if(r.error) throw r.error;
   }
 }
-async function sbCancellaPerId(sb, tabella, ids){
-  for(let i=0; i<ids.length; i+=100){
-    const r = await sb.from(tabella).delete().in('id', ids.slice(i,i+100));
-    if(r.error) throw r.error;
+async function sbCancella(sb, spec, righe){
+  if(spec.pk.length===1){
+    const ids = righe.map(r=>r[spec.pk[0]]);
+    for(let i=0; i<ids.length; i+=100){
+      const r = await sb.from(spec.t).delete().in(spec.pk[0], ids.slice(i,i+100));
+      if(r.error) throw r.error;
+    }
+  }else{                                         // chiave doppia: si raggruppa per la prima colonna
+    const gruppi = new Map();
+    righe.forEach(r=>{ const k = r[spec.pk[0]]; if(!gruppi.has(k)) gruppi.set(k, []); gruppi.get(k).push(r[spec.pk[1]]); });
+    for(const [k, valori] of gruppi){
+      for(let i=0; i<valori.length; i+=100){
+        const r = await sb.from(spec.t).delete().eq(spec.pk[0], k).in(spec.pk[1], valori.slice(i,i+100));
+        if(r.error) throw r.error;
+      }
+    }
   }
 }
 async function sbSincronizza(){
@@ -10928,47 +11137,46 @@ async function sbSincronizza(){
     while(__sbAn.richiesta){
       __sbAn.richiesta = false;
       const sb = window.__cancello.sb, vecchio = __sbAn.snap, nuovo = sbRigheDesiderate();
-      const cambiate = (nu, ve)=>[...nu.entries()].filter(([k,r])=>!ve.has(k) || sbChiave(ve.get(k))!==sbChiave(r)).map(([,r])=>r);
-      const sparite = (nu, ve)=>[...ve.keys()].filter(k=>!nu.has(k));
-      const stSp = sparite(nuovo.stabili, vecchio.stabili);
-      // Salvaguardia: un condominio sparisce dal database solo se l'utente l'ha eliminato
-      // davvero (con le tre conferme). Qualunque altra sparizione è un errore del programma
+      // righe sparite dalla memoria, per tabella
+      const sparite = {};
+      SB_SPEC.forEach(s=>{ sparite[s.t] = [...vecchio[s.t].entries()].filter(([k])=>!nuovo[s.t].has(k)).map(([,r])=>r); });
+      const spariteChiavi = {}; SB_SPEC.forEach(s=>{ spariteChiavi[s.t] = new Set(sparite[s.t].map(r=>sbPk(s, r))); });
+      // Salvaguardia: condomini e assemblee spariscono dal database solo se l'utente li ha
+      // eliminati davvero (con le conferme). Qualunque altra sparizione è un errore del programma
       // e NON deve cancellare dati.
-      for(const sid of stSp){
-        const appId = vecchio.stabili.get(sid).id_app;
-        if(!__idBuildingEliminatiSessione.has(appId)) throw new Error('Cancellazione di un condominio non richiesta: operazione bloccata per sicurezza.');
+      for(const r of sparite.stabili){
+        if(!__idBuildingEliminatiSessione.has(r.id_app)) throw new Error('Cancellazione di un condominio non richiesta: operazione bloccata per sicurezza.');
       }
-      // 1) in avanti: condomìni, tabelle, condòmini (in due giri per i collegamenti fra condòmini), millesimi
-      await sbInvia(sb,'stabili', cambiate(nuovo.stabili, vecchio.stabili), 'id');
-      await sbInvia(sb,'tabelle_millesimali', cambiate(nuovo.tabelle, vecchio.tabelle), 'id');
-      const co = cambiate(nuovo.condomini, vecchio.condomini);
-      const giaSulDb = k=>vecchio.condomini.has(k);
-      const primoGiro = co.map(r=>Object.assign({}, r, {
-        stesso_proprietario_di: r.stesso_proprietario_di && giaSulDb(r.stesso_proprietario_di) ? r.stesso_proprietario_di : null,
-        unificato_con: r.unificato_con && giaSulDb(r.unificato_con) ? r.unificato_con : null}));
-      await sbInvia(sb,'condomini', primoGiro, 'id');
-      const daCompletare = co.filter((r,i)=>r.stesso_proprietario_di!==primoGiro[i].stesso_proprietario_di || r.unificato_con!==primoGiro[i].unificato_con);
-      if(daCompletare.length) await sbInvia(sb,'condomini', daCompletare, 'id');
-      await sbInvia(sb,'millesimi', cambiate(nuovo.millesimi, vecchio.millesimi), 'condomino_id,tabella_id');
-      // 2) all'indietro: cancellazioni (prima i figli, poi i genitori)
-      const milSp = sparite(nuovo.millesimi, vecchio.millesimi).filter(k=>{
-        const r = vecchio.millesimi.get(k);
-        return nuovo.condomini.has(r.condomino_id) && nuovo.tabelle.has(r.tabella_id);   // altrimenti li porta via il genitore
-      });
-      for(const k of milSp){
-        const r = vecchio.millesimi.get(k);
-        const x = await sb.from('millesimi').delete().eq('condomino_id', r.condomino_id).eq('tabella_id', r.tabella_id);
-        if(x.error) throw x.error;
+      for(const r of sparite.assemblee){
+        if(spariteChiavi.stabili.has(r.stabile_id)) continue;      // sparisce insieme al suo condominio
+        if(!__idAssembleeEliminateSessione.has(r.id_app)) throw new Error('Cancellazione di un\'assemblea non richiesta: operazione bloccata per sicurezza.');
       }
-      await sbCancellaPerId(sb,'condomini', sparite(nuovo.condomini, vecchio.condomini));
-      await sbCancellaPerId(sb,'tabelle_millesimali', sparite(nuovo.tabelle, vecchio.tabelle));
-      await sbCancellaPerId(sb,'stabili', stSp);
+      // 1) in avanti: dai genitori ai figli (le tabelle con collegamenti interni in due giri)
+      for(const spec of SB_SPEC){
+        const cambiate = [...nuovo[spec.t].entries()].filter(([k,r])=>!vecchio[spec.t].has(k) || sbNorm(spec, vecchio[spec.t].get(k))!==sbNorm(spec, r)).map(([,r])=>r);
+        if(!cambiate.length) continue;
+        if(spec.rif){
+          const giaSulDb = k=>vecchio[spec.t].has(k);
+          const primo = cambiate.map(r=>{ const c = Object.assign({}, r); spec.rif.forEach(f=>{ if(c[f] && !giaSulDb(c[f])) c[f] = null; }); return c; });
+          await sbInvia(sb, spec, primo);
+          const resto = cambiate.filter((r,i)=>spec.rif.some(f=>r[f]!==primo[i][f]));
+          if(resto.length) await sbInvia(sb, spec, resto);
+        }else{
+          await sbInvia(sb, spec, cambiate);
+        }
+      }
+      // 2) all'indietro: cancellazioni, dai figli ai genitori. Se sparisce anche il genitore,
+      //    il database porta via da solo i figli (non serve chiederlo).
+      for(const spec of SB_SPEC.slice().reverse()){
+        const daCancellare = sparite[spec.t].filter(r=>!spec.padri.some(([col, tab])=>spariteChiavi[tab].has(r[col])));
+        if(daCancellare.length) await sbCancella(sb, spec, daCancellare);
+      }
       __sbAn.snap = nuovo;
     }
     __sbAn.tentativi = 0;
     sbMostraStato();
   }catch(e){
-    console.error('[Riunion] sincronizzazione anagrafica con Supabase non riuscita:', e);
+    console.error('[Riunion] sincronizzazione con Supabase non riuscita:', e);
     __sbAn.tentativi++;
     __sbAn.richiesta = true;
     sbMostraStato('⚠️ Salvataggio su Supabase non riuscito — riprovo…', true);
@@ -11196,17 +11404,21 @@ function applicaDatiRicevuti(parsed, aggiornaAncheNavigazioneLocale){
   // stato più recente confermato: non serve un controllo di "vecchiaia" lato client.
   if(typeof parsed.__versione === 'number'){ __versioneStatoLocale = parsed.__versione; }
   if(__sbAn.attivo){
-    // LT-284: l'anagrafica dei condomìni viene da Supabase e non va sovrascritta da ciò che
-    // arriva dal database condiviso: da lì prendiamo SOLO le assemblee (e quale è in corso).
+    // LT-285: anagrafica e assemblee "fisse" vengono da Supabase e non vanno sovrascritte da ciò
+    // che arriva dal database condiviso: da lì prendiamo SOLO le parti "vive" delle assemblee
+    // (appello, chat, mani alzate, voti, ping...) e quale assemblea è in corso.
     const dalBlob = new Map(parsed.buildings.map(x=>[x.id,x]));
     buildings = buildings.map(mio=>{
       const bl = dalBlob.get(mio.id);
       if(bl){
-        mio.assemblee = Array.isArray(bl.assemblee) ? bl.assemblee : [];
+        const blAss = new Map((Array.isArray(bl.assemblee)?bl.assemblee:[]).filter(x=>x).map(x=>[x.id,x]));
+        mio.assemblee = (mio.assemblee||[]).map(memA=>{ const ba = blAss.get(memA.id); return ba ? sbUnisciAssemblea(ba, memA) : memA; });
         mio.assembleaInCorsoId = bl.assembleaInCorsoId===undefined ? null : bl.assembleaInCorsoId;
       }
       return miglioraSchemaBuilding(mio);
     }).filter(b=>!__idBuildingEliminatiSessione.has(b.id));
+    // la prima volta, ciò che il database non aveva ancora (valori "grezzi") viene inviato
+    if(!__sbAn.primoEcoFatto){ __sbAn.primoEcoFatto = true; sbPianificaSync(); }
   }else{
     buildings = parsed.buildings.map(miglioraSchemaBuilding).filter(b=>!__idBuildingEliminatiSessione.has(b.id));
   }
