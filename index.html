@@ -7198,6 +7198,7 @@ function registraIngressoOspite(){
     o.ingressi.push(oraAdesso());
     ospiteCorrente = o;
     salvaStato();
+    if(__sbAn.partecipante) vivoAzione('ospite_ingresso');
   }catch(e){
     console.warn('[Adunanza] Orario di ingresso dell\'ospite non registrato (la videochiamata prosegue comunque):', e);
   }
@@ -7305,6 +7306,7 @@ function registraUscitaOspite(){
     o.uscite.push(oraAdesso());
     ospiteCorrente = o;
     salvaStato();
+    if(__sbAn.partecipante) vivoAzione('ospite_uscita');
   }catch(e){
     console.warn('[Adunanza] Orario di uscita dell\'ospite non registrato:', e);
   }
@@ -8732,6 +8734,7 @@ function toggleHandRaise(){
     }
   }
   eseguiConUnioneSuServer(applicaAzioneManoAlzata);
+  if(__sbAn.partecipante) vivoAzione('mano', {alza:vogliamoAlzare});
 
   const btn = document.getElementById('cv-hand-btn');
   if(btn){
@@ -8796,6 +8799,7 @@ function confermaEsciAssemblea(){
   }
   try{
     eseguiConUnioneSuServer(applicaUscita);
+    if(__sbAn.partecipante && !cvModalitaSoloVoto) vivoAzione('uscita');
     // Usciamo di proposito: fermiamo subito la risposta ai numeri di controllo, così questo
     // dispositivo smette di rispondere anche se ne arriva ancora uno.
     fermaRispostaPing();
@@ -8837,6 +8841,7 @@ function segnaSubitoOnline(building, idRisolto){
     if(!rec) aFresca.appello.online.push({condominoId: idRisolto, entrata: oraAdesso(), uscita: null});
     else{ delete rec.uscita; delete rec.usciteAutomatica; }
   });
+  if(__sbAn.partecipante && currentCondomino && idRisolto===currentCondomino.id) vivoAzione('online');
 }
 function rientraInAssemblea(){
   if(!currentCondomino) return;
@@ -8895,6 +8900,7 @@ function sendChatMessage(autore, inputId){
   chatArr().push({autore, testo, ora:new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})});
   input.value='';
   salvaStato();
+  if(__sbAn.partecipante && autore!=='Amministratore') vivoAzione(ospiteCorrente ? 'ospite_chat' : 'chat', {testo});
   renderChat('admin-chat-log');
   renderChat('cv-chat-log');
   renderChat('ospite-chat-log'); // LT-282: la pagina dell'ospite ha la sua chat
@@ -11515,9 +11521,39 @@ window.addEventListener('beforeunload', function(e){
   if(vivoADaFare()){ e.preventDefault(); e.returnValue = ''; }
 });
 // ---- partecipante (link con &sb=1): lettura periodica, sola lettura in questo passo
-const __vivoPart = {token:null, sb:null, versioni:new Map(), poll:null, inCorso:false};
+const __vivoPart = {token:null, sb:null, versioni:new Map(), poll:null, inCorso:false, azioni:0, coda:Promise.resolve()};
+// LT-287 (5.1): le azioni del partecipante (entrare, uscire, alzare la mano, scrivere in chat) vanno
+// al database con una funzione dedicata che controlla CHI è (dal token) e fa l'azione SOLO per lui.
+// Le azioni vengono messe in fila, così l'ordine (es. dei messaggi) resta quello in cui sono state fatte.
+function vivoAzione(azione, param){
+  if(!__sbAn.partecipante || !__vivoPart.sb) return Promise.resolve();
+  __vivoPart.azioni++;
+  __vivoPart.coda = __vivoPart.coda.then(async ()=>{
+    const b = getActiveBuilding() || buildings[0];
+    let a = b ? getAssembleaContestualizzataCondomino(b) : null;
+    if(!a || a.stato!=='in-corso') a = b ? (b.assemblee||[]).find(x=>x.stato==='in-corso') : null;
+    if(!a) return;
+    try{
+      const r = await __vivoPart.sb.rpc('partecipa_azione', {p_token:__vivoPart.token, p_assemblea:a.id, p_azione:azione, p_param:param||{}});
+      const d = r.data;
+      if(r.error || !d || d.ok!==true){
+        if(d && d.motivo==='chiusa'){ location.reload(); return; }
+        if(d && (d.motivo==='vuoto' || d.motivo==='azione')) return;
+        throw (r.error || new Error((d&&d.motivo)||'errore'));
+      }
+      vivoApplica(b, a, d.dati);
+      __vivoPart.versioni.set(b.id+':'+a.id, Number(d.versione));
+      rirenderizzaDopoSincronizzazione();
+    }catch(e){
+      console.error('[Riunion] azione non riuscita:', azione, e);
+      try{ toast('Non sono riuscito a inviare l\'azione. Controlla la connessione e riprova.'); }catch(_){}
+      if(b && a) __vivoPart.versioni.delete(b.id+':'+a.id);       // al prossimo giro si riallinea con il database
+    }
+  }).finally(()=>{ __vivoPart.azioni--; });
+  return __vivoPart.coda;
+}
 async function vivoPollPartecipante(){
-  if(__vivoPart.inCorso) return;
+  if(__vivoPart.inCorso || __vivoPart.azioni>0) return;
   __vivoPart.inCorso = true;
   try{
     let cambiato = false;
