@@ -76,14 +76,14 @@
   // window.__dipFirebase, così si vede esattamente cosa dipende ancora da lì. I link dei
   // partecipanti con "&sb=1" lavorano sempre così: i loro dati arrivano solo da Supabase.
   const __pFb = new URLSearchParams(window.location.search);
-  const FB_SPENTO = __pFb.has('senzafirebase') || (__pFb.has('sb') && !!(__pFb.get('token') || __pFb.get('ospite')));
+  const FB_SPENTO = __pFb.has('senzafirebase') || __pFb.has('livesb') || (__pFb.has('sb') && !!(__pFb.get('token') || __pFb.get('ospite')));
   if(FB_SPENTO){
     window.__fbSpento = true;
     window.__dipFirebase = {};
     const reg = (nome)=>{
       window.__dipFirebase[nome] = (window.__dipFirebase[nome]||0) + 1;
       const el = document.getElementById('fb-stato-connessione');
-      if(el) el.textContent = '🔴 Firebase spento (test) — chiamate bloccate: ' + Object.values(window.__dipFirebase).reduce((x,y)=>x+y,0);
+      if(el && !__pFb.has('livesb')) el.textContent = '🔴 Firebase spento (test) — chiamate bloccate: ' + Object.values(window.__dipFirebase).reduce((x,y)=>x+y,0);
     };
     window.__fbScriviStato = ()=>{ reg('scriviStato'); return Promise.resolve(); };
     window.__fbTransazioneMerge = ()=>{ reg('transazioneMerge'); return Promise.resolve({committed:true}); };
@@ -11109,11 +11109,11 @@ async function sbCaricaPartecipante(token){
   sbCostruisci(D);
   // "In corso" = avviata dall'amministratore e non ancora conclusa.
   buildings.forEach(b=>{
-    const inCorso = (b.assemblee||[]).filter(a=>a.iniziata && a.stato!=='conclusa');
+    const inCorso = (b.assemblee||[]).filter(a=>a.stato==='in-corso');
     b.assembleaInCorsoId = inCorso.length ? inCorso[inCorso.length-1].id : null;
   });
   __sbAn.partecipante = true;
-  return {ok:true, meta:D.meta};
+  return {ok:true, meta:D.meta, sb};
 }
 function mostraErroreLinkPartecipante(testo){
   rimuoviMessaggioAttesaLinkPersonale();
@@ -11146,6 +11146,7 @@ async function avviaPartecipanteSupabase(){
   const fb = document.getElementById('fb-stato-connessione');
   if(fb) fb.textContent = '🔴 Firebase spento';
   instradamentoIniziale();
+  vivoAvviaPartecipante(esito.sb, token);
 }
 
 // ---- Unione con i dati arrivati dal database condiviso (Firebase).
@@ -11281,6 +11282,273 @@ window.addEventListener('beforeunload', function(e){
   if(sbADaFare()){ e.preventDefault(); e.returnValue = ''; }
 });
 
+// ---- LT-287 — CANALE VIVO: funzioni pure (nessun accesso a pagina o rete) ----
+// Il "documento vivo" di un'assemblea contiene tutto ciò che cambia in diretta (appello, mani
+// alzate, chat, deleghe, sondaggio aperto e voti, ping...). Quando due persone modificano lo
+// stesso documento nello stesso istante, vivoMerge3 unisce le due modifiche (tre vie: la
+// versione di partenza, quella locale, quella arrivata dal database) invece di scartarne una.
+function vivoClone(v){ return v===undefined ? undefined : JSON.parse(JSON.stringify(v)); }
+function vivoVuoto(x){
+  if(x===undefined || x===null || x==='') return true;
+  if(Array.isArray(x)) return x.length===0;
+  if(typeof x==='object') return Object.keys(x).length===0;
+  return false;
+}
+function vivoCanon(v){
+  if(Array.isArray(v)) return v.map(vivoCanon);
+  if(v && typeof v==='object'){
+    const o = {};
+    Object.keys(v).sort().forEach(k=>{ if(v[k]!==undefined && !vivoVuoto(v[k])) o[k] = vivoCanon(v[k]); });
+    return o;
+  }
+  return v;
+}
+function vivoUguali(a, b){
+  const ca = vivoVuoto(a) ? null : vivoCanon(a), cb = vivoVuoto(b) ? null : vivoCanon(b);
+  return JSON.stringify(ca)===JSON.stringify(cb);
+}
+function vivoEOggetto(x){ return !!x && typeof x==='object' && !Array.isArray(x); }
+function vivoMerge3(base, mine, theirs){
+  if(vivoUguali(mine, base)) return vivoClone(theirs);
+  if(vivoUguali(theirs, base)) return vivoClone(mine);
+  if(vivoUguali(mine, theirs)) return vivoClone(mine);
+  if(vivoEOggetto(mine) && vivoEOggetto(theirs)){
+    const b = vivoEOggetto(base) ? base : {};
+    const out = {};
+    new Set([...Object.keys(mine), ...Object.keys(theirs), ...Object.keys(b)]).forEach(k=>{
+      const inM = k in mine, inT = k in theirs, inB = k in b;
+      if(inM && inT) out[k] = vivoMerge3(b[k], mine[k], theirs[k]);
+      else if(inM){ if(!inB || !vivoUguali(mine[k], b[k])) out[k] = vivoClone(mine[k]); }      // l'altro l'ha tolta
+      else if(inT){ if(!inB || !vivoUguali(theirs[k], b[k])) out[k] = vivoClone(theirs[k]); }  // l'ho tolta io
+    });
+    return out;
+  }
+  if(Array.isArray(mine) && Array.isArray(theirs)) return vivoMergeElenco(Array.isArray(base) ? base : [], mine, theirs);
+  return vivoClone(mine);   // stesso valore semplice cambiato da entrambi: vince chi sta scrivendo
+}
+function vivoMergeElenco(base, mine, theirs){
+  const indicizza = arr => {
+    const cnt = {}, m = new Map(), ordine = [];
+    arr.forEach(e=>{
+      let k;
+      if(e && typeof e==='object'){ if(e.condominoId!==undefined) k = 'c:'+e.condominoId; else if(e.id!==undefined) k = 'i:'+e.id; }
+      if(k===undefined) k = 'j:'+JSON.stringify(vivoCanon(e));
+      cnt[k] = (cnt[k]||0) + 1; k += '#'+cnt[k];
+      m.set(k, e); ordine.push(k);
+    });
+    return {m, ordine};
+  };
+  const B = indicizza(base), M = indicizza(mine), T = indicizza(theirs);
+  const out = [], fatti = new Set();
+  const aggiungi = (k, v)=>{ out.push(vivoClone(v)); fatti.add(k); };
+  T.ordine.forEach(k=>{
+    if(M.m.has(k)) aggiungi(k, vivoMerge3(B.m.get(k), M.m.get(k), T.m.get(k)));
+    else if(B.m.has(k)){ if(!vivoUguali(T.m.get(k), B.m.get(k))) aggiungi(k, T.m.get(k)); }   // tolto da me, salvo modifiche altrui
+    else aggiungi(k, T.m.get(k));                                                              // aggiunto da altri
+  });
+  M.ordine.forEach(k=>{
+    if(fatti.has(k)) return;
+    if(!T.m.has(k)){
+      if(!B.m.has(k)) aggiungi(k, M.m.get(k));                                                 // aggiunto da me
+      else if(!vivoUguali(M.m.get(k), B.m.get(k))) aggiungi(k, M.m.get(k));                    // tolto da altri, ma io l'avevo modificato
+    }
+  });
+  return out;
+}
+
+// ---- LT-287 — CANALE VIVO su Supabase (tappa 5, passo 5.0) ----
+// Attivo solo con "?livesb=1" (amministratore) o "&sb=1" (link dei partecipanti). Le parti "vive"
+// di ogni assemblea (appello, mani alzate, chat, deleghe, sondaggio e voti...) stanno in UNA riga
+// per assemblea (tabella stato_vivo), con un numero di versione: chi scrive dice "parto dalla
+// versione N"; se nel frattempo è cambiata, legge, UNISCE le due modifiche e riprova.
+const LIVESB_ADMIN = new URLSearchParams(window.location.search).has('livesb');
+const VIVO_INTERVALLO_MS = 2500;
+const __vivo = {map:new Map(), timer:null, inCorso:false, richiesta:false, poll:null, tentativi:0, pollInCorso:false};
+const VIVO_ESCLUSE_ASS = new Set([...SB_CHIAVI_ASS, ...SB_CHIAVI_ASS_SE_PRESENTI, 'id', 'odg', 'ospiti']);
+const VIVO_ESCLUSE_ODG = new Set([...SB_CHIAVI_ODG, 'id']);
+const VIVO_ESCLUSE_OSP = new Set([...SB_CHIAVI_OSPITE, 'id', 'invitoInviato']);
+function vivoParteViva(obj, escluse){
+  const x = {};
+  Object.keys(obj).forEach(k=>{ if(!escluse.has(k) && obj[k]!==undefined) x[k] = vivoClone(obj[k]); });
+  return x;
+}
+// Estrae dall'assemblea (in memoria) il suo documento vivo.
+function vivoEstrai(b, a){
+  const d = vivoParteViva(a, VIVO_ESCLUSE_ASS);
+  const odg = {};
+  (a.odg||[]).forEach(p=>{ const x = vivoParteViva(p, VIVO_ESCLUSE_ODG); if(!vivoVuoto(x)) odg[p.id] = x; });
+  if(!vivoVuoto(odg)) d.__odg = odg;
+  const osp = {};
+  (a.ospiti||[]).forEach(o=>{ const x = vivoParteViva(o, VIVO_ESCLUSE_OSP); if(!vivoVuoto(x)) osp[o.id] = x; });
+  if(!vivoVuoto(osp)) d.__ospiti = osp;
+  if(b.assembleaInCorsoId===a.id && activePoll){ d.__activePoll = serializzaPoll(activePoll); d.__activePollOdgId = activePollOdgId; }
+  return d;
+}
+// Rimette nell'assemblea (in memoria) il documento vivo ricevuto.
+function vivoApplica(b, a, d){
+  d = d || {};
+  Object.keys(a).forEach(k=>{ if(!VIVO_ESCLUSE_ASS.has(k) && !(k in d)) delete a[k]; });
+  Object.keys(d).forEach(k=>{ if(k.indexOf('__')!==0) a[k] = vivoClone(d[k]); });
+  (a.odg||[]).forEach(p=>{
+    Object.keys(p).forEach(k=>{ if(!VIVO_ESCLUSE_ODG.has(k)) delete p[k]; });
+    const x = d.__odg && d.__odg[p.id]; if(x) Object.assign(p, vivoClone(x));
+  });
+  (a.ospiti||[]).forEach(o=>{
+    Object.keys(o).forEach(k=>{ if(!VIVO_ESCLUSE_OSP.has(k)) delete o[k]; });
+    const x = d.__ospiti && d.__ospiti[o.id]; if(x) Object.assign(o, vivoClone(x));
+  });
+  if(b.assembleaInCorsoId===a.id){
+    activePoll = d.__activePoll ? deserializzaPoll(d.__activePoll) : null;
+    activePollOdgId = d.__activePollOdgId || null;
+  }
+}
+function vivoUuid(b, a){ return __sbAn.uuid.assemblee.get(b.id+':'+a.id); }
+function vivoAssemblea(idStabileApp, idAssApp){
+  const b = buildings.find(x=>x.id===idStabileApp);
+  const a = b && (b.assemblee||[]).find(x=>x.id===idAssApp);
+  return a ? {b, a} : null;
+}
+function vivoDeriva(){
+  buildings.forEach(b=>{
+    if(b.assembleaInCorsoId && (b.assemblee||[]).some(a=>a.id===b.assembleaInCorsoId && a.stato==='in-corso')) return;
+    const ic = (b.assemblee||[]).filter(a=>a.stato==='in-corso');
+    b.assembleaInCorsoId = ic.length ? ic[ic.length-1].id : null;
+  });
+}
+// ---- amministratore: lettura iniziale
+async function vivoCaricaAdmin(){
+  const sb = window.__cancello.sb;
+  const r = await sb.from('stato_vivo').select('assemblea_id,dati,versione');
+  if(r.error) throw r.error;
+  const perUuid = new Map((r.data||[]).map(x=>[x.assemblea_id, x]));
+  vivoDeriva();
+  buildings.forEach(b=>(b.assemblee||[]).forEach(a=>{
+    const u = vivoUuid(b, a), riga = u && perUuid.get(u);
+    if(riga){ vivoApplica(b, a, riga.dati); __vivo.map.set(u, {b:b.id, a:a.id, versione:Number(riga.versione), base:vivoClone(riga.dati)}); }
+  }));
+  buildings = buildings.map(miglioraSchemaBuilding);
+}
+function vivoPianifica(){
+  if(!LIVESB_ADMIN || !__sbAn.attivo) return;
+  __vivo.richiesta = true;
+  clearTimeout(__vivo.timer);
+  __vivo.timer = setTimeout(()=>{ __vivo.timer = null; vivoSincronizza(); }, 400);
+}
+function vivoADaFare(){ return LIVESB_ADMIN && __sbAn.attivo && (__vivo.inCorso || __vivo.timer || __vivo.richiesta); }
+async function vivoSincronizza(){
+  if(__vivo.inCorso){ __vivo.richiesta = true; return; }
+  __vivo.inCorso = true;
+  try{
+    const sb = window.__cancello.sb;
+    while(__vivo.richiesta){
+      __vivo.richiesta = false;
+      for(const b of buildings){ for(const a of (b.assemblee||[])){
+        const u = vivoUuid(b, a); if(!u) continue;
+        let st = __vivo.map.get(u);
+        if(!st && a.stato==='bozza') continue;
+        if(!st) st = {b:b.id, a:a.id, versione:0, base:{}};
+        for(let tent=0; tent<6; tent++){
+          const mine = vivoEstrai(b, a);
+          if(vivoUguali(mine, st.base)){ if(st.versione>0) __vivo.map.set(u, st); break; }
+          const r = await sb.rpc('vivo_scrivi', {p_assemblea:u, p_dati:mine, p_versione:st.versione});
+          if(r.error) throw r.error;
+          if(Number(r.data) > 0){ st.versione = Number(r.data); st.base = vivoClone(mine); __vivo.map.set(u, st); break; }
+          // conflitto: qualcuno ha scritto prima di noi → si legge, si uniscono le modifiche, si riprova
+          const l = await sb.from('stato_vivo').select('dati,versione').eq('assemblea_id', u).maybeSingle();
+          if(l.error) throw l.error;
+          if(!l.data){ st.versione = 0; st.base = {}; continue; }
+          vivoApplica(b, a, vivoMerge3(st.base, mine, l.data.dati));
+          st.base = vivoClone(l.data.dati); st.versione = Number(l.data.versione);
+        }
+      }}
+    }
+    __vivo.tentativi = 0;
+    sbMostraStato();
+  }catch(e){
+    console.error('[Riunion] canale vivo: scrittura non riuscita:', e);
+    __vivo.tentativi++;
+    __vivo.richiesta = true;
+    sbMostraStato('⚠️ Dati in diretta non salvati — riprovo…', true);
+    clearTimeout(__vivo.timer);
+    __vivo.timer = setTimeout(()=>{ __vivo.timer = null; vivoSincronizza(); }, Math.min(30000, 3000*__vivo.tentativi));
+  }finally{
+    __vivo.inCorso = false;
+  }
+}
+// ---- amministratore: lettura periodica (cosa hanno fatto i partecipanti)
+async function vivoPollAdmin(){
+  if(__vivo.pollInCorso || __vivo.inCorso || __vivo.timer) return;
+  __vivo.pollInCorso = true;
+  try{
+    const sb = window.__cancello.sb;
+    const r = await sb.from('stato_vivo').select('assemblea_id,versione');
+    if(r.error) throw r.error;
+    let cambiato = false;
+    for(const riga of (r.data||[])){
+      let st = __vivo.map.get(riga.assemblea_id);
+      if(st && st.versione===Number(riga.versione)) continue;
+      const l = await sb.from('stato_vivo').select('dati,versione').eq('assemblea_id', riga.assemblea_id).maybeSingle();
+      if(l.error) throw l.error; if(!l.data) continue;
+      if(__vivo.inCorso || __vivo.timer) return;                 // nel frattempo l'admin ha fatto qualcosa: si rimanda
+      let loc = null;
+      for(const b of buildings){ for(const a of (b.assemblee||[])){ if(vivoUuid(b,a)===riga.assemblea_id) loc = {b,a}; } }
+      if(!loc) continue;
+      if(!st) st = {b:loc.b.id, a:loc.a.id, versione:0, base:{}};
+      const mine = vivoEstrai(loc.b, loc.a);
+      const unita = vivoMerge3(st.base, mine, l.data.dati);
+      if(!vivoUguali(unita, mine)){ vivoApplica(loc.b, loc.a, unita); cambiato = true; }
+      st.base = vivoClone(l.data.dati); st.versione = Number(l.data.versione);
+      __vivo.map.set(riga.assemblea_id, st);
+      if(!vivoUguali(unita, l.data.dati)) vivoPianifica();      // c'è qualcosa di nostro da mandare
+    }
+    if(cambiato){ salvaStato(true); rirenderizzaDopoSincronizzazione(); }
+  }catch(e){ console.error('[Riunion] canale vivo: lettura non riuscita:', e); }
+  finally{ __vivo.pollInCorso = false; }
+}
+function vivoAvviaAdmin(){
+  if(!LIVESB_ADMIN || __vivo.poll) return;
+  __vivo.poll = setInterval(vivoPollAdmin, VIVO_INTERVALLO_MS);
+  const el = document.getElementById('fb-stato-connessione');
+  if(el) el.textContent = '🟢 Dati in diretta su Supabase (Firebase spento)';
+}
+window.addEventListener('beforeunload', function(e){
+  if(vivoADaFare()){ e.preventDefault(); e.returnValue = ''; }
+});
+// ---- partecipante (link con &sb=1): lettura periodica, sola lettura in questo passo
+const __vivoPart = {token:null, sb:null, versioni:new Map(), poll:null, inCorso:false};
+async function vivoPollPartecipante(){
+  if(__vivoPart.inCorso) return;
+  __vivoPart.inCorso = true;
+  try{
+    let cambiato = false;
+    for(const b of buildings){ for(const a of (b.assemblee||[])){
+      if(a.stato!=='in-corso') continue;      // le altre non cambiano più (le concluse si leggono una volta sola, all'apertura)
+      const v = __vivoPart.versioni.get(b.id+':'+a.id) || 0;
+      const r = await __vivoPart.sb.rpc('partecipa_vivo', {p_token:__vivoPart.token, p_assemblea:a.id, p_versione:v});
+      if(r.error || !r.data || r.data.ok!==true) continue;
+      const d = r.data;
+      if(d.stato && d.stato!==a.stato){ a.stato = d.stato; cambiato = true; }
+      if(d.iniziata!==undefined && d.iniziata!==a.iniziata){ a.iniziata = d.iniziata; cambiato = true; }
+      if(d.dati && Number(d.versione)!==v){
+        vivoApplica(b, a, d.dati); __vivoPart.versioni.set(b.id+':'+a.id, Number(d.versione)); cambiato = true;
+      }
+      vivoDeriva();
+    }}
+    if(cambiato){
+      if(buildings.some(b=>(b.assemblee||[]).some(a=>a.stato==='conclusa' && __vivoPart.eraInCorso && __vivoPart.eraInCorso.has(b.id+':'+a.id)))){ location.reload(); return; }
+      rirenderizzaDopoSincronizzazione();
+    }
+    __vivoPart.eraInCorso = new Set(); buildings.forEach(b=>(b.assemblee||[]).forEach(a=>{ if(a.stato==='in-corso') __vivoPart.eraInCorso.add(b.id+':'+a.id); }));
+  }catch(e){ console.error('[Riunion] canale vivo (partecipante):', e); }
+  finally{ __vivoPart.inCorso = false; }
+}
+function vivoAvviaPartecipante(sb, token){
+  __vivoPart.sb = sb; __vivoPart.token = token;
+  __vivoPart.eraInCorso = new Set(); buildings.forEach(b=>(b.assemblee||[]).forEach(a=>{ if(a.stato==='in-corso') __vivoPart.eraInCorso.add(b.id+':'+a.id); }));
+  vivoPollPartecipante();
+  __vivoPart.poll = setInterval(vivoPollPartecipante, VIVO_INTERVALLO_MS);
+}
+
 let __versioneStatoLocale = 0;
 function salvaStato(soloLocale){
   // LT-286: chi entra col link da Supabase ha solo i dati ridotti che gli spettano: non deve mai
@@ -11313,7 +11581,7 @@ function salvaStato(soloLocale){
     if(!soloLocale && window.__fbScriviStato){
       window.__fbScriviStato(statoCompleto).catch(e=>console.error('[Adunanza] Scrittura sul database condiviso fallita:', e));
     }
-    if(!soloLocale) sbPianificaSync();
+    if(!soloLocale){ sbPianificaSync(); vivoPianifica(); }
     return true;
   }catch(e){
     console.error('[Adunanza] salvaStato FALLITO:', e);
@@ -11715,7 +11983,7 @@ function collegaAscoltoFirebase(){
   // viva l'assemblea da Adunanza. I battiti viaggiano su un canale Firebase SEPARATO da quello
   // dei dati dell'assemblea (vedi __fbAscoltaBattiti) — apposta, per non far ridisegnare il
   // resto della pagina (sondaggio compreso) ad ogni singolo battito in arrivo.
-  if(!__haTokenNelLink){
+  if(!__haTokenNelLink && !LIVESB_ADMIN){
     if(window.__fbAscoltaBattiti){
       window.__fbAscoltaBattiti((dati)=>{ __ultimoDatiBattiti = dati || {}; });
     }
@@ -11946,7 +12214,7 @@ async function avviaCancello(){
   c.profilo = profiloDaRiga(p.data);
   // LT-284: anche i condomìni si leggono da Supabase. Se non ci si riesce l'app NON si apre:
   // partire con un elenco vuoto e poi salvare rischierebbe di sovrascrivere i dati veri.
-  try{ await sbCaricaAnagrafica(); }
+  try{ await sbCaricaAnagrafica(); if(LIVESB_ADMIN) await vivoCaricaAdmin(); }
   catch(e){
     console.error('[Riunion] lettura anagrafica da Supabase non riuscita:', e);
     cancelloMostraErrore('Non riesco a leggere i tuoi condomìni da Supabase. Controlla la connessione e riprova.');
@@ -11961,6 +12229,7 @@ async function avviaCancello(){
   amministratore = amministratoreSenzaSegreti();
   aggiornaNomeStudioTopbar();
   c.aperto = true;
+  vivoAvviaAdmin();
   const box = document.getElementById('cancello-copertura');
   if(box) box.remove();
   const esci = document.getElementById('nav-esci');
