@@ -9707,6 +9707,7 @@ function modificaSceltaVotoBloccoCv(){
     activePoll.voted.delete(votante.id);
     if(activePoll.votatoInBlocco) activePoll.votatoInBlocco.delete(votante.id);
   });
+  if(__sbAn.partecipante && votante.id===currentCondomino.id) vivoAzione('voto_annulla');
   sceltaVotoCorrente = null;
   renderCvPollArea();
 }
@@ -10087,6 +10088,7 @@ function confermaVotoCondomino(){
   try{
     const idCondominoVotante = votante0.id, opzioneScelta = sceltaVotoCorrente;
     eseguiConUnioneSuServer(()=>{ impostaVoto(idCondominoVotante, opzioneScelta, false); });
+    if(__sbAn.partecipante && idCondominoVotante===currentCondomino.id) vivoAzione('voto', {opt:opzioneScelta});
     // Fondamentale: azzeriamo la selezione ORA, subito dopo che il voto è stato registrato —
     // altrimenti la protezione che evita di perdere una selezione in corso durante una
     // sincronizzazione (pensata per un altro scopo) impedirebbe per errore anche a QUESTO
@@ -11332,6 +11334,13 @@ function vivoMerge3(base, mine, theirs){
   if(Array.isArray(mine) && Array.isArray(theirs)) return vivoMergeElenco(Array.isArray(base) ? base : [], mine, theirs);
   return vivoClone(mine);   // stesso valore semplice cambiato da entrambi: vince chi sta scrivendo
 }
+// Come vivoMerge3, ma sul documento intero: se l'amministratore ha CHIUSO il sondaggio, resta chiuso
+// anche se nello stesso istante un partecipante stava votando (quel voto arriva troppo tardi).
+function vivoMergeDati(base, mine, theirs){
+  const out = vivoMerge3(base, mine, theirs);
+  if(out && vivoEOggetto(out) && (!mine || !mine.__activePoll) && base && base.__activePoll){ delete out.__activePoll; delete out.__activePollOdgId; }
+  return out;
+}
 function vivoMergeElenco(base, mine, theirs){
   const indicizza = arr => {
     const cnt = {}, m = new Map(), ordine = [];
@@ -11463,7 +11472,7 @@ async function vivoSincronizza(){
           const l = await sb.from('stato_vivo').select('dati,versione').eq('assemblea_id', u).maybeSingle();
           if(l.error) throw l.error;
           if(!l.data){ st.versione = 0; st.base = {}; continue; }
-          vivoApplica(b, a, vivoMerge3(st.base, mine, l.data.dati));
+          vivoApplica(b, a, vivoMergeDati(st.base, mine, l.data.dati));
           st.base = vivoClone(l.data.dati); st.versione = Number(l.data.versione);
         }
       }}
@@ -11501,7 +11510,7 @@ async function vivoPollAdmin(){
       if(!loc) continue;
       if(!st) st = {b:loc.b.id, a:loc.a.id, versione:0, base:{}};
       const mine = vivoEstrai(loc.b, loc.a);
-      const unita = vivoMerge3(st.base, mine, l.data.dati);
+      const unita = vivoMergeDati(st.base, mine, l.data.dati);
       if(!vivoUguali(unita, mine)){ vivoApplica(loc.b, loc.a, unita); cambiato = true; }
       st.base = vivoClone(l.data.dati); st.versione = Number(l.data.versione);
       __vivo.map.set(riga.assemblea_id, st);
@@ -11534,11 +11543,16 @@ function vivoAzione(azione, param){
     if(!a || a.stato!=='in-corso') a = b ? (b.assemblee||[]).find(x=>x.stato==='in-corso') : null;
     if(!a) return;
     try{
-      const r = await __vivoPart.sb.rpc('partecipa_azione', {p_token:__vivoPart.token, p_assemblea:a.id, p_azione:azione, p_param:param||{}});
+      const eVoto = (azione==='voto' || azione==='voto_annulla');
+      const r = eVoto
+        ? await __vivoPart.sb.rpc('partecipa_voto', {p_token:__vivoPart.token, p_assemblea:a.id, p_azione:azione, p_opzione:(param&&param.opt!=null)?param.opt:null})
+        : await __vivoPart.sb.rpc('partecipa_azione', {p_token:__vivoPart.token, p_assemblea:a.id, p_azione:azione, p_param:param||{}});
       const d = r.data;
       if(r.error || !d || d.ok!==true){
         if(d && d.motivo==='chiusa'){ location.reload(); return; }
         if(d && (d.motivo==='vuoto' || d.motivo==='azione')) return;
+        const MSG = {gia:'Hai già votato.', presenza:'Non risulti online o presente in sala: non puoi votare.', delega:'Hai delegato il voto a un altro condòmino già presente.', sondaggio:'Il sondaggio non è più aperto.', opzione:'Scelta non valida.'};
+        if(d && MSG[d.motivo]){ try{ toast(MSG[d.motivo]); }catch(_){} __vivoPart.versioni.delete(b.id+':'+a.id); return; }
         throw (r.error || new Error((d&&d.motivo)||'errore'));
       }
       vivoApplica(b, a, d.dati);
