@@ -728,7 +728,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/10/2026">LT-295</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/10/2026">LT-296</span>
   </div>
 
   <!-- MAIN -->
@@ -3396,79 +3396,77 @@ function renderNavSubmenu(){
   if(sezioniEl) sezioniEl.classList.toggle('hidden', !inAssemblea);
   if(inAssemblea) renderOdgPillsTopbar();
 }
+const __condEspansi = new Set();
+const __ICO = {
+  gestione:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 15h3"/></svg>',
+  archivio:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M10 13h4"/></svg>',
+  dashboard:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+  elimina:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/></svg>',
+  chevron:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>'
+};
+function condToggle(id){
+  if(__condEspansi.has(id)) __condEspansi.delete(id); else __condEspansi.add(id);
+  renderCondominiElenco();
+}
+function condEspandiTutti(apri){
+  __condEspansi.clear();
+  if(apri) buildings.forEach(b=>__condEspansi.add(b.id));
+  renderCondominiElenco();
+}
+function condTabella(lista, inattivi){
+  if(!lista.length) return '<div class="empty">'+(inattivi?'':'Nessun condominio ancora creato.')+'</div>';
+  const parseData = d=>{ const m=String(d||'').match(/(\d{1,2})\D(\d{1,2})\D(\d{4})/); return m? +m[3]*10000+ +m[2]*100+ +m[1] : 0; };
+  const righe = lista.map(b=>{
+    const tutte = b.assemblee||[];
+    const archiviate = tutte.filter(a=>a.stato==='conclusa').length;
+    const pianificate = tutte.filter(a=>a.stato!=='conclusa' && a.dataSeconda).sort((x,y)=>parseData(x.dataSeconda)-parseData(y.dataSeconda));
+    const daInviare = tutte.filter(a=>{
+      const gia = a.invioVerbaleDocumenti && a.invioVerbaleDocumenti.storicoInvii && a.invioVerbaleDocumenti.storicoInvii.length>0;
+      return a.stato==='conclusa' && a.dataSeconda && !gia && !a.promemoriaVerbaleNascosto;
+    });
+    const aperto = __condEspansi.has(b.id);
+    const inCorso = pianificate.some(a=>b.assembleaInCorsoId===a.id);
+    const pills =
+      (inCorso?'<span class="cond-pill live">In corso</span>':'') +
+      (pianificate.length?`<span class="cond-pill ok">${pianificate.length} pianificat${pianificate.length===1?'a':'e'}</span>`:'<span class="cond-vuoto">—</span>') +
+      (daInviare.length?`<span class="cond-pill warn">${daInviare.length} verbal${daInviare.length===1?'e':'i'} da inviare</span>`:'');
+    const espandibile = pianificate.length || daInviare.length;
+    const dettaglio = !aperto ? '' : '<div class="cond-dettaglio">' + (
+      (espandibile ? '' : '<div class="cond-vuoto">Nessuna assemblea pianificata.</div>') +
+      pianificate.map(a=>`<div class="cond-ass"><span class="cond-pill ok">${a.tipo==='straordinaria'?'Straordinaria':'Ordinaria'}</span><span>Assemblea pianificata per il <b>${escapeHtml(a.dataSeconda)}</b>${a.oraSeconda?' alle '+escapeHtml(a.oraSeconda):''}</span>${b.assembleaInCorsoId===a.id?'<span class="cond-pill live">In corso</span>':''}</div>`).join('') +
+      daInviare.map(a=>`<div class="cond-ass"><span class="cond-pill warn">Verbale</span><span>Assemblea del <b>${escapeHtml(a.dataSeconda)}</b>: verbale da inviare</span><button class="btn-promemoria invia" onclick="apriInvioVerbaleDaCondomini(${b.id},${a.id})">Invia</button><button class="btn-promemoria elimina-msg" onclick="eliminaMessaggioVerbale(${b.id},${a.id})">Non<br>ricordarmelo</button></div>`).join('')
+    ) + '</div>';
+    const azioni = (inattivi?'':`<button class="cond-ico" title="Gestione assemblee" aria-label="Gestione assemblee" onclick="vaiCondominioDaLista(${b.id},'crea-assemblea')">${__ICO.gestione}</button>`) +
+      `<button class="cond-ico" title="Archivio" aria-label="Archivio" onclick="vaiCondominioDaLista(${b.id},'registrazioni')">${__ICO.archivio}</button>` +
+      `<button class="cond-ico" title="Dashboard" aria-label="Dashboard" onclick="vaiCondominioDaLista(${b.id},'dashboard')">${__ICO.dashboard}</button>` +
+      (inattivi?`<button class="cond-ico cond-ico-del" title="Elimina" aria-label="Elimina" onclick="avviaEliminazioneCondominio(${b.id})">${__ICO.elimina}</button>`:'');
+    return `<div class="cond-gruppo${aperto?' aperto':''}">
+      <div class="cond-riga">
+        <button class="cond-chevron" aria-expanded="${aperto}" aria-label="Mostra assemblee" onclick="condToggle(${b.id})">${__ICO.chevron}</button>
+        <div class="cond-nome" onclick="condToggle(${b.id})">${escapeHtml(b.nome||'')}${inattivi?' <span class="cond-pill off">Inattivo</span>':''}</div>
+        <div class="cond-num" data-l="Condòmini">${(b.condomini||[]).length}</div>
+        <div class="cond-num" data-l="Archiviate">${archiviate}</div>
+        <div class="cond-stato">${pills}</div>
+        <div class="cond-azioni">${azioni}</div>
+      </div>${dettaglio}</div>`;
+  }).join('');
+  return `<div class="cond-tab">
+    <div class="cond-testa"><div></div><div>Condominio</div><div class="cond-num">Condòmini</div><div class="cond-num">Assemblee archiviate</div><div>Assemblee pianificate</div><div class="cond-azioni-t">Azioni</div></div>
+    ${righe}</div>`;
+}
 function renderCondominiElenco(){
   // Ordinati alfabeticamente per nome, non nell'ordine di creazione.
   const ordinaPerNome = (a,b)=>(a.nome||'').localeCompare(b.nome||'','it');
   const attivi = buildings.filter(b=>b.attivo!==false).sort(ordinaPerNome);
   const inattivi = buildings.filter(b=>b.attivo===false).sort(ordinaPerNome);
   document.getElementById('stat-edifici-attivi').textContent = attivi.length;
-
   const grid = document.getElementById('buildings-grid');
-  grid.innerHTML='';
-  attivi.forEach(b=>{
-    const wrapper=document.createElement('div');
-    wrapper.className='building-wrapper';
-    const nomeFuori=document.createElement('div');
-    nomeFuori.className='building-nome-fuori';
-    nomeFuori.textContent=b.nome;
-    wrapper.appendChild(nomeFuori);
-
-    const row=document.createElement('div');
-    row.className='list-row building-row';
-    const pianificate = (b.assemblee||[]).filter(a=>a.stato!=='conclusa' && a.dataSeconda);
-    const daInviare = (b.assemblee||[]).filter(a=>{
-      const giaInviato = a.invioVerbaleDocumenti && a.invioVerbaleDocumenti.storicoInvii && a.invioVerbaleDocumenti.storicoInvii.length>0;
-      return a.stato==='conclusa' && a.dataSeconda && !giaInviato && !a.promemoriaVerbaleNascosto;
-    });
-    const rigaDaInviare = daInviare.length
-      ? '<div style="margin-top:8px;padding-left:16px;">' + daInviare.map(a=>
-          `<div style="display:flex;align-items:center;gap:8px;margin-top:4px;flex-wrap:wrap;">
-            <span style="color:#8C2E22;font-weight:600;background:rgba(140,46,34,.1);padding:2px 8px;border-radius:3px;display:inline-block;">- Verbale Assemblea del ${a.dataSeconda} da inviare</span>
-            <button class="btn-promemoria invia" onclick="apriInvioVerbaleDaCondomini(${b.id},${a.id})">Invia</button>
-            <button class="btn-promemoria elimina-msg" onclick="eliminaMessaggioVerbale(${b.id},${a.id})">Non<br>ricordarmelo</button>
-          </div>`
-        ).join('') + '</div>'
-      : '';
-    const rigaPianificate = pianificate.length
-      ? '<div style="line-height:1.6;margin-top:8px;padding-left:16px;">' + pianificate.map(a=>
-          `<span style="color:#2E6B44;font-weight:600;background:rgba(62,122,84,.1);padding:2px 8px;border-radius:3px;display:inline-block;margin-top:2px;">- Assemblea ${a.tipo==='straordinaria'?'straordinaria':'ordinaria'} pianificata per il ${a.dataSeconda}</span>${b.assembleaInCorsoId===a.id ? ' <span title="Assemblea attualmente in corso — la Sala virtuale è aperta" style="color:#fff;font-weight:700;background:#C0392B;padding:2px 8px;border-radius:3px;display:inline-block;margin-top:2px;">🔴 IN CORSO</span>' : ''}`
-        ).join('<br>') + '</div>'
-      : '';
-    row.innerHTML = `<span><span class="muted">${b.condomini.length} condòmini · ${(b.assemblee||[]).filter(a=>a.stato==='conclusa').length} assemblee archiviate</span>${rigaDaInviare}${rigaPianificate}</span>
-      <span style="display:flex;gap:6px;">
-        <button class="btn small brass" onclick="vaiCondominioDaLista(${b.id},'crea-assemblea')">Gestione Assemblee</button>
-        <button class="btn small secondary" onclick="vaiCondominioDaLista(${b.id},'registrazioni')">Archivio</button>
-        <button class="btn small secondary" onclick="vaiCondominioDaLista(${b.id},'dashboard')">Dashboard</button>
-      </span>`;
-    wrapper.appendChild(row);
-    grid.appendChild(wrapper);
-  });
-  if(attivi.length===0){ grid.innerHTML='<div class="empty">Nessun condominio ancora creato.</div>'; }
-
+  grid.innerHTML = (attivi.length?'<div class="cond-strumenti"><button class="cond-link" onclick="condEspandiTutti(true)">Espandi tutto</button><button class="cond-link" onclick="condEspandiTutti(false)">Comprimi tutto</button></div>':'') + condTabella(attivi,false);
   const wrap=document.getElementById('condomini-inattivi-wrap');
   const gridIn=document.getElementById('buildings-grid-inattivi');
   if(inattivi.length===0){ wrap.classList.add('hidden'); return; }
   wrap.classList.remove('hidden');
-  gridIn.innerHTML='';
-  inattivi.forEach(b=>{
-    const wrapper=document.createElement('div');
-    wrapper.className='building-wrapper';
-    const nomeFuori=document.createElement('div');
-    nomeFuori.className='building-nome-fuori';
-    nomeFuori.textContent=b.nome;
-    wrapper.appendChild(nomeFuori);
-
-    const row=document.createElement('div');
-    row.className='list-row building-row assemblea-conclusa-grigia';
-    row.innerHTML = `<span><span class="badge pending">Inattivo</span> <span class="muted">— ${(b.assemblee||[]).filter(a=>a.stato==='conclusa').length} assemblee archiviate, solo consultazione</span></span>
-      <span style="display:flex;gap:6px;">
-        <button class="btn small secondary" onclick="vaiCondominioDaLista(${b.id},'registrazioni')">Archivio</button>
-        <button class="btn small secondary" onclick="vaiCondominioDaLista(${b.id},'dashboard')">Dashboard</button>
-        <button class="btn small" style="background:var(--brick);border-color:var(--brick);" onclick="avviaEliminazioneCondominio(${b.id})">🗑 Elimina</button>
-      </span>`;
-    wrapper.appendChild(row);
-    gridIn.appendChild(wrapper);
-  });
+  gridIn.innerHTML = condTabella(inattivi,true);
 }
 // Naviga verso una sezione (Assemblea/Archivio/Dashboard) di un condominio scelto dalla
 // lista Condomìni, passando dal guard di conferma se c'è una creazione non salvata in corso.
@@ -6949,7 +6947,7 @@ Distinti saluti
 {{firma_amministratore}}`;
 
 let __contatoreOspiti = 1;
-// LT-295 — Token dei link personali: 30 caratteri casuali (circa 155 bit) presi dal generatore
+// LT-296 — Token dei link personali: 30 caratteri casuali (circa 155 bit) presi dal generatore
 // sicuro del browser, al posto di Math.random (prevedibile e di soli 8 caratteri).
 function generaTokenForte(){
   const alfabeto = 'abcdefghijkmnpqrstuvwxyz23456789';
@@ -11076,7 +11074,7 @@ function sbCostruisci(D){
   ricalcolaContatoriId();
 }
 
-// LT-295 — Accesso di condòmini e ospiti con il link, SENZA login: l'unica cosa che il database
+// LT-296 — Accesso di condòmini e ospiti con il link, SENZA login: l'unica cosa che il database
 // accetta è il token. La funzione partecipa_carica restituisce solo ciò che quella persona può
 // vedere (dei vicini: nome, interno, millesimi; mai email né token).
 async function sbCaricaPartecipante(token){
@@ -11636,7 +11634,7 @@ function vivoAvviaPartecipante(sb, token){
 
 let __versioneStatoLocale = 0;
 function salvaStato(soloLocale){
-  // LT-295: chi entra col link da Supabase ha solo i dati ridotti che gli spettano: non deve mai
+  // LT-296: chi entra col link da Supabase ha solo i dati ridotti che gli spettano: non deve mai
   // scrivere lo stato completo (né in locale né altrove). Le sue azioni passeranno da funzioni
   // dedicate del database (tappa 5).
   if(__sbAn.partecipante) return true;
