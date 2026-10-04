@@ -88,8 +88,10 @@
     window.__fbScriviStato = ()=>{ reg('scriviStato'); return Promise.resolve(); };
     window.__fbTransazioneMerge = ()=>{ reg('transazioneMerge'); return Promise.resolve({committed:true}); };
     window.__fbAscoltaStato = ()=>{ reg('ascoltaStato'); };
-    window.__fbScriviBattito = ()=>{ reg('scriviBattito'); return Promise.resolve(); };
-    window.__fbAscoltaBattiti = ()=>{ reg('ascoltaBattiti'); };
+    // LT-290: con il canale vivo su Supabase i battiti passano da lì (vedi __sbBattito / __sbAscoltaBattiti);
+    // senza, restano semplici "chiamate bloccate" contate.
+    window.__fbScriviBattito = (...a)=>{ if(window.__sbBattito) return window.__sbBattito(...a); reg('scriviBattito'); return Promise.resolve(); };
+    window.__fbAscoltaBattiti = (cb)=>{ if(window.__sbAscoltaBattiti) return window.__sbAscoltaBattiti(cb); reg('ascoltaBattiti'); };
   }else{
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
@@ -11520,8 +11522,27 @@ async function vivoPollAdmin(){
   }catch(e){ console.error('[Riunion] canale vivo: lettura non riuscita:', e); }
   finally{ __vivo.pollInCorso = false; }
 }
+// Battiti (ping) su Supabase: l'admin li legge ogni pochi secondi e li passa al ciclo di controllo di sempre.
+async function vivoLeggiBattiti(){
+  const sb = window.__cancello.sb;
+  const r = await sb.from('battiti').select('assemblea_id,chiave,valore,modalita');
+  if(r.error) throw r.error;
+  const perUuid = new Map();
+  (r.data||[]).forEach(x=>{ if(!perUuid.has(x.assemblea_id)) perUuid.set(x.assemblea_id, []); perUuid.get(x.assemblea_id).push(x); });
+  const out = {};
+  buildings.forEach(b=>(b.assemblee||[]).forEach(a=>{
+    const righe = perUuid.get(vivoUuid(b, a)); if(!righe) return;
+    (out[b.id] = out[b.id] || {})[a.id] = {};
+    righe.forEach(x=>{ out[b.id][a.id][x.chiave] = {valore:Number(x.valore), modalita:x.modalita||null}; });
+  }));
+  return out;
+}
 function vivoAvviaAdmin(){
   if(!LIVESB_ADMIN || __vivo.poll) return;
+  window.__sbAscoltaBattiti = (cb)=>{
+    const giro = async ()=>{ try{ cb(await vivoLeggiBattiti()); }catch(e){ console.warn('[Riunion] lettura battiti non riuscita:', e); } };
+    giro(); setInterval(giro, 4000);
+  };
   __vivo.poll = setInterval(vivoPollAdmin, VIVO_INTERVALLO_MS);
   const el = document.getElementById('fb-stato-connessione');
   if(el) el.textContent = '🟢 Dati in diretta su Supabase (Firebase spento)';
@@ -11594,6 +11615,10 @@ async function vivoPollPartecipante(){
 }
 function vivoAvviaPartecipante(sb, token){
   __vivoPart.sb = sb; __vivoPart.token = token;
+  // Battito del condòmino (o della persona esterna delegata): il numero è l'ora esatta, così non può mai "tornare indietro"
+  window.__sbBattito = (idStabile, idAssemblea, idPersona, _contatore, modalita)=>
+    sb.rpc('partecipa_battito', {p_token:token, p_assemblea:idAssemblea, p_id:String(idPersona), p_valore:Date.now(), p_modalita:modalita||null})
+      .then(r=>{ if(r.error || !r.data || r.data.ok!==true){ if(r.data && r.data.motivo==='chiusa') return; throw (r.error || new Error((r.data&&r.data.motivo)||'battito')); } });
   __vivoPart.eraInCorso = new Set(); buildings.forEach(b=>(b.assemblee||[]).forEach(a=>{ if(a.stato==='in-corso') __vivoPart.eraInCorso.add(b.id+':'+a.id); }));
   vivoPollPartecipante();
   __vivoPart.poll = setInterval(vivoPollPartecipante, VIVO_INTERVALLO_MS);
@@ -12033,7 +12058,7 @@ function collegaAscoltoFirebase(){
   // viva l'assemblea da Adunanza. I battiti viaggiano su un canale Firebase SEPARATO da quello
   // dei dati dell'assemblea (vedi __fbAscoltaBattiti) — apposta, per non far ridisegnare il
   // resto della pagina (sondaggio compreso) ad ogni singolo battito in arrivo.
-  if(!__haTokenNelLink && !LIVESB_ADMIN){
+  if(!__haTokenNelLink){
     if(window.__fbAscoltaBattiti){
       window.__fbAscoltaBattiti((dati)=>{ __ultimoDatiBattiti = dati || {}; });
     }
