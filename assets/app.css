@@ -396,3 +396,19 @@ body.skin .profilo .dropdown { z-index: 300; }
   .cond-azioni{grid-column:1/4;justify-content:flex-start;}
   .cond-dettaglio{padding-left:16px;}
 }
+
+/* Condomìni: filtri */
+.cond-filtri{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 12px;}
+.cond-cerca{position:relative;flex:1 1 220px;max-width:320px;}
+.cond-cerca svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;}
+.cond-cerca input{padding-left:36px !important;width:100%;height:38px;padding:0 12px 0 34px;border:1px solid var(--border);border-radius:9px;background:var(--surface-card);color:var(--text-primary);font:inherit;font-size:14px;}
+.cond-cerca input:focus,.cond-dd-btn:focus-visible{outline:2px solid var(--focus);outline-offset:1px;}
+.cond-dd{position:relative;}
+.cond-dd-btn{height:38px;display:inline-flex;align-items:center;gap:8px;padding:0 12px;border:1px solid var(--border);border-radius:9px;background:var(--surface-card);color:var(--text-primary);font:inherit;font-size:14px;cursor:pointer;}
+.cond-dd-menu{position:absolute;z-index:50;top:42px;left:0;min-width:250px;background:var(--surface-card);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(15,23,42,.18);padding:6px;}
+.cond-dd-menu.hidden{display:none;}
+.cond-dd-menu label{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:7px;cursor:pointer;font-size:14px;color:var(--text-primary);}
+.cond-dd-menu label:hover{background:var(--border-soft);}
+.cond-dd-menu input{width:16px;height:16px;accent-color:var(--accent);}
+.cond-link:disabled{opacity:.4;cursor:default;}
+.cond-conta{margin-left:auto;color:var(--text-secondary);font-size:13px;}
