@@ -1,0 +1,351 @@
+/* RIUNION — stile dell'area amministratore (token e componenti condivisi con /gestione + pelle). Generato: non modificare a mano i token. */
+/* =====================================================================================
+   RIUNION — stile condiviso
+   Tema chiaro = palette di ChangeGate. Tema scuro = derivato dalla stessa palette (slate).
+   Tutti i colori stanno qui in cima, come variabili: cambiando un valore cambia ovunque.
+   ===================================================================================== */
+
+@font-face {
+  font-family: 'DM Sans';
+  src: url('/assets/fonts/dm-sans-latin-wght-normal.woff2') format('woff2');
+  font-weight: 100 1000;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ---------- TEMA CHIARO (predefinito) ---------- */
+:root {
+  color-scheme: light;
+
+  --brand-50: #eff6ff; --brand-100: #dbeafe; --brand-200: #bfdbfe;
+  --brand-500: #3b82f6; --brand-600: #2563eb; --brand-700: #1d4ed8; --brand-900: #1e3a8a;
+
+  --surface: #f8fafc;
+  --surface-card: #ffffff;
+  --border: #e2e8f0;
+  --border-soft: #f1f5f9;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+
+  --barra-bg: #0f172a;
+  --barra-border: #0f172a;
+  --barra-hover: #1e293b;
+  --barra-active: #1e40af;
+  --barra-text: #cbd5e1;
+  --barra-active-text: #ffffff;
+
+  --accent: var(--brand-600);
+  --accent-hover: var(--brand-700);
+  --accent-text: #ffffff;
+  --focus: var(--brand-500);
+
+  --status-waiting-bg: #fef3c7; --status-waiting-text: #92400e;
+  --status-working-bg: #dbeafe; --status-working-text: #1e40af;
+  --status-done-bg: #d1fae5;    --status-done-text: #065f46;
+  --status-review-bg: #ede9fe;  --status-review-text: #5b21b6;
+  --status-off-bg: #f1f5f9;     --status-off-text: #475569;
+  --danger-bg: #fee2e2; --danger-text: #991b1b; --danger: #dc2626; --danger-border: #fecaca;
+
+  --ombra: 0 1px 2px rgba(15, 23, 42, .06), 0 1px 3px rgba(15, 23, 42, .04);
+  --raggio: 10px;
+}
+
+/* ---------- TEMA SCURO ---------- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --surface: #0b1220;
+    --surface-card: #131c2e;
+    --border: #26334a;
+    --border-soft: #1b2639;
+    --text-primary: #f1f5f9;
+    --text-secondary: #b6c2d4;
+    --text-muted: #7c8ba1;
+    --barra-bg: #0a1020;
+    --barra-border: #1b2639;
+    --barra-hover: #16213a;
+    --focus: #60a5fa;
+    --accent-hover: #3b82f6;
+    --status-waiting-bg: #3a2a0a; --status-waiting-text: #fcd34d;
+    --status-working-bg: #14274d; --status-working-text: #93c5fd;
+    --status-done-bg: #0c3a2b;    --status-done-text: #6ee7b7;
+    --status-review-bg: #2a1f55;  --status-review-text: #c4b5fd;
+    --status-off-bg: #1b2639;     --status-off-text: #b6c2d4;
+    --danger-bg: #3b1518; --danger-text: #fca5a5; --danger: #f87171; --danger-border: #7f1d1d;
+    --ombra: 0 1px 2px rgba(0, 0, 0, .4);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface: #0b1220;
+  --surface-card: #131c2e;
+  --border: #26334a;
+  --border-soft: #1b2639;
+  --text-primary: #f1f5f9;
+  --text-secondary: #b6c2d4;
+  --text-muted: #7c8ba1;
+  --barra-bg: #0a1020;
+  --barra-border: #1b2639;
+  --barra-hover: #16213a;
+  --focus: #60a5fa;
+  --accent-hover: #3b82f6;
+  --status-waiting-bg: #3a2a0a; --status-waiting-text: #fcd34d;
+  --status-working-bg: #14274d; --status-working-text: #93c5fd;
+  --status-done-bg: #0c3a2b;    --status-done-text: #6ee7b7;
+  --status-review-bg: #2a1f55;  --status-review-text: #c4b5fd;
+  --status-off-bg: #1b2639;     --status-off-text: #b6c2d4;
+  --danger-bg: #3b1518; --danger-text: #fca5a5; --danger: #f87171; --danger-border: #7f1d1d;
+  --ombra: 0 1px 2px rgba(0, 0, 0, .4);
+}
+
+/* ---------- BASE ---------- */
+
+.tema { display: inline-flex; padding: 3px; gap: 2px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-card); }
+.tema button {
+  width: 30px; height: 28px; padding: 0; border: 0; border-radius: 6px; cursor: pointer;
+  background: transparent; color: var(--text-muted); display: flex; align-items: center; justify-content: center;
+}
+.tema button:hover { color: var(--text-primary); }
+.tema button[aria-pressed="true"] { background: var(--brand-100); color: var(--brand-700); }
+.tema svg { width: 16px; height: 16px; display: block; }
+:root[data-theme="dark"] .tema button[aria-pressed="true"] { background: #1e3a8a; color: #dbeafe; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tema button[aria-pressed="true"] { background: #1e3a8a; color: #dbeafe; } }
+
+.profilo { position: relative; margin-left: auto; flex: none; }
+.profilo-btn {
+  display: flex; align-items: center; gap: 10px; padding: 5px 10px 5px 5px; border-radius: 999px;
+  border: 1px solid var(--barra-hover); background: transparent; color: #fff; cursor: pointer;
+  font: inherit; font-size: 14px; font-weight: 500;
+}
+.profilo-btn:hover, .profilo-btn[aria-expanded="true"] { background: var(--barra-hover); }
+.profilo-btn svg { width: 16px; height: 16px; opacity: .7; flex: none; }
+.profilo-nome { max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.avatar {
+  width: 30px; height: 30px; border-radius: 50%; flex: none; background: var(--brand-600); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; letter-spacing: .02em;
+}
+.dropdown {
+  position: absolute; right: 0; top: calc(100% + 8px); width: 290px; max-width: calc(100vw - 24px);
+  background: var(--surface-card); color: var(--text-primary); border: 1px solid var(--border);
+  border-radius: var(--raggio); box-shadow: 0 10px 30px rgba(15, 23, 42, .22); padding: 6px;
+}
+.dropdown-testa { padding: 10px 12px 12px; border-bottom: 1px solid var(--border-soft); margin-bottom: 6px; display: flex; flex-direction: column; gap: 2px; }
+.dropdown-testa strong { font-weight: 600; overflow-wrap: anywhere; }
+.dropdown-testa span { font-size: 13px; color: var(--text-secondary); overflow-wrap: anywhere; }
+.dropdown-voce {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; border: 0; background: none;
+  color: inherit; font: inherit; font-size: 14px; text-align: left; border-radius: 8px; cursor: pointer;
+}
+.dropdown-voce:hover { background: var(--border-soft); }
+.dropdown-voce svg { width: 16px; height: 16px; color: var(--text-secondary); flex: none; }
+.dropdown-riga { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 12px; font-size: 14px; }
+.dropdown-sep { height: 1px; background: var(--border-soft); margin: 6px 0; }
+
+
+/* =====================================================================================
+   RIUNION — "pelle" dell'area amministratore (LT-295)
+   Stessi colori, font e componenti di /gestione. Vale solo quando <body> ha la classe "skin"
+   (cioè per l'amministratore: i link dei condòmini e degli ospiti non cambiano aspetto).
+   ===================================================================================== */
+@font-face {
+  font-family: 'DM Sans';
+  src: url('/assets/fonts/dm-sans-latin-wght-normal.woff2') format('woff2');
+  font-weight: 100 1000; font-style: normal; font-display: swap;
+}
+
+body.skin {
+  /* le variabili "storiche" dell'app puntano ai colori nuovi: così tutto ciò che le usa cambia da solo */
+  --page-bg: var(--surface);
+  --paper: var(--border-soft);
+  --paper-card: var(--surface-card);
+  --line: var(--border);
+  --text: var(--text-primary);
+  --text-soft: var(--text-secondary);
+  --brass: var(--accent);
+  --brass-soft: var(--brand-200);
+  --ink: var(--barra-bg);
+  --ink-soft: var(--text-secondary);
+  --sage: #16a34a;
+  --sage-light: #4ade80;
+  --brick: var(--danger);
+  --font-display: 'DM Sans', -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-body: 'DM Sans', -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'DM Sans', -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background: var(--surface); color: var(--text-primary); font-size: 15px; line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+body.skin ::-webkit-scrollbar { width: 8px; height: 8px; }
+body.skin ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+body.skin :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ---------- barra in alto ---------- */
+body.skin .topbar { height: 56px; background: var(--barra-bg); color: var(--barra-text); border-bottom: 1px solid var(--barra-border); gap: 20px; padding: 0 20px; }
+body.skin .topbar-brand img { height: 38px; }
+body.skin .topbar-nav { gap: 4px; }
+body.skin .nav-item { padding: 8px 12px; border-radius: 8px; border-bottom: 0; color: var(--barra-text); font-size: 14px; font-weight: 500; }
+body.skin .nav-item:hover { background: var(--barra-hover); color: #fff; }
+body.skin .nav-item.active { background: var(--barra-active); color: var(--barra-active-text); }
+body.skin .nav-item svg { width: 18px; height: 18px; }
+body.skin #topbar-assemblea-label { color: #fff !important; }
+body.skin .odg-pill { background: var(--barra-hover); }
+body.skin .odg-pill:hover { background: var(--accent); }
+body.skin .main { margin-top: 56px; max-width: 1280px; padding: 28px 28px 56px; }
+
+/* menu del profilo (in alto a destra) */
+body.skin .profilo { margin-left: auto; }
+body.skin .profilo .dropdown[hidden] { display: none; }
+body.skin .profilo .dropdown .nav-item { display: flex; width: 100%; padding: 9px 12px; color: var(--text-primary); font-size: 14px; font-weight: 400; border-radius: 8px; }
+body.skin .profilo .dropdown .nav-item:hover { background: var(--border-soft); color: var(--text-primary); }
+body.skin .profilo .dropdown .nav-item svg { color: var(--text-secondary); }
+body.skin .profilo .dropdown .nav-item.active { background: var(--border-soft); color: var(--accent); }
+body.skin .profilo .dropdown .nav-item.hidden { display: none !important; }
+body.skin .profilo-btn { color: #fff; }
+
+/* barra di servizio in fondo */
+body.skin .footbar-diagnostica { background: var(--barra-bg); border-top: 1px solid var(--barra-border); color: var(--barra-text); height: 28px; }
+
+/* ---------- titoli ---------- */
+body.skin h1 { font-size: 26px; line-height: 1.2; font-weight: 700; letter-spacing: -.01em; color: var(--text-primary); }
+body.skin .sub { color: var(--text-secondary); font-size: 15px; }
+body.skin .eyebrow { font-size: 12px; letter-spacing: .08em; font-weight: 600; color: var(--accent); }
+body.skin .page-head { margin-bottom: 22px; align-items: flex-end; }
+body.skin .page-back { color: var(--text-secondary); }
+body.skin .page-back:hover { color: var(--accent); }
+body.skin .section-title, body.skin .card h3 { color: var(--text-primary); font-weight: 600; }
+body.skin .active-banner .name { color: var(--text-primary); }
+body.skin .active-banner .lbl { color: var(--text-secondary); letter-spacing: .06em; }
+
+/* ---------- carte e riquadri ---------- */
+body.skin .card, body.skin .stat-wide, body.skin .wizard-step, body.skin .tipo-convocazione-box,
+body.skin .building-card { background: var(--surface-card); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--ombra); color: var(--text-primary); }
+body.skin .stat, body.skin .stat-wide .stat { color: var(--text-primary); }
+body.skin .stat-label { letter-spacing: .06em; font-weight: 600; }
+body.skin .building-card:hover, body.skin .tipo-convocazione-box:hover { border-color: var(--accent); }
+/* i vecchi riquadri "scuri" diventano carte normali: niente più cornici pesanti */
+body.skin .frame-dark, body.skin .card-dark, body.skin .calendar-card, body.skin .card-assemblee-programma {
+  background: var(--surface-card); color: var(--text-primary); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--ombra);
+}
+body.skin .frame-dark { padding: 18px; }
+body.skin .frame-dark > .card { border: 0; box-shadow: none; padding: 4px 2px; background: transparent; }
+body.skin .frame-dark-title, body.skin .card-dark .section-title, body.skin .card-assemblee-programma h3,
+body.skin .calendar-head h3, body.skin .card-assemblee-programma .building-nome-fuori { color: var(--text-primary); }
+body.skin .frame-dark-title { font-size: 17px; margin: 0 0 12px; }
+body.skin .card-dark .muted, body.skin .card-assemblee-programma > .muted { color: var(--text-secondary); }
+body.skin .card-dark label { color: var(--text-secondary); }
+body.skin .card-dark th { color: var(--text-secondary); border-bottom-color: var(--border); }
+body.skin .card-dark td { border-bottom-color: var(--border-soft); }
+body.skin .card-dark .note { background: var(--border-soft); border-color: var(--border); color: var(--text-primary); }
+body.skin .card-dark .btn.secondary { background: var(--surface-card); color: var(--text-primary); border-color: var(--border); }
+body.skin .card-dark .badge { background: var(--status-done-bg); color: var(--status-done-text); }
+body.skin .card-dark a { color: var(--accent); }
+body.skin .frame-dark-hover:hover { background: var(--border-soft); border-color: var(--accent); }
+body.skin .appello-divider-strip { background: var(--border-soft); height: 10px; }
+
+/* ---------- Planning: calendario ---------- */
+body.skin .calendar-card { max-width: 340px; padding: 16px; }
+body.skin .calendar-nav-btn { border: 1px solid var(--border); color: var(--text-primary); border-radius: 8px; padding: 4px 11px; }
+body.skin .calendar-nav-btn:hover { background: var(--border-soft); }
+body.skin .calendar-daylabel { color: var(--text-muted); font-size: 10px; font-weight: 600; }
+body.skin .calendar-cell { background: var(--border-soft); color: var(--text-primary); border-radius: 8px; font-family: var(--font-body); }
+body.skin .calendar-cell.cal-empty { background: transparent; }
+body.skin .calendar-cell.sat { background: var(--status-working-bg); color: var(--status-working-text); }
+body.skin .calendar-cell.sun { background: var(--danger-bg); color: var(--danger-text); }
+body.skin .calendar-cell.today { box-shadow: inset 0 0 0 2px var(--accent); background: var(--brand-100); color: var(--brand-700); }
+body.skin .calendar-cell.today .day-num { color: var(--brand-700); }
+body.skin .calendar-cell.has-assembly { background: var(--accent); color: #fff; }
+body.skin .calendar-cell.has-assembly:hover { background: var(--accent-hover); }
+body.skin .calendar-cell.has-assembly-svolta { background: var(--status-off-bg); color: var(--status-off-text); }
+body.skin .calendar-cell.has-assembly-svolta:hover { background: var(--border); }
+body.skin .calendar-cell.has-assembly-svolta .assembly-count { color: var(--status-off-text); }
+body.skin .calendar-cell.has-assembly-noninvitata { background: var(--status-waiting-bg); color: var(--status-waiting-text); }
+body.skin .calendar-cell.has-assembly-noninvitata:hover { filter: brightness(.96); }
+body.skin .calendar-detail { background: var(--border-soft); color: var(--text-primary); border-radius: 10px; }
+body.skin #ca-assemblee-list, body.skin #ca-assemblee-chiuse-list { background: transparent; padding: 0; }
+body.skin .card-assemblee-programma .building-row { color: var(--text-primary); }
+body.skin .card-assemblee-programma .building-row:hover { background: var(--border-soft); border-color: var(--accent); }
+
+/* ---------- righe elenco (Condomìni, assemblee) ---------- */
+body.skin .building-nome-fuori { color: var(--text-primary); font-size: 16px; font-weight: 600; }
+body.skin .building-row { background: var(--surface-card); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--ombra); color: var(--text-primary); }
+body.skin .building-row:hover { background: var(--surface-card); border-color: var(--accent); }
+body.skin .assemblea-conclusa-grigia { background: var(--border-soft); border-color: var(--border); }
+body.skin .assemblea-row-card:hover { background: var(--border-soft); border-color: var(--accent); }
+body.skin .list-row { border-bottom-color: var(--border-soft); }
+body.skin .hand-row, body.skin .live-part-row, body.skin .poll-option, body.skin .poll-esito-riga { border-bottom-color: var(--border-soft); }
+
+/* ---------- bottoni ---------- */
+body.skin .btn { font-family: var(--font-body); font-size: 14px; font-weight: 600; padding: 9px 16px; border-radius: 9px; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-text); }
+body.skin .btn:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+body.skin .btn.secondary { background: var(--surface-card); color: var(--text-primary); border-color: var(--border); }
+body.skin .btn.secondary:hover { background: var(--border-soft); border-color: var(--border); }
+body.skin .btn.brass { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+body.skin .btn.small { padding: 6px 12px; font-size: 13px; }
+body.skin .btn.on-dark { color: var(--text-primary); border-color: var(--border); background: transparent; }
+body.skin .btn:disabled { opacity: .5; }
+body.skin .btn-promemoria.invia { background: var(--accent); border-color: var(--accent); }
+body.skin .btn-promemoria.elimina-msg { background: var(--surface-card); border-color: var(--border); color: var(--text-secondary); }
+body.skin select.btn-appello-azione { border: 1px solid var(--border); background: var(--surface-card); color: var(--text-primary); border-radius: 8px; }
+
+/* ---------- campi ---------- */
+body.skin input, body.skin textarea, body.skin select {
+  font-family: var(--font-body); font-size: 14.5px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 9px;
+  background: var(--surface-card); color: var(--text-primary);
+}
+body.skin input::placeholder, body.skin textarea::placeholder { color: var(--text-muted); }
+body.skin input:focus, body.skin textarea:focus, body.skin select:focus { outline: 2px solid var(--focus); outline-offset: 0; border-color: var(--focus); }
+body.skin label { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
+body.skin .wizard-step label, body.skin .tipo-convocazione-box h4 { color: var(--text-primary); }
+body.skin .chip { background: var(--surface-card); border-color: var(--border); color: var(--text-primary); }
+body.skin .chat-log { background: var(--surface-card); border-color: var(--border); }
+body.skin .chat-msg, body.skin .chat-msg b { color: var(--text-primary); }
+body.skin .chat-msg.admin b { color: var(--accent); }
+
+/* ---------- tabelle ---------- */
+body.skin th { font-family: var(--font-body); font-size: 11.5px; font-weight: 600; letter-spacing: .06em; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+body.skin td { border-bottom: 1px solid var(--border-soft); }
+body.skin tfoot td { background: var(--border-soft); border-top: 2px solid var(--border); color: var(--text-primary); }
+
+/* ---------- badge, note, vuoti ---------- */
+body.skin .badge { font-family: var(--font-body); font-weight: 600; border-radius: 999px; padding: 3px 10px; background: var(--status-done-bg); color: var(--status-done-text); }
+body.skin .badge.pending { background: var(--status-waiting-bg); color: var(--status-waiting-text); }
+body.skin .badge.live { background: var(--danger-bg); color: var(--danger-text); }
+body.skin .badge-convocazione-inviata { background: var(--status-done-bg); color: var(--status-done-text); border-radius: 999px; }
+body.skin .badge-convocazione-non-inviata { background: var(--danger-bg); color: var(--danger-text); border-radius: 999px; }
+body.skin .note { background: var(--status-working-bg); border-color: var(--border); color: var(--text-primary); border-radius: 10px; }
+body.skin .empty { border-color: var(--border); color: var(--text-secondary); border-radius: 12px; }
+body.skin .muted { color: var(--text-secondary); }
+body.skin .step-icon.stato-mancante { background: var(--danger); }
+body.skin .step-icon.stato-ok { background: var(--sage); }
+
+/* ---------- documenti (email, verbale, ordine del giorno, sondaggi) ---------- */
+body.skin .email-preview, body.skin .verbale-doc, body.skin .odg-box { background: var(--surface-card); border-color: var(--border); color: var(--text-primary); }
+body.skin .odg-box { border-left: 4px solid var(--accent); border-radius: 10px; }
+body.skin .email-head { background: var(--border-soft); color: var(--text-secondary); border-bottom-color: var(--border); }
+body.skin .email-head b { color: var(--text-primary); }
+body.skin .email-link-btn { background: var(--accent); }
+body.skin .poll-bar-track, body.skin .poll-esito-barra-track { background: var(--border-soft); }
+body.skin .poll-bar-fill, body.skin .poll-esito-barra-fill { background: var(--accent); }
+body.skin .poll-pct, body.skin .poll-esito-dati { color: var(--text-primary); font-family: var(--font-body); }
+body.skin .poll-esito-label.vincitore { color: var(--status-done-text); }
+body.skin .poll-esito-barra-fill.vincitore { background: var(--sage); }
+body.skin .seal { border-color: var(--accent); }
+
+/* ---------- finestre, avvisi, notifiche ---------- */
+body.skin .modal-box { background: var(--surface-card); color: var(--text-primary); border: 1px solid var(--border); border-radius: 14px; }
+body.skin .modal-box h3 { color: var(--text-primary); }
+body.skin .modal-overlay { background: rgba(2, 6, 23, .6); }
+body.skin .toast { background: var(--barra-bg); color: #fff; border-radius: 10px; }
+body.skin .popup-msg-chat, body.skin #floating-hands { background: var(--surface-card); color: var(--text-primary); border-color: var(--border); border-left-color: var(--accent); border-radius: 10px; }
+body.skin .popup-msg-chat .testo { color: var(--text-primary); }
+body.skin #floating-active-poll { background: var(--barra-bg); border-radius: 10px; }
+body.skin .profilo .dropdown .nav-item svg { width: 16px; height: 16px; }
+body.skin .profilo-btn.attivo { background: var(--barra-active); border-color: var(--barra-active); }
+body.skin .profilo .dropdown { z-index: 300; }
+
+/* dark: colori scritti inline nelle righe condominio */
+:root[data-theme="dark"] body.skin [style*="color:#2E6B44"]{color:#6fd39a !important;background:rgba(62,160,100,.16) !important;}
+:root[data-theme="dark"] body.skin [style*="color:#B03A2E"],
+:root[data-theme="dark"] body.skin [style*="color:#C0392B;font-weight"]{color:#ff9a8f !important;}
+:root[data-theme="dark"] body.skin .btn-promemoria.elimina-msg{background:transparent;color:var(--text);border-color:var(--line);}
+:root[data-theme="dark"] body.skin [style*="color:#8C2E22"]{color:#ff9a8f !important;background:rgba(220,80,60,.16) !important;}
