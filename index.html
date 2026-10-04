@@ -54,125 +54,17 @@
     else console.warn('[Adunanza] EmailJS non caricato: l\'invio vero delle email non sarà disponibile in questa sessione.');
   }catch(e){ console.error('[Adunanza] Inizializzazione EmailJS fallita:', e); }
 </script>
-<script type="module">
-  // Collegamento al database condiviso (Firebase Realtime Database): questa parte usa la
-  // sintassi a "moduli" richiesta da Firebase, diversa dal resto del programma — per questo le
-  // funzioni che servono vengono "esposte" su window, così il resto del codice (scritto in modo
-  // tradizionale) può richiamarle normalmente, senza dover riscrivere tutto in moduli.
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getDatabase, ref, set, onValue, off, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyBz8btTKtturX6pre9ZmEjb9paowF1Q5Fc",
-    authDomain: "adunanza-test.firebaseapp.com",
-    databaseURL: "https://adunanza-test-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "adunanza-test",
-    storageBucket: "adunanza-test.firebasestorage.app",
-    messagingSenderId: "48185167083",
-    appId: "1:48185167083:web:a881ebb92b6d1ea9e1c2ae"
-  };
-  // LT-286 — INTERRUTTORE "FIREBASE SPENTO". Con "?senzafirebase=1" nel link (solo in QUESTO
-  // browser) nessuna chiamata parte verso Firebase: ogni tentativo viene contato e annotato in
-  // window.__dipFirebase, così si vede esattamente cosa dipende ancora da lì. I link dei
-  // partecipanti con "&sb=1" lavorano sempre così: i loro dati arrivano solo da Supabase.
-  const __pFb = new URLSearchParams(window.location.search);
-  const FB_SPENTO = __pFb.has('senzafirebase') || __pFb.has('livesb') || (__pFb.has('sb') && !!(__pFb.get('token') || __pFb.get('ospite')));
-  if(FB_SPENTO){
-    window.__fbSpento = true;
-    window.__dipFirebase = {};
-    const reg = (nome)=>{
-      window.__dipFirebase[nome] = (window.__dipFirebase[nome]||0) + 1;
-      const el = document.getElementById('fb-stato-connessione');
-      if(el && !__pFb.has('livesb')) el.textContent = '🔴 Firebase spento (test) — chiamate bloccate: ' + Object.values(window.__dipFirebase).reduce((x,y)=>x+y,0);
-    };
-    window.__fbScriviStato = ()=>{ reg('scriviStato'); return Promise.resolve(); };
-    window.__fbTransazioneMerge = ()=>{ reg('transazioneMerge'); return Promise.resolve({committed:true}); };
-    window.__fbAscoltaStato = ()=>{ reg('ascoltaStato'); };
-    // LT-290: con il canale vivo su Supabase i battiti passano da lì (vedi __sbBattito / __sbAscoltaBattiti);
-    // senza, restano semplici "chiamate bloccate" contate.
-    window.__fbScriviBattito = (...a)=>{ if(window.__sbBattito) return window.__sbBattito(...a); reg('scriviBattito'); return Promise.resolve(); };
-    window.__fbAscoltaBattiti = (cb)=>{ if(window.__sbAscoltaBattiti) return window.__sbAscoltaBattiti(cb); reg('ascoltaBattiti'); };
-  }else{
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
-  // Tutto lo stato dell'app (condomìni, assemblee, profilo...) vive in un unico "nodo" del
-  // database condiviso: stesso identico principio già usato e collaudato nei file di prova
-  // voto-condominio/regia-condominio, solo applicato qui a tutta Adunanza.
-  const statoRef = ref(db, 'adunanza_stato_condiviso');
-
-  window.__fbScriviStato = function(dati){
-    // BUG REALE CORRETTO (LT-237): questa funzione confrontava __versione del dispositivo che
-    // scrive con __versione presente sul server, scartando la scrittura se il server risultava
-    // "più avanti" — con l'idea di proteggere da scritture vecchie che arrivano in ritardo.
-    // Il problema: dati.__versione è SOLO un contatore locale a QUESTO dispositivo/scheda
-    // (cresce di 1 ad ogni SUA azione, salvaStato()), mentre statoAttualeSulServer.__versione è
-    // il contatore CONDIVISO, che cresce con le azioni di TUTTI i dispositivi insieme — gli
-    // stessi due numeri, non confrontabili tra loro, che erano già stati riconosciuti come tali
-    // e per cui il controllo analogo era stato tolto dal lato lettura (vedi applicaDatiRicevuti,
-    // più sotto nel file). Qui però il controllo era rimasto: un dispositivo appena collegato
-    // (es. un condòmino che ha appena aperto il proprio link) ha un contatore locale bassissimo,
-    // quasi certamente inferiore a quello, condiviso, del server — così OGNI sua scrittura
-    // veniva annullata in silenzio (nessun errore: per Firebase è un annullamento voluto,
-    // segnalato solo con un console.warn "committed:false", facile da non notare), incluso il
-    // segnale "sono online". Il database condiviso (Firebase) consegna comunque sempre lo stato
-    // più recente confermato: non serve, e anzi è dannoso, un controllo di "vecchiaia" lato
-    // client basato su un contatore non condiviso. Scrittura diretta, senza transazione né
-    // confronto di versione (il caso di scritture concorrenti ad alto rischio, es. segnalarsi
-    // online/votare/alzare la mano, resta comunque protetto a parte da __fbTransazioneMerge,
-    // che opera sui dati veri e più recenti del server).
-    return set(statoRef, dati);
-  };
-  // Transazione di UNIONE: usata per le azioni dove il rischio di scritture contemporanee da
-  // dispositivi diversi è più concreto (segnalarsi online, votare, alzare la mano). A differenza
-  // della scrittura sopra — che se "perde" scarta l'intera modifica — questa applica la
-  // modifica richiesta DIRETTAMENTE sui dati veri e più recenti presenti sul server in
-  // quell'istante, così due persone che agiscono nello stesso momento vengono entrambe
-  // registrate, invece che una delle due sparire nel nulla.
-  window.__fbTransazioneMerge = function(applicaModifica){
-    let erroreInterno = null;
-    return runTransaction(statoRef, (statoServer)=>{
-      if(!statoServer || !Array.isArray(statoServer.buildings)) return statoServer;
-      try{
-        const risultato = applicaModifica(statoServer);
-        if(risultato===false) return; // il chiamante ha deciso di annullare la transazione
-      }catch(e){
-        erroreInterno = e;
-        console.error('[Adunanza] errore nella transazione di unione:', e);
-        return; // annulla la transazione, non scrive nulla di rotto
-      }
-      statoServer.__versione = (statoServer.__versione||0) + 1;
-      return statoServer;
-    }).then(risultato=>{
-      if(erroreInterno) throw erroreInterno;
-      if(risultato && risultato.committed===false){
-        throw new Error('La scrittura non è stata confermata dal database condiviso (committed:false) — probabile traffico elevato o conflitto ripetuto.');
-      }
-      return risultato;
-    });
-  };
-  window.__fbAscoltaStato = function(callback){
-    onValue(statoRef, (snapshot)=>{ callback(snapshot.val()); });
-  };
-  // Canale SEPARATO, isolato dal nodo principale (adunanza_stato_condiviso): qui viaggiano SOLO
-  // i "battiti" grezzi di chi è collegato in questo momento — mai i dati dell'assemblea o del
-  // sondaggio. Scriverli qui invece che nel nodo principale evita che il semplice battito di un
-  // condòmino faccia arrivare un aggiornamento del nodo principale a TUTTI i dispositivi
-  // collegati — ed era proprio quell'aggiornamento, ripetuto in continuazione, a far ridisegnare
-  // (e "sfarfallare") il riquadro del sondaggio lato amministratore.
-  const battitiRef = ref(db, 'adunanza_battiti_condivisi');
-  window.__fbScriviBattito = function(buildingId, assembleaId, condominoId, valore, modalita){
-    const percorso = ref(db, `adunanza_battiti_condivisi/${buildingId}/${assembleaId}/${condominoId}`);
-    const dati = { valore };
-    if(modalita) dati.modalita = modalita;
-    return set(percorso, dati);
-  };
-  window.__fbAscoltaBattiti = function(callback){
-    onValue(battitiRef, (snapshot)=>{ callback(snapshot.val()); });
-  };
-  } // fine ramo Firebase acceso
-  // Questo script "a moduli" parte necessariamente dopo il resto del programma (è una regola
-  // del browser, non qualcosa che dipende dalla connessione): segnaliamo con un evento preciso
-  // il momento in cui è davvero pronto, invece di sperare che i tempi coincidano per caso.
+<script>
+  // LT-292 — Firebase è stato tolto: i dati vivi dell'assemblea viaggiano solo da Supabase
+  // (stato_vivo, battiti). Le funzioni "__fb..." restano come semplici segnaposto che non fanno
+  // nulla, così il resto del programma non deve essere riscritto in un colpo solo; i battiti
+  // (ping) vengono girati al canale Supabase quando questo è pronto.
+  window.__fbSpento = true;
+  window.__fbScriviStato = ()=>Promise.resolve();
+  window.__fbTransazioneMerge = ()=>Promise.resolve({committed:true});
+  window.__fbAscoltaStato = ()=>{};
+  window.__fbScriviBattito = (...a)=>(window.__sbBattito ? window.__sbBattito(...a) : Promise.resolve());
+  window.__fbAscoltaBattiti = (cb)=>{ if(window.__sbAscoltaBattiti) return window.__sbAscoltaBattiti(cb); };
   window.dispatchEvent(new CustomEvent('adunanza-firebase-pronto'));
 </script>
 <style>
@@ -11161,7 +11053,7 @@ async function avviaPartecipanteSupabase(){
   const ind = document.getElementById('sb-stato');
   if(ind) ind.textContent = '🟢 Dati da Supabase (accesso con link)';
   const fb = document.getElementById('fb-stato-connessione');
-  if(fb) fb.textContent = '🔴 Firebase spento';
+  if(fb) fb.textContent = '🟢 Collegato';
   instradamentoIniziale();
   vivoAvviaPartecipante(esito.sb, token);
 }
@@ -11206,6 +11098,10 @@ function sbMostraStato(msg, errore){
   el.textContent = msg ? msg : (__sbAn.attivo ? '🟢 Dati su Supabase' : '');
   el.style.color = errore ? '#ffb4a8' : 'rgba(255,255,255,.6)';
 }
+// Due scritture diverse (anagrafica e dati in diretta) condividono l'indicatore: se una delle due
+// è in errore l'avviso resta, anche se l'altra va a buon fine.
+const __indFonti = {sb:null, vivo:null};
+function sbStatoFonte(fonte, errore){ __indFonti[fonte] = errore || null; const m = __indFonti.sb || __indFonti.vivo; sbMostraStato(m || undefined, !!m); }
 // Chiamata da salvaStato: raggruppa più salvataggi ravvicinati in un solo invio.
 function sbPianificaSync(){
   if(!__sbAn.attivo) return;
@@ -11283,12 +11179,12 @@ async function sbSincronizza(){
       __sbAn.snap = nuovo;
     }
     __sbAn.tentativi = 0;
-    sbMostraStato();
+    sbStatoFonte('sb');
   }catch(e){
     console.error('[Riunion] sincronizzazione con Supabase non riuscita:', e);
     __sbAn.tentativi++;
     __sbAn.richiesta = true;
-    sbMostraStato('⚠️ Salvataggio su Supabase non riuscito — riprovo…', true);
+    sbStatoFonte('sb','⚠️ Salvataggio su Supabase non riuscito — riprovo…');
     clearTimeout(__sbAn.timer);
     __sbAn.timer = setTimeout(()=>{ __sbAn.timer = null; sbSincronizza(); }, Math.min(30000, 3000*__sbAn.tentativi));
   }finally{
@@ -11385,7 +11281,7 @@ function vivoMergeElenco(base, mine, theirs){
 // di ogni assemblea (appello, mani alzate, chat, deleghe, sondaggio e voti...) stanno in UNA riga
 // per assemblea (tabella stato_vivo), con un numero di versione: chi scrive dice "parto dalla
 // versione N"; se nel frattempo è cambiata, legge, UNISCE le due modifiche e riprova.
-const LIVESB_ADMIN = new URLSearchParams(window.location.search).has('livesb');
+const LIVESB_ADMIN = true;
 const VIVO_INTERVALLO_MS = 2500;
 const __vivo = {map:new Map(), timer:null, inCorso:false, richiesta:false, poll:null, tentativi:0, pollInCorso:false};
 const VIVO_ESCLUSE_ASS = new Set([...SB_CHIAVI_ASS, ...SB_CHIAVI_ASS_SE_PRESENTI, 'id', 'odg', 'ospiti']);
@@ -11487,12 +11383,12 @@ async function vivoSincronizza(){
       }}
     }
     __vivo.tentativi = 0;
-    sbMostraStato();
+    sbStatoFonte('vivo');
   }catch(e){
     console.error('[Riunion] canale vivo: scrittura non riuscita:', e);
     __vivo.tentativi++;
     __vivo.richiesta = true;
-    sbMostraStato('⚠️ Dati in diretta non salvati — riprovo…', true);
+    sbStatoFonte('vivo','⚠️ Dati in diretta non salvati — riprovo…');
     clearTimeout(__vivo.timer);
     __vivo.timer = setTimeout(()=>{ __vivo.timer = null; vivoSincronizza(); }, Math.min(30000, 3000*__vivo.tentativi));
   }finally{
@@ -11552,7 +11448,7 @@ function vivoAvviaAdmin(){
   };
   __vivo.poll = setInterval(vivoPollAdmin, VIVO_INTERVALLO_MS);
   const el = document.getElementById('fb-stato-connessione');
-  if(el) el.textContent = '🟢 Dati in diretta su Supabase (Firebase spento)';
+  if(el) el.textContent = '🟢 Dati in diretta su Supabase';
 }
 window.addEventListener('beforeunload', function(e){
   if(vivoADaFare()){ e.preventDefault(); e.returnValue = ''; }
@@ -12266,7 +12162,7 @@ function eseguiCicloPing(){
 // LT-283: l'avvio vero e proprio è in una funzione, chiamata subito per i link personali
 // (nessun login) oppure solo dopo la verifica dell'amministratore (cancello, qui sotto).
 function avviaApp(){
-  if(__haTokenNelLink && __paramsIniziali.has('sb')){ avviaPartecipanteSupabase(); return; }
+  if(__haTokenNelLink){ avviaPartecipanteSupabase(); return; }
   if(!__haTokenNelLink){
     // Nessun link personale: è l'amministratore, che vede subito la sua home (con i dati che ha
     // già in locale) — si aggiornerà da sola appena arrivano i dati veri dal database condiviso.
