@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="/assets/riunion.css">
+<script src="/assets/tema.js"></script>
+<title>Riunion — Sicurezza</title>
+<style>
+.qr{display:block;margin:12px auto;width:200px;height:200px;background:#fff;border-radius:10px;padding:8px}
+.segreto{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;word-break:break-all;padding:8px 10px;border:1px solid var(--border);border-radius:8px;user-select:all}
+.passi{margin:0 0 14px 18px;padding:0;line-height:1.5}
+</style>
+</head>
+<body>
+
+<section id="v-caricamento" class="centro"><p class="tenue">Caricamento…</p></section>
+
+<section id="v-pagina" class="centro" hidden>
+  <div class="marchio"><span class="marchio-icona">R</span>Riunion</div>
+  <div class="carta animate-fadeIn">
+    <div class="carta-testa"><h1>Sicurezza dell'account</h1><p id="sottotitolo">Verifica in due passaggi</p></div>
+    <div id="avviso-obbligo" class="msg info" hidden>Per il tuo ruolo la verifica in due passaggi è obbligatoria: registrala ora per continuare.</div>
+
+    <!-- Non attiva -->
+    <div id="s-spenta" hidden>
+      <p class="tenue">Oltre alla password, per entrare servirà un codice di 6 cifre generato da un'app sul tuo telefono (Google Authenticator, Microsoft Authenticator, 1Password, Authy…).</p>
+      <p style="margin-top:14px"><button id="btn-inizia" class="btn btn-primario btn-pieno" type="button">Attiva la verifica in due passaggi</button></p>
+    </div>
+
+    <!-- Registrazione -->
+    <div id="s-registra" hidden>
+      <ol class="passi">
+        <li>Nell'app di autenticazione scegli "Aggiungi account" e inquadra il codice QR qui sotto.</li>
+        <li>Se non puoi inquadrarlo, inserisci a mano questa chiave:</li>
+      </ol>
+      <img id="qr" class="qr" alt="Codice QR da inquadrare con l'app di autenticazione">
+      <div id="segreto" class="segreto"></div>
+      <p class="tenue" style="margin:10px 0 14px;font-size:13px">Conserva la chiave in un posto sicuro (gestore di password): se perdi il telefono ti permette di riattivare l'accesso.</p>
+      <div class="campo"><label for="codice">Poi scrivi il codice di 6 cifre che vedi nell'app</label>
+        <input id="codice" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]*"></div>
+      <button id="btn-verifica" class="btn btn-primario btn-pieno" type="button">Conferma e attiva</button>
+      <p style="margin-top:12px"><button id="btn-annulla" class="btn-link" type="button">Annulla</button></p>
+    </div>
+
+    <!-- Attiva -->
+    <div id="s-attiva" hidden>
+      <div class="msg ok">La verifica in due passaggi è attiva.</div>
+      <p id="nota-obbligo" class="tenue" style="margin-top:12px" hidden>Per il tuo ruolo è obbligatoria e non si può disattivare.</p>
+      <p style="margin-top:14px"><button id="btn-disattiva" class="btn btn-pericolo btn-pieno" type="button" hidden>Disattiva</button></p>
+    </div>
+
+    <div id="msg" class="msg" hidden></div>
+    <p style="margin-top:16px"><button id="btn-continua" class="btn-link" type="button">Torna all'app</button></p>
+  </div>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var sb = null, acc = null, fattoreInCorso = null;
+  var obbligatorio = new URLSearchParams(window.location.search).has('obbligatorio');
+
+  function vista(nome) {
+    ['v-caricamento', 'v-pagina'].forEach(function (v) { $(v).hidden = (v !== nome); });
+  }
+  function sezione(nome) {
+    ['s-spenta', 's-registra', 's-attiva'].forEach(function (v) { $(v).hidden = (v !== nome); });
+  }
+  function messaggio(testo, tipo) {
+    var e = $('msg');
+    e.textContent = testo || '';
+    e.className = 'msg' + (tipo ? ' ' + tipo : '');
+    e.hidden = !testo;
+  }
+  function destinazione() { return acc && acc.ruolo === 'administrator' ? '/gestione/' : '/'; }
+
+  async function leggiAccesso(sessione) {
+    var a = await sb.rpc('mio_accesso');
+    if (!a.error && a.data) return a.data;
+    var p = await sb.from('amministratori').select('ruolo, attivo').eq('id', sessione.user.id).maybeSingle();
+    if (p.error || !p.data) return null;
+    return { ruolo: p.data.ruolo, attivo: p.data.attivo, ha_mfa: false };
+  }
+  async function fattoriVerificati() {
+    var f = await sb.auth.mfa.listFactors();
+    return (f && f.data && f.data.totp) || [];
+  }
+
+  async function mostraStato() {
+    messaggio('');
+    var v = await fattoriVerificati();
+    var obbligoRuolo = acc.ruolo === 'administrator';
+    $('avviso-obbligo').hidden = !(obbligoRuolo && v.length === 0);
+    if (v.length) {
+      sezione('s-attiva');
+      $('nota-obbligo').hidden = !obbligoRuolo;
+      $('btn-disattiva').hidden = obbligoRuolo;
+      $('btn-continua').textContent = 'Torna all\'app';
+    } else {
+      sezione('s-spenta');
+      // Un ADMINISTRATOR senza verifica non può usare l'app: non c'è "torna indietro"
+      $('btn-continua').hidden = obbligoRuolo;
+    }
+  }
+
+  async function inizia() {
+    $('btn-inizia').disabled = true;
+    messaggio('');
+    try {
+      // Eventuali tentativi lasciati a metà vanno tolti, altrimenti l'iscrizione si blocca
+      var f = await sb.auth.mfa.listFactors();
+      var tutti = (f && f.data && f.data.all) || [];
+      for (var i = 0; i < tutti.length; i++) {
+        if (tutti[i].status === 'unverified') await sb.auth.mfa.unenroll({ factorId: tutti[i].id });
+      }
+      var r = await sb.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Riunion ' + new Date().toISOString().slice(0, 16) });
+      if (r.error) throw r.error;
+      fattoreInCorso = r.data.id;
+      $('qr').src = r.data.totp.qr_code;
+      $('segreto').textContent = r.data.totp.secret;
+      $('codice').value = '';
+      sezione('s-registra');
+      $('codice').focus();
+    } catch (e) {
+      messaggio('Non riesco ad avviare la registrazione: ' + ((e && e.message) || 'errore imprevisto') + '. Controlla che la verifica a più fattori (TOTP) sia attiva in Supabase.', 'err');
+    }
+    $('btn-inizia').disabled = false;
+  }
+
+  async function verifica() {
+    var codice = $('codice').value.replace(/\s/g, '');
+    if (!/^[0-9]{6}$/.test(codice)) { messaggio('Il codice ha 6 cifre.', 'err'); return; }
+    $('btn-verifica').disabled = true;
+    var r = await sb.auth.mfa.challengeAndVerify({ factorId: fattoreInCorso, code: codice });
+    $('btn-verifica').disabled = false;
+    if (r.error) { messaggio('Codice non corretto (o scaduto). Riprova con il codice attuale dell\'app.', 'err'); return; }
+    fattoreInCorso = null;
+    $('btn-continua').hidden = false;
+    $('btn-continua').textContent = 'Continua';
+    await mostraStato();
+    messaggio('Fatto: da ora, oltre alla password, servirà il codice dell\'app.', 'ok');
+  }
+
+  async function annulla() {
+    if (fattoreInCorso) { await sb.auth.mfa.unenroll({ factorId: fattoreInCorso }); fattoreInCorso = null; }
+    await mostraStato();
+  }
+
+  async function disattiva() {
+    if (!window.confirm('Disattivare la verifica in due passaggi? L\'account sarà protetto solo dalla password.')) return;
+    $('btn-disattiva').disabled = true;
+    var v = await fattoriVerificati();
+    for (var i = 0; i < v.length; i++) {
+      var r = await sb.auth.mfa.unenroll({ factorId: v[i].id });
+      if (r.error) { messaggio('Non riesco a disattivarla: ' + r.error.message, 'err'); $('btn-disattiva').disabled = false; return; }
+    }
+    $('btn-disattiva').disabled = false;
+    await mostraStato();
+    messaggio('Verifica in due passaggi disattivata.', 'info');
+  }
+
+  async function avvia() {
+    var cfg;
+    try {
+      var r = await fetch('/api/config', { cache: 'no-store' });
+      cfg = await r.json();
+      if (!r.ok || !cfg.url || !cfg.chiavePubblica) throw new Error('config');
+    } catch (e) {
+      vista('v-pagina'); sezione('');
+      messaggio('Configurazione mancante: controlla le variabili d\'ambiente su Vercel.', 'err');
+      return;
+    }
+    sb = window.supabase.createClient(cfg.url, cfg.chiavePubblica);
+    var s = await sb.auth.getSession();
+    if (!s.data.session) { window.location.replace('/accesso/'); return; }
+    acc = await leggiAccesso(s.data.session);
+    if (!acc || !acc.attivo) { await sb.auth.signOut(); window.location.replace('/accesso/?motivo=disattivato'); return; }
+    // Se la verifica c'è già ma la sessione non l'ha ancora superata, si passa dal codice
+    var l = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (acc.ha_mfa && !(l.data && l.data.currentLevel === 'aal2')) { window.location.replace('/accesso/'); return; }
+
+    $('btn-inizia').addEventListener('click', inizia);
+    $('btn-verifica').addEventListener('click', verifica);
+    $('codice').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') verifica(); });
+    $('btn-annulla').addEventListener('click', annulla);
+    $('btn-disattiva').addEventListener('click', disattiva);
+    $('btn-continua').addEventListener('click', function () { window.location.replace(destinazione()); });
+    await mostraStato();
+    vista('v-pagina');
+  }
+  avvia();
+})();
+</script>
+</body>
+</html>
