@@ -34,6 +34,18 @@
   </div>
 </section>
 
+<section id="v-codice" class="centro" hidden>
+  <div class="marchio"><span class="marchio-icona">R</span>Riunion</div>
+  <div class="carta animate-fadeIn">
+    <div class="carta-testa"><h1>Verifica in due passaggi</h1><p>Apri l'app di autenticazione sul telefono e scrivi il codice di 6 cifre di Riunion.</p></div>
+    <div class="campo"><label for="codice-2fa">Codice</label>
+      <input id="codice-2fa" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]*"></div>
+    <button id="btn-codice" class="btn btn-primario btn-pieno" type="button">Conferma</button>
+    <div id="codice-msg" class="msg" hidden></div>
+    <p style="margin-top:16px"><button id="btn-codice-annulla" class="btn-link" type="button">Annulla ed esci</button></p>
+  </div>
+</section>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
 <script>
 (function () {
@@ -41,7 +53,7 @@
   var sb = null;
 
   function mostra(vista) {
-    ['v-caricamento', 'v-login'].forEach(function (v) { $(v).hidden = (v !== vista); });
+    ['v-caricamento', 'v-login', 'v-codice'].forEach(function (v) { $(v).hidden = (v !== vista); });
   }
   function messaggio(id, testo, tipo) {
     var e = $(id);
@@ -61,11 +73,51 @@
   // Dopo il login decide dove mandare la persona, in base al ruolo scritto nel database
   // (non in base a ciò che dichiara il browser): ADMINISTRATOR → gestione utenti,
   // amministratore attivo → app vera, tutti gli altri → fuori.
-  async function instrada(sessione) {
+  // Se l'account ha la verifica in due passaggi, prima chiede il codice. Gli ADMINISTRATOR
+  // devono averla: se non l'hanno ancora attivata vengono portati a registrarla.
+  async function leggiAccesso(sessione) {
+    var a = await sb.rpc('mio_accesso');
+    if (!a.error && a.data) return a.data;
+    // Funzione del database non ancora installata: lettura "classica", senza 2FA
     var p = await sb.from('amministratori').select('ruolo, attivo').eq('id', sessione.user.id).maybeSingle();
-    if (p.error || !p.data) { await rifiuta('Il tuo account non risulta abilitato.'); return; }
-    if (!p.data.attivo) { await rifiuta('Il tuo account è stato disattivato. Contatta chi gestisce la piattaforma.'); return; }
-    window.location.replace(p.data.ruolo === 'administrator' ? '/gestione/' : '/');
+    if (p.error || !p.data) return null;
+    return { ruolo: p.data.ruolo, attivo: p.data.attivo, ha_mfa: false };
+  }
+  async function instrada(sessione) {
+    var acc = await leggiAccesso(sessione);
+    if (!acc) { await rifiuta('Il tuo account non risulta abilitato.'); return; }
+    if (!acc.attivo) { await rifiuta('Il tuo account è stato disattivato. Contatta chi gestisce la piattaforma.'); return; }
+    var l = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+    var livello = l && l.data ? l.data.currentLevel : 'aal1';
+    if (acc.ha_mfa && livello !== 'aal2') { await chiediCodice(); return; }
+    if (acc.ruolo === 'administrator' && !acc.ha_mfa) { window.location.replace('/sicurezza/?obbligatorio=1'); return; }
+    window.location.replace(acc.ruolo === 'administrator' ? '/gestione/' : '/');
+  }
+  var fattoreId = null;
+  async function chiediCodice() {
+    var f = await sb.auth.mfa.listFactors();
+    var t = f && f.data && f.data.totp && f.data.totp[0];
+    if (!t) { await rifiuta('Non trovo la verifica in due passaggi del tuo account. Contatta un ADMINISTRATOR.'); return; }
+    fattoreId = t.id;
+    messaggio('codice-msg', '');
+    $('codice-2fa').value = '';
+    mostra('v-codice');
+    $('codice-2fa').focus();
+  }
+  async function confermaCodice() {
+    var codice = $('codice-2fa').value.replace(/\s/g, '');
+    if (!/^[0-9]{6}$/.test(codice)) { messaggio('codice-msg', 'Il codice ha 6 cifre.', 'err'); return; }
+    $('btn-codice').disabled = true;
+    var r = await sb.auth.mfa.challengeAndVerify({ factorId: fattoreId, code: codice });
+    if (r.error) {
+      $('btn-codice').disabled = false;
+      var m = r.error.message || '';
+      messaggio('codice-msg', /rate limit|too many/i.test(m) ? 'Troppi tentativi. Riprova tra qualche minuto.' : 'Codice non corretto (o scaduto). Riprova con il codice attuale.', 'err');
+      return;
+    }
+    var s = await sb.auth.getSession();
+    await instrada(s.data.session);
+    $('btn-codice').disabled = false;
   }
   async function rifiuta(testo) {
     await sb.auth.signOut();
@@ -110,6 +162,9 @@
     $('btn-accedi').addEventListener('click', accedi);
     $('login-password').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') accedi(); });
     $('btn-dimenticata').addEventListener('click', passwordDimenticata);
+    $('btn-codice').addEventListener('click', confermaCodice);
+    $('codice-2fa').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') confermaCodice(); });
+    $('btn-codice-annulla').addEventListener('click', async function () { await sb.auth.signOut(); mostra('v-login'); });
 
     // Messaggio lasciato dall'app quando ti rimanda qui (es. sessione scaduta).
     var motivo = new URLSearchParams(window.location.search).get('motivo');
