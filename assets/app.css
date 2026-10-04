@@ -412,3 +412,9 @@ body.skin .profilo .dropdown { z-index: 300; }
 .cond-dd-menu input{width:16px;height:16px;accent-color:var(--accent);}
 .cond-link:disabled{opacity:.4;cursor:default;}
 .cond-conta{margin-left:auto;color:var(--text-secondary);font-size:13px;}
+
+/* Condomìni: box riepilogo */
+.cond-box-riga{display:flex;gap:12px;margin:0 0 16px;flex-wrap:wrap;}
+.cond-box{display:flex;align-items:baseline;gap:10px;padding:10px 16px;background:var(--surface-card);border:1px solid var(--border);border-radius:var(--raggio);box-shadow:var(--ombra);}
+.cond-box-n{font-size:22px;font-weight:700;color:var(--text-primary);line-height:1;}
+.cond-box-l{font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-secondary);}
