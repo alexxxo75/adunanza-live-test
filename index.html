@@ -660,7 +660,56 @@
   .cv-poll-option-btn{display:block;width:100%;text-align:left;padding:16px;margin-bottom:10px;border-radius:6px;border:1px solid #8C7D57;background:#5E5439;color:#F2F0EC;font-size:1em;cursor:pointer;}
   .cv-poll-option-btn:hover{border-color:var(--brass);}
 </style>
-<link rel="stylesheet" href="/assets/app.css">
+<style id="stile-condomini">
+/* ---------- Condomìni: tabella a righe espandibili ---------- */
+.cond-strumenti{display:flex;justify-content:flex-end;gap:14px;margin:0 2px 8px;}
+.cond-link{background:none;border:0;color:var(--text-secondary);font:inherit;font-size:13px;cursor:pointer;padding:2px 0;}
+.cond-link:hover{color:var(--accent);}
+.cond-tab{background:var(--surface-card);border:1px solid var(--border);border-radius:var(--raggio);box-shadow:var(--ombra);overflow:hidden;}
+.cond-testa,.cond-riga{display:grid;grid-template-columns:40px minmax(150px,2fr) 90px 90px 110px minmax(170px,2.2fr) 196px;align-items:center;column-gap:10px;padding:0 16px 0 10px;}
+.cond-testa{background:var(--surface);border-bottom:1px solid var(--border);min-height:42px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-secondary);}
+.cond-riga{min-height:64px;}
+.cond-gruppo+.cond-gruppo{border-top:1px solid var(--border);}
+.cond-gruppo.aperto{background:var(--surface);}
+.cond-gruppo.aperto .cond-riga{background:var(--surface-card);}
+.cond-chevron{background:none;border:0;cursor:pointer;color:var(--text-secondary);width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;}
+.cond-chevron:hover{background:var(--border-soft);}
+.cond-chevron svg{transition:transform .15s;transform:rotate(-90deg);}
+.cond-gruppo.aperto .cond-chevron svg{transform:none;}
+.cond-nome{font-weight:600;color:var(--text-primary);cursor:pointer;font-size:15px;}
+.cond-num{text-align:center;color:var(--text-primary);font-weight:500;}
+.cond-st{display:flex;}
+.cond-ico-vuoto{visibility:hidden;}
+.cond-stato{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+.cond-vuoto{color:var(--text-muted);font-size:13px;}
+.cond-pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;}
+.cond-pill.ok{background:var(--status-done-bg);color:var(--status-done-text);}
+.cond-pill.warn{background:var(--status-waiting-bg);color:var(--status-waiting-text);}
+.cond-pill.live{background:var(--danger-bg);color:var(--danger-text);}
+.cond-pill.off{background:var(--status-off-bg);color:var(--status-off-text);}
+.cond-azioni{display:flex;justify-content:flex-end;gap:6px;}
+.cond-azioni-t{text-align:right;}
+.cond-ico{width:36px;height:36px;border-radius:9px;border:1px solid transparent;background:var(--brand-100);color:var(--brand-700);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.cond-ico:hover{background:var(--brand-200);}
+.cond-ico:focus-visible,.cond-chevron:focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
+.cond-ico-del{background:var(--danger-bg);color:var(--danger-text);}
+.cond-dettaglio{padding:6px 16px 14px 60px;display:flex;flex-direction:column;gap:8px;}
+.cond-ass{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:var(--text-primary);font-size:14px;}
+:root[data-theme="dark"] .cond-ico{background:rgba(59,130,246,.18);color:#93c5fd;}
+:root[data-theme="dark"] .cond-ico:hover{background:rgba(59,130,246,.3);}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .cond-ico{background:rgba(59,130,246,.18);color:#93c5fd;}}
+@media (max-width:760px){
+  .cond-testa{display:none;}
+  .cond-riga{grid-template-columns:36px 1fr auto;row-gap:6px;padding:10px;}
+  .cond-st{grid-column:3;grid-row:1;}
+  .cond-num{display:none;}
+  .cond-stato{grid-column:2/4;}
+  .cond-azioni{grid-column:1/4;justify-content:flex-start;}
+  .cond-dettaglio{padding-left:16px;}
+}
+
+</style>
+<link rel="stylesheet" href="/assets/app.css?v=296">
 <script src="/assets/tema.js"></script>
 </head>
 <body>
@@ -728,7 +777,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/10/2026">LT-296</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/10/2026">LT-298</span>
   </div>
 
   <!-- MAIN -->
@@ -3413,10 +3462,11 @@ function condEspandiTutti(apri){
   if(apri) buildings.forEach(b=>__condEspansi.add(b.id));
   renderCondominiElenco();
 }
-function condTabella(lista, inattivi){
-  if(!lista.length) return '<div class="empty">'+(inattivi?'':'Nessun condominio ancora creato.')+'</div>';
+function condTabella(lista){
+  if(!lista.length) return '<div class="empty">Nessun condominio ancora creato.</div>';
   const parseData = d=>{ const m=String(d||'').match(/(\d{1,2})\D(\d{1,2})\D(\d{4})/); return m? +m[3]*10000+ +m[2]*100+ +m[1] : 0; };
   const righe = lista.map(b=>{
+    const inattivi = b.attivo===false;
     const tutte = b.assemblee||[];
     const archiviate = tutte.filter(a=>a.stato==='conclusa').length;
     const pianificate = tutte.filter(a=>a.stato!=='conclusa' && a.dataSeconda).sort((x,y)=>parseData(x.dataSeconda)-parseData(y.dataSeconda));
@@ -3436,14 +3486,15 @@ function condTabella(lista, inattivi){
       pianificate.map(a=>`<div class="cond-ass"><span class="cond-pill ok">${a.tipo==='straordinaria'?'Straordinaria':'Ordinaria'}</span><span>Assemblea pianificata per il <b>${escapeHtml(a.dataSeconda)}</b>${a.oraSeconda?' alle '+escapeHtml(a.oraSeconda):''}</span>${b.assembleaInCorsoId===a.id?'<span class="cond-pill live">In corso</span>':''}</div>`).join('') +
       daInviare.map(a=>`<div class="cond-ass"><span class="cond-pill warn">Verbale</span><span>Assemblea del <b>${escapeHtml(a.dataSeconda)}</b>: verbale da inviare</span><button class="btn-promemoria invia" onclick="apriInvioVerbaleDaCondomini(${b.id},${a.id})">Invia</button><button class="btn-promemoria elimina-msg" onclick="eliminaMessaggioVerbale(${b.id},${a.id})">Non<br>ricordarmelo</button></div>`).join('')
     ) + '</div>';
-    const azioni = (inattivi?'':`<button class="cond-ico" title="Gestione assemblee" aria-label="Gestione assemblee" onclick="vaiCondominioDaLista(${b.id},'crea-assemblea')">${__ICO.gestione}</button>`) +
+    const azioni = (inattivi?'<span class="cond-ico cond-ico-vuoto"></span>':`<button class="cond-ico" title="Gestione assemblee" aria-label="Gestione assemblee" onclick="vaiCondominioDaLista(${b.id},'crea-assemblea')">${__ICO.gestione}</button>`) +
       `<button class="cond-ico" title="Archivio" aria-label="Archivio" onclick="vaiCondominioDaLista(${b.id},'registrazioni')">${__ICO.archivio}</button>` +
       `<button class="cond-ico" title="Dashboard" aria-label="Dashboard" onclick="vaiCondominioDaLista(${b.id},'dashboard')">${__ICO.dashboard}</button>` +
       (inattivi?`<button class="cond-ico cond-ico-del" title="Elimina" aria-label="Elimina" onclick="avviaEliminazioneCondominio(${b.id})">${__ICO.elimina}</button>`:'');
     return `<div class="cond-gruppo${aperto?' aperto':''}">
       <div class="cond-riga">
         <button class="cond-chevron" aria-expanded="${aperto}" aria-label="Mostra assemblee" onclick="condToggle(${b.id})">${__ICO.chevron}</button>
-        <div class="cond-nome" onclick="condToggle(${b.id})">${escapeHtml(b.nome||'')}${inattivi?' <span class="cond-pill off">Inattivo</span>':''}</div>
+        <div class="cond-nome" onclick="condToggle(${b.id})">${escapeHtml(b.nome||'')}</div>
+        <div class="cond-st">${inattivi?'<span class="cond-pill off">Inattivo</span>':'<span class="cond-pill ok">Attivo</span>'}</div>
         <div class="cond-num" data-l="Condòmini">${(b.condomini||[]).length}</div>
         <div class="cond-num" data-l="Archiviate">${archiviate}</div>
         <div class="cond-stato">${pills}</div>
@@ -3451,22 +3502,16 @@ function condTabella(lista, inattivi){
       </div>${dettaglio}</div>`;
   }).join('');
   return `<div class="cond-tab">
-    <div class="cond-testa"><div></div><div>Condominio</div><div class="cond-num">Condòmini</div><div class="cond-num">Assemblee archiviate</div><div>Assemblee pianificate</div><div class="cond-azioni-t">Azioni</div></div>
+    <div class="cond-testa"><div></div><div>Condominio</div><div>Stato</div><div class="cond-num">Condòmini</div><div class="cond-num">Assemblee archiviate</div><div>Assemblee pianificate</div><div class="cond-azioni-t">Azioni</div></div>
     ${righe}</div>`;
 }
 function renderCondominiElenco(){
-  // Ordinati alfabeticamente per nome, non nell'ordine di creazione.
-  const ordinaPerNome = (a,b)=>(a.nome||'').localeCompare(b.nome||'','it');
-  const attivi = buildings.filter(b=>b.attivo!==false).sort(ordinaPerNome);
-  const inattivi = buildings.filter(b=>b.attivo===false).sort(ordinaPerNome);
-  document.getElementById('stat-edifici-attivi').textContent = attivi.length;
+  // Tutti insieme, ordinati alfabeticamente; lo stato (Attivo/Inattivo) è una colonna.
+  const tutti = buildings.slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','it'));
+  document.getElementById('stat-edifici-attivi').textContent = buildings.filter(b=>b.attivo!==false).length;
   const grid = document.getElementById('buildings-grid');
-  grid.innerHTML = (attivi.length?'<div class="cond-strumenti"><button class="cond-link" onclick="condEspandiTutti(true)">Espandi tutto</button><button class="cond-link" onclick="condEspandiTutti(false)">Comprimi tutto</button></div>':'') + condTabella(attivi,false);
-  const wrap=document.getElementById('condomini-inattivi-wrap');
-  const gridIn=document.getElementById('buildings-grid-inattivi');
-  if(inattivi.length===0){ wrap.classList.add('hidden'); return; }
-  wrap.classList.remove('hidden');
-  gridIn.innerHTML = condTabella(inattivi,true);
+  grid.innerHTML = (tutti.length?'<div class="cond-strumenti"><button class="cond-link" onclick="condEspandiTutti(true)">Espandi tutto</button><button class="cond-link" onclick="condEspandiTutti(false)">Comprimi tutto</button></div>':'') + condTabella(tutti);
+  document.getElementById('condomini-inattivi-wrap').classList.add('hidden');
 }
 // Naviga verso una sezione (Assemblea/Archivio/Dashboard) di un condominio scelto dalla
 // lista Condomìni, passando dal guard di conferma se c'è una creazione non salvata in corso.
@@ -6947,7 +6992,7 @@ Distinti saluti
 {{firma_amministratore}}`;
 
 let __contatoreOspiti = 1;
-// LT-296 — Token dei link personali: 30 caratteri casuali (circa 155 bit) presi dal generatore
+// LT-298 — Token dei link personali: 30 caratteri casuali (circa 155 bit) presi dal generatore
 // sicuro del browser, al posto di Math.random (prevedibile e di soli 8 caratteri).
 function generaTokenForte(){
   const alfabeto = 'abcdefghijkmnpqrstuvwxyz23456789';
@@ -11074,7 +11119,7 @@ function sbCostruisci(D){
   ricalcolaContatoriId();
 }
 
-// LT-296 — Accesso di condòmini e ospiti con il link, SENZA login: l'unica cosa che il database
+// LT-298 — Accesso di condòmini e ospiti con il link, SENZA login: l'unica cosa che il database
 // accetta è il token. La funzione partecipa_carica restituisce solo ciò che quella persona può
 // vedere (dei vicini: nome, interno, millesimi; mai email né token).
 async function sbCaricaPartecipante(token){
@@ -11634,7 +11679,7 @@ function vivoAvviaPartecipante(sb, token){
 
 let __versioneStatoLocale = 0;
 function salvaStato(soloLocale){
-  // LT-296: chi entra col link da Supabase ha solo i dati ridotti che gli spettano: non deve mai
+  // LT-298: chi entra col link da Supabase ha solo i dati ridotti che gli spettano: non deve mai
   // scrivere lo stato completo (né in locale né altrove). Le sue azioni passeranno da funzioni
   // dedicate del database (tappa 5).
   if(__sbAn.partecipante) return true;
