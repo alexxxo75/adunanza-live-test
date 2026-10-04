@@ -4875,7 +4875,7 @@ ${elencoAssemblee}
 Firma
 ${nomeCompleto}`;
 }
-function invaDelegaAdAmministratore(){
+async function invaDelegaAdAmministratore(){
   const {b,a} = trovaAssembleaDelegaCorrente();
   let delegatoId;
   if(delegaScelta.tipo==='condomino'){
@@ -4883,6 +4883,7 @@ function invaDelegaAdAmministratore(){
   }else{
     const esistente = (a.deleghiEsterni||[]).find(e=>e.nome.trim().toLowerCase()===delegaScelta.nomeVisualizzato.trim().toLowerCase());
     if(esistente){ delegatoId = esistente.id; }
+    else if(__sbAn.partecipante){ delegatoId = 'ext-nuovo'; }      // l'identificativo lo decide il database
     else{
       delegatoId = 'ext-'+(esternoIdCounter++);
       a.deleghiEsterni = a.deleghiEsterni||[];
@@ -4909,7 +4910,13 @@ function invaDelegaAdAmministratore(){
       return;
     }
   }
-  const risultati = applicaDelegaSuCatenaScelta(b, assembleeCoinvolte, currentCondomino.id, delegatoId);
+  let risultati;
+  if(__sbAn.partecipante){
+    risultati = await vivoDelegaServer(b, assembleeCoinvolte, delegaScelta);
+    if(!risultati) return;
+  }else{
+    risultati = applicaDelegaSuCatenaScelta(b, assembleeCoinvolte, currentCondomino.id, delegatoId);
+  }
   __delegaCatenaCvInSospeso = null;
   mostraEsitoDelegaCv(risultati, assembleeCoinvolte);
   // Invio vero dell'email di delega, in parallelo (non blocca la schermata di esito già
@@ -11551,7 +11558,7 @@ window.addEventListener('beforeunload', function(e){
   if(vivoADaFare()){ e.preventDefault(); e.returnValue = ''; }
 });
 // ---- partecipante (link con &sb=1): lettura periodica, sola lettura in questo passo
-const __vivoPart = {token:null, sb:null, versioni:new Map(), poll:null, inCorso:false, azioni:0, coda:Promise.resolve()};
+const __vivoPart = {token:null, sb:null, versioni:new Map(), poll:null, inCorso:false, azioni:0, coda:Promise.resolve(), primoGiro:true};
 // LT-287 (5.1): le azioni del partecipante (entrare, uscire, alzare la mano, scrivere in chat) vanno
 // al database con una funzione dedicata che controlla CHI è (dal token) e fa l'azione SOLO per lui.
 // Le azioni vengono messe in fila, così l'ordine (es. dei messaggi) resta quello in cui sono state fatte.
@@ -11593,7 +11600,7 @@ async function vivoPollPartecipante(){
   try{
     let cambiato = false;
     for(const b of buildings){ for(const a of (b.assemblee||[])){
-      if(a.stato!=='in-corso') continue;      // le altre non cambiano più (le concluse si leggono una volta sola, all'apertura)
+      if(a.stato!=='in-corso' && !(__vivoPart.primoGiro && a.stato!=='conclusa')) continue;   // le altre si leggono una volta sola, all'apertura (servono per la pagina delega)
       const v = __vivoPart.versioni.get(b.id+':'+a.id) || 0;
       const r = await __vivoPart.sb.rpc('partecipa_vivo', {p_token:__vivoPart.token, p_assemblea:a.id, p_versione:v});
       if(r.error || !r.data || r.data.ok!==true) continue;
@@ -11610,8 +11617,39 @@ async function vivoPollPartecipante(){
       rirenderizzaDopoSincronizzazione();
     }
     __vivoPart.eraInCorso = new Set(); buildings.forEach(b=>(b.assemblee||[]).forEach(a=>{ if(a.stato==='in-corso') __vivoPart.eraInCorso.add(b.id+':'+a.id); }));
+    __vivoPart.primoGiro = false;
   }catch(e){ console.error('[Riunion] canale vivo (partecipante):', e); }
   finally{ __vivoPart.inCorso = false; }
+}
+// Delega dal link del condòmino: la registra il database (che sa chi sei dal token) su tutte le assemblee scelte.
+async function vivoDelegaServer(b, assemblee, scelta){
+  const sb = __vivoPart.sb;
+  __vivoPart.azioni++;
+  try{
+    const r = await sb.rpc('partecipa_delega', {
+      p_token: __vivoPart.token, p_assemblee: assemblee.map(a=>a.id), p_tipo: scelta.tipo==='condomino' ? 'condomino' : 'esterno',
+      p_delegato: scelta.tipo==='condomino' ? scelta.id : null, p_nome: scelta.tipo==='condomino' ? null : (scelta.nomeVisualizzato||'')
+    });
+    const d = r.data;
+    if(r.error || !d || d.ok!==true){
+      const MSG = {se_stesso:'Non puoi delegare te stesso.', delegato:'Il condòmino scelto non è valido.', nome:'Scrivi nome e cognome della persona delegata.', assemblea:'Assemblea non valida.'};
+      if(d && d.motivo==='chiusa'){ location.reload(); return null; }
+      try{ toast((d && MSG[d.motivo]) || 'Non sono riuscito a registrare la delega. Controlla la connessione e riprova.'); }catch(_){}
+      if(r.error) console.error('[Riunion] delega non riuscita:', r.error);
+      return null;
+    }
+    const out = {};
+    (d.risultati||[]).forEach(x=>{
+      const a = (b.assemblee||[]).find(y=>y.id===x.id_app);
+      if(x.ok && a && x.dati){ vivoApplica(b, a, x.dati); __vivoPart.versioni.set(b.id+':'+a.id, Number(x.versione)); }
+      out[x.id_app] = x.ok ? {ok:true, quanteDecadute:x.decadute||0, avvisoLimite:null} : {ok:false, motivo:x.motivo||'Delega non registrata.'};
+    });
+    return out;
+  }catch(e){
+    console.error('[Riunion] delega non riuscita:', e);
+    try{ toast('Non sono riuscito a registrare la delega. Controlla la connessione e riprova.'); }catch(_){}
+    return null;
+  }finally{ __vivoPart.azioni--; }
 }
 function vivoAvviaPartecipante(sb, token){
   __vivoPart.sb = sb; __vivoPart.token = token;
