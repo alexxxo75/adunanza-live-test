@@ -724,6 +724,12 @@
 .cond-dd-menu input{width:16px;height:16px;accent-color:var(--accent);}
 .cond-link:disabled{opacity:.4;cursor:default;}
 .cond-conta{margin-left:auto;color:var(--text-secondary);font-size:13px;}
+
+/* Condomìni: box riepilogo */
+.cond-box-riga{display:flex;gap:12px;margin:0 0 16px;flex-wrap:wrap;}
+.cond-box{display:flex;align-items:baseline;gap:10px;padding:10px 16px;background:var(--surface-card);border:1px solid var(--border);border-radius:var(--raggio);box-shadow:var(--ombra);}
+.cond-box-n{font-size:22px;font-weight:700;color:var(--text-primary);line-height:1;}
+.cond-box-l{font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-secondary);}
 </style>
 <link rel="stylesheet" href="/assets/app.css?v=296">
 <script src="/assets/tema.js"></script>
@@ -793,7 +799,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/10/2026">LT-299</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/10/2026">LT-300</span>
   </div>
 
   <!-- MAIN -->
@@ -843,12 +849,12 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <div class="page hidden" id="page-condomini">
       <div class="page-head">
         <div><div class="page-title-row"><button class="page-back" onclick="tornaIndietro()" aria-label="Indietro"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M14.5 8 10 12l4.5 4"/><path d="M10.3 12h6.2"/></svg></button><h1>Condomìni</h1></div></div>
-        <div class="card" style="max-width:220px;padding:14px 18px;">
-          <div class="stat" id="stat-edifici-attivi" style="font-size:26px;">0</div>
-          <div class="stat-label">Condomìni attivi</div>
-        </div>
+        <button class="btn brass" onclick="iniziaCreazioneCondominio()">+ Nuovo condominio</button>
       </div>
-      <button class="btn brass" style="margin-bottom:18px;" onclick="iniziaCreazioneCondominio()">+ Nuovo condominio</button>
+      <div class="cond-box-riga">
+        <div class="cond-box"><span class="cond-box-n" id="stat-edifici-attivi">0</span><span class="cond-box-l">Condomìni attivi</span></div>
+        <div class="cond-box"><span class="cond-box-n" id="stat-edifici-inattivi">0</span><span class="cond-box-l">Condomìni inattivi</span></div>
+      </div>
 
       <div class="cond-filtri" id="cond-filtri">
         <div class="cond-cerca"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" id="cond-filtro-nome" placeholder="Cerca condominio…" autocomplete="off" oninput="condFiltroNome(this.value)"></div>
@@ -3575,6 +3581,7 @@ function renderCondominiElenco(){
   const visibili = tutti.filter(condPassaFiltri);
   const filtrato = !!(__condFiltro.nome.trim() || __condFiltro.stati.length);
   document.getElementById('stat-edifici-attivi').textContent = buildings.filter(b=>b.attivo!==false).length;
+  document.getElementById('stat-edifici-inattivi').textContent = buildings.filter(b=>b.attivo===false).length;
   const lbl=document.getElementById('cond-dd-stato-lbl'); if(lbl) lbl.textContent = __condFiltro.stati.length ? 'Stato ('+__condFiltro.stati.length+')' : 'Stato';
   const conta=document.getElementById('cond-conta'); if(conta) conta.textContent = tutti.length ? (filtrato ? visibili.length+' di '+tutti.length : tutti.length+' condomini') : '';
   const az=document.getElementById('cond-azzera'); if(az) az.disabled=!filtrato;
@@ -7062,7 +7069,7 @@ Distinti saluti
 {{firma_amministratore}}`;
 
 let __contatoreOspiti = 1;
-// LT-299 — Token dei link personali: 30 caratteri casuali (circa 155 bit) presi dal generatore
+// LT-300 — Token dei link personali: 30 caratteri casuali (circa 155 bit) presi dal generatore
 // sicuro del browser, al posto di Math.random (prevedibile e di soli 8 caratteri).
 function generaTokenForte(){
   const alfabeto = 'abcdefghijkmnpqrstuvwxyz23456789';
@@ -11189,7 +11196,7 @@ function sbCostruisci(D){
   ricalcolaContatoriId();
 }
 
-// LT-299 — Accesso di condòmini e ospiti con il link, SENZA login: l'unica cosa che il database
+// LT-300 — Accesso di condòmini e ospiti con il link, SENZA login: l'unica cosa che il database
 // accetta è il token. La funzione partecipa_carica restituisce solo ciò che quella persona può
 // vedere (dei vicini: nome, interno, millesimi; mai email né token).
 async function sbCaricaPartecipante(token){
@@ -11749,7 +11756,7 @@ function vivoAvviaPartecipante(sb, token){
 
 let __versioneStatoLocale = 0;
 function salvaStato(soloLocale){
-  // LT-299: chi entra col link da Supabase ha solo i dati ridotti che gli spettano: non deve mai
+  // LT-300: chi entra col link da Supabase ha solo i dati ridotti che gli spettano: non deve mai
   // scrivere lo stato completo (né in locale né altrove). Le sue azioni passeranno da funzioni
   // dedicate del database (tappa 5).
   if(__sbAn.partecipante) return true;
