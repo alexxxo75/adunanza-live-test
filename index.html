@@ -708,6 +708,22 @@
   .cond-dettaglio{padding-left:16px;}
 }
 
+
+/* Condomìni: filtri */
+.cond-filtri{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 12px;}
+.cond-cerca{position:relative;flex:1 1 220px;max-width:320px;}
+.cond-cerca svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;}
+.cond-cerca input{padding-left:36px !important;width:100%;height:38px;padding:0 12px 0 34px;border:1px solid var(--border);border-radius:9px;background:var(--surface-card);color:var(--text-primary);font:inherit;font-size:14px;}
+.cond-cerca input:focus,.cond-dd-btn:focus-visible{outline:2px solid var(--focus);outline-offset:1px;}
+.cond-dd{position:relative;}
+.cond-dd-btn{height:38px;display:inline-flex;align-items:center;gap:8px;padding:0 12px;border:1px solid var(--border);border-radius:9px;background:var(--surface-card);color:var(--text-primary);font:inherit;font-size:14px;cursor:pointer;}
+.cond-dd-menu{position:absolute;z-index:50;top:42px;left:0;min-width:250px;background:var(--surface-card);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(15,23,42,.18);padding:6px;}
+.cond-dd-menu.hidden{display:none;}
+.cond-dd-menu label{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:7px;cursor:pointer;font-size:14px;color:var(--text-primary);}
+.cond-dd-menu label:hover{background:var(--border-soft);}
+.cond-dd-menu input{width:16px;height:16px;accent-color:var(--accent);}
+.cond-link:disabled{opacity:.4;cursor:default;}
+.cond-conta{margin-left:auto;color:var(--text-secondary);font-size:13px;}
 </style>
 <link rel="stylesheet" href="/assets/app.css?v=296">
 <script src="/assets/tema.js"></script>
@@ -777,7 +793,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/10/2026">LT-298</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/10/2026">LT-299</span>
   </div>
 
   <!-- MAIN -->
@@ -833,6 +849,22 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
         </div>
       </div>
       <button class="btn brass" style="margin-bottom:18px;" onclick="iniziaCreazioneCondominio()">+ Nuovo condominio</button>
+
+      <div class="cond-filtri" id="cond-filtri">
+        <div class="cond-cerca"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" id="cond-filtro-nome" placeholder="Cerca condominio…" autocomplete="off" oninput="condFiltroNome(this.value)"></div>
+        <div class="cond-dd" id="cond-dd-stato">
+          <button type="button" class="cond-dd-btn" id="cond-dd-stato-btn" aria-haspopup="true" aria-expanded="false" onclick="condDdApri()"><span id="cond-dd-stato-lbl">Stato</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+          <div class="cond-dd-menu hidden" id="cond-dd-stato-menu">
+            <label><input type="checkbox" value="attivo" onchange="condFiltroStato()"> Attivo</label>
+            <label><input type="checkbox" value="inattivo" onchange="condFiltroStato()"> Inattivo</label>
+            <label><input type="checkbox" value="pianificate" onchange="condFiltroStato()"> Con assemblee pianificate</label>
+            <label><input type="checkbox" value="incorso" onchange="condFiltroStato()"> Assemblea in corso</label>
+            <label><input type="checkbox" value="verbale" onchange="condFiltroStato()"> Verbale da inviare</label>
+          </div>
+        </div>
+        <button type="button" class="cond-link" id="cond-azzera" onclick="condFiltriAzzera()">Azzera filtri</button>
+        <span class="cond-conta" id="cond-conta"></span>
+      </div>
 
       <div id="buildings-grid"></div>
 
@@ -3459,7 +3491,7 @@ function condToggle(id){
 }
 function condEspandiTutti(apri){
   __condEspansi.clear();
-  if(apri) buildings.forEach(b=>__condEspansi.add(b.id));
+  if(apri) buildings.filter(condPassaFiltri).forEach(b=>__condEspansi.add(b.id));
   renderCondominiElenco();
 }
 function condTabella(lista){
@@ -3505,12 +3537,50 @@ function condTabella(lista){
     <div class="cond-testa"><div></div><div>Condominio</div><div>Stato</div><div class="cond-num">Condòmini</div><div class="cond-num">Assemblee archiviate</div><div>Assemblee pianificate</div><div class="cond-azioni-t">Azioni</div></div>
     ${righe}</div>`;
 }
+const __condFiltro = { nome:'', stati:[] };
+function condStatiDi(b){
+  const tutte=b.assemblee||[];
+  const pian=tutte.filter(a=>a.stato!=='conclusa' && a.dataSeconda);
+  const dv=tutte.some(a=>{ const g=a.invioVerbaleDocumenti&&a.invioVerbaleDocumenti.storicoInvii&&a.invioVerbaleDocumenti.storicoInvii.length>0; return a.stato==='conclusa'&&a.dataSeconda&&!g&&!a.promemoriaVerbaleNascosto; });
+  return { attivo:b.attivo!==false, inattivo:b.attivo===false, pianificate:pian.length>0, incorso:pian.some(a=>b.assembleaInCorsoId===a.id), verbale:dv };
+}
+function condPassaFiltri(b){
+  const q=__condFiltro.nome.trim().toLowerCase();
+  if(q && !(b.nome||'').toLowerCase().includes(q)) return false;
+  if(__condFiltro.stati.length){ const st=condStatiDi(b); if(!__condFiltro.stati.some(k=>st[k])) return false; }
+  return true;
+}
+function condFiltroNome(v){ __condFiltro.nome=v||''; renderCondominiElenco(); }
+function condFiltroStato(){
+  __condFiltro.stati=[...document.querySelectorAll('#cond-dd-stato-menu input:checked')].map(i=>i.value);
+  renderCondominiElenco();
+}
+function condDdApri(aperto){
+  const m=document.getElementById('cond-dd-stato-menu'), btn=document.getElementById('cond-dd-stato-btn');
+  if(!m) return;
+  const apri = typeof aperto==='boolean' ? aperto : m.classList.contains('hidden');
+  m.classList.toggle('hidden',!apri); btn.setAttribute('aria-expanded',String(apri));
+}
+function condFiltriAzzera(){
+  __condFiltro.nome=''; __condFiltro.stati=[];
+  const i=document.getElementById('cond-filtro-nome'); if(i) i.value='';
+  document.querySelectorAll('#cond-dd-stato-menu input').forEach(c=>c.checked=false);
+  condDdApri(false); renderCondominiElenco();
+}
+document.addEventListener('click',e=>{ const w=document.getElementById('cond-dd-stato'); if(w && !w.contains(e.target)) condDdApri(false); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') condDdApri(false); });
 function renderCondominiElenco(){
   // Tutti insieme, ordinati alfabeticamente; lo stato (Attivo/Inattivo) è una colonna.
   const tutti = buildings.slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'','it'));
+  const visibili = tutti.filter(condPassaFiltri);
+  const filtrato = !!(__condFiltro.nome.trim() || __condFiltro.stati.length);
   document.getElementById('stat-edifici-attivi').textContent = buildings.filter(b=>b.attivo!==false).length;
+  const lbl=document.getElementById('cond-dd-stato-lbl'); if(lbl) lbl.textContent = __condFiltro.stati.length ? 'Stato ('+__condFiltro.stati.length+')' : 'Stato';
+  const conta=document.getElementById('cond-conta'); if(conta) conta.textContent = tutti.length ? (filtrato ? visibili.length+' di '+tutti.length : tutti.length+' condomini') : '';
+  const az=document.getElementById('cond-azzera'); if(az) az.disabled=!filtrato;
   const grid = document.getElementById('buildings-grid');
-  grid.innerHTML = (tutti.length?'<div class="cond-strumenti"><button class="cond-link" onclick="condEspandiTutti(true)">Espandi tutto</button><button class="cond-link" onclick="condEspandiTutti(false)">Comprimi tutto</button></div>':'') + condTabella(tutti);
+  const vuoto = tutti.length && !visibili.length ? '<div class="empty">Nessun condominio corrisponde ai filtri.</div>' : '';
+  grid.innerHTML = (visibili.length?'<div class="cond-strumenti"><button class="cond-link" onclick="condEspandiTutti(true)">Espandi tutto</button><button class="cond-link" onclick="condEspandiTutti(false)">Comprimi tutto</button></div>':'') + (visibili.length||!tutti.length ? condTabella(visibili) : vuoto);
   document.getElementById('condomini-inattivi-wrap').classList.add('hidden');
 }
 // Naviga verso una sezione (Assemblea/Archivio/Dashboard) di un condominio scelto dalla
@@ -6992,7 +7062,7 @@ Distinti saluti
 {{firma_amministratore}}`;
 
 let __contatoreOspiti = 1;
-// LT-298 — Token dei link personali: 30 caratteri casuali (circa 155 bit) presi dal generatore
+// LT-299 — Token dei link personali: 30 caratteri casuali (circa 155 bit) presi dal generatore
 // sicuro del browser, al posto di Math.random (prevedibile e di soli 8 caratteri).
 function generaTokenForte(){
   const alfabeto = 'abcdefghijkmnpqrstuvwxyz23456789';
@@ -11119,7 +11189,7 @@ function sbCostruisci(D){
   ricalcolaContatoriId();
 }
 
-// LT-298 — Accesso di condòmini e ospiti con il link, SENZA login: l'unica cosa che il database
+// LT-299 — Accesso di condòmini e ospiti con il link, SENZA login: l'unica cosa che il database
 // accetta è il token. La funzione partecipa_carica restituisce solo ciò che quella persona può
 // vedere (dei vicini: nome, interno, millesimi; mai email né token).
 async function sbCaricaPartecipante(token){
@@ -11679,7 +11749,7 @@ function vivoAvviaPartecipante(sb, token){
 
 let __versioneStatoLocale = 0;
 function salvaStato(soloLocale){
-  // LT-298: chi entra col link da Supabase ha solo i dati ridotti che gli spettano: non deve mai
+  // LT-299: chi entra col link da Supabase ha solo i dati ridotti che gli spettano: non deve mai
   // scrivere lo stato completo (né in locale né altrove). Le sue azioni passeranno da funzioni
   // dedicate del database (tappa 5).
   if(__sbAn.partecipante) return true;
