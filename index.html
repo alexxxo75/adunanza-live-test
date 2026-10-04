@@ -8817,7 +8817,7 @@ function renderChat(elId){
     el.innerHTML = elId==='cv-chat-log' ? '<br><br>' : '<br><br><br><br><br><br><br><br>';
     return;
   }
-  el.innerHTML = arr.map(m=>`<div class="chat-msg ${m.autore==='Amministratore'?'admin':''}"><b>${m.autore}</b> <span class="muted">${m.ora}</span><br>${m.testo}</div>`).join('');
+  el.innerHTML = arr.map(m=>`<div class="chat-msg ${m.autore==='Amministratore'?'admin':''}"><b>${escapeHtml(m.autore)}</b> <span class="muted">${escapeHtml(m.ora)}</span><br>${escapeHtml(m.testo)}</div>`).join('');
   el.scrollTop = el.scrollHeight;
 }
 
@@ -10281,7 +10281,7 @@ ${esitoVotazioni}
 Il presente verbale è stato redatto a chiusura della seduta.
 L'Amministratore`;
 }
-function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escapeHtml(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function scaricaVerbale(){
   const blob = new Blob(['\uFEFF'+(window._verbaleTesto||'')], {type:'text/plain;charset=utf-8'});
   const url = URL.createObjectURL(blob);
@@ -11309,6 +11309,8 @@ function vivoApplica(b, a, d){
   d = d || {};
   Object.keys(a).forEach(k=>{ if(!VIVO_ESCLUSE_ASS.has(k) && !(k in d)) delete a[k]; });
   Object.keys(d).forEach(k=>{ if(k.indexOf('__')!==0) a[k] = vivoClone(d[k]); });
+  // I nomi delle persone esterne delegate li scrive il condòmino dal suo link: niente simboli che possano essere scambiati per codice
+  if(Array.isArray(a.deleghiEsterni)) a.deleghiEsterni.forEach(e=>{ if(e && typeof e.nome==='string') e.nome = e.nome.replace(/[<>&"`]/g,'').trim(); });
   (a.odg||[]).forEach(p=>{
     Object.keys(p).forEach(k=>{ if(!VIVO_ESCLUSE_ODG.has(k)) delete p[k]; });
     const x = d.__odg && d.__odg[p.id]; if(x) Object.assign(p, vivoClone(x));
