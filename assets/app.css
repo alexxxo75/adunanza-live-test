@@ -484,3 +484,13 @@ body.skin .profilo .dropdown { z-index: 300; }
 .mx-modo label{justify-content:flex-start !important;text-align:left;}
 .mx-modo input[type=radio]{width:16px !important;height:16px;flex:none;padding:0;margin:3px 0 0;}
 .mx-modo label span{flex:1;}
+
+.mx-sommario{margin:12px 0 8px;font-size:14px;color:var(--text-primary);}
+.mx-tab-wrap{overflow:auto;border:1px solid var(--border);border-radius:9px;}
+.mx-tab{width:100%;border-collapse:collapse;font-size:13px;}
+.mx-tab th{background:var(--surface);text-align:left;padding:7px 10px;font-size:12px;text-transform:uppercase;letter-spacing:.03em;color:var(--text-secondary);}
+.mx-tab td{padding:7px 10px;border-top:1px solid var(--border);color:var(--text-primary);}
+.mx-note{margin:10px 0 0;padding-left:18px;font-size:13px;color:var(--text-secondary);}
+.mx-tot-ok{color:var(--status-done-text);} .mx-tot-ko{color:var(--danger);}
+.mx-ok{margin-top:12px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--status-done-bg);color:var(--status-done-text);font-size:14px;text-align:left;}
+#mx-undo-btn.hidden{display:none;}
