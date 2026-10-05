@@ -463,3 +463,13 @@ body.skin .profilo .dropdown { z-index: 300; }
 .prof-errore{margin:0 0 14px;padding:10px 14px;border:1px solid var(--danger-border);background:var(--danger-bg);color:var(--danger-text);border-radius:9px;font-size:14px;}
 .prof-errore.hidden{display:none;}
 @media (max-width:860px){.prof-colonne{grid-template-columns:1fr;}}
+
+/* Wizard condominio, punto 5: barra azioni + finestre */
+.cond-barra-az{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 14px;}
+.modal-box.modal-largo{max-width:720px;width:calc(100% - 32px);max-height:calc(100vh - 40px);overflow:auto;text-align:left;}
+.mc-griglia{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:12px;}
+.mc-griglia .field{margin:0;}
+.modal-largo .modal-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end;margin-top:14px;}
+.mx-drop{display:flex;flex-direction:column;align-items:center;gap:6px;padding:26px 16px;margin-top:12px;border:2px dashed var(--border);border-radius:12px;background:var(--surface);color:var(--text-secondary);cursor:pointer;text-align:center;transition:.12s;}
+.mx-drop:hover,.mx-drop.sopra,.mx-drop:focus-visible{border-color:var(--accent);background:var(--brand-50);color:var(--accent);outline:none;}
+:root[data-theme="dark"] .mx-drop:hover,:root[data-theme="dark"] .mx-drop.sopra{background:rgba(59,130,246,.12);}
