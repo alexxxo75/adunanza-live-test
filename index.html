@@ -762,6 +762,19 @@
 .cond-data{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary);}
 .cond-data input{height:38px;padding:0 10px;border:1px solid var(--border);border-radius:9px;background:var(--surface-card);color:var(--text-primary);font:inherit;font-size:14px;}
 .cond-data input:focus{outline:2px solid var(--focus);outline-offset:1px;}
+
+/* Profilo: due colonne e campi obbligatori */
+.prof-legenda{margin:0 0 12px;font-size:13px;color:var(--text-secondary);}
+.req{color:#dc2626;font-weight:700;margin-left:3px;}
+.prof-colonne{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start;margin-bottom:18px;}
+.prof-card h3{margin:0 0 4px;font-size:16px;}
+.prof-card>.muted{margin:0 0 14px;font-size:13px;}
+.prof-campi{display:grid;gap:14px;}
+.prof-card .field{margin:0;}
+.campo-errore{border-color:#dc2626 !important;box-shadow:0 0 0 3px rgba(220,38,38,.15);}
+.prof-errore{margin:0 0 14px;padding:10px 14px;border:1px solid var(--danger-border);background:var(--danger-bg);color:var(--danger-text);border-radius:9px;font-size:14px;}
+.prof-errore.hidden{display:none;}
+@media (max-width:860px){.prof-colonne{grid-template-columns:1fr;}}
 </style>
 <link rel="stylesheet" href="/assets/app.css?v=296">
 <script src="/assets/tema.js"></script>
@@ -831,7 +844,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/10/2026">LT-302</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/10/2026">LT-303</span>
   </div>
 
   <!-- MAIN -->
@@ -919,24 +932,32 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
         <div><h1>Profilo</h1></div>
       </div>
 
-      <div class="frame-dark" style="margin-bottom:18px;">
-      <div class="frame-dark-title">Anagrafica</div>
-      <div class="card frame-dark-hover">
-        <p class="muted" style="margin-bottom:14px;">Questi dati ci servono per la fatturazione e per gli obblighi di legge sull'attività di amministratore di condominio.</p>
-        <div class="grid">
-          <div class="field"><label>Nome</label><input type="text" id="prof-nome"></div>
-          <div class="field"><label>Cognome</label><input type="text" id="prof-cognome"></div>
-          <div class="field"><label>Nome Studio/Ragione sociale</label><input type="text" id="prof-ragione-sociale" placeholder="Es. Studio Rossi Amministrazioni Srl"></div>
-          <div class="field"><label>Numero iscrizione Registro Amministratori</label><input type="text" id="prof-numero-registro"></div>
-          <div class="field"><label>Codice fiscale</label><input type="text" id="prof-codice-fiscale"></div>
-          <div class="field"><label>Partita IVA</label><input type="text" id="prof-partita-iva"></div>
-          <div class="field"><label>Indirizzo studio</label><input type="text" id="prof-indirizzo-studio"></div>
-          <div class="field"><label>Email di contatto</label><input type="email" id="prof-email-contatto"></div>
-          <div class="field"><label>Telefono</label><input type="text" id="prof-telefono"></div>
-          <div class="field"><label>Metodo di pagamento</label><input type="text" id="prof-metodo-pagamento" placeholder="Es. Carta che termina per 1234"></div>
+      <p class="prof-legenda"><span class="req">*</span> campo obbligatorio</p>
+      <div class="prof-colonne">
+        <div class="card prof-card">
+          <h3>Dati personali</h3>
+          <p class="muted">Servono per gli obblighi di legge sull'attività di amministratore di condominio.</p>
+          <div class="prof-campi">
+            <div class="field"><label for="prof-nome">Nome<span class="req" title="Obbligatorio">*</span></label><input type="text" id="prof-nome" data-obbl="1"></div>
+            <div class="field"><label for="prof-cognome">Cognome<span class="req" title="Obbligatorio">*</span></label><input type="text" id="prof-cognome" data-obbl="1"></div>
+            <div class="field"><label for="prof-codice-fiscale">Codice fiscale<span class="req" title="Obbligatorio">*</span></label><input type="text" id="prof-codice-fiscale" data-obbl="1"></div>
+            <div class="field"><label for="prof-email-contatto">Email di contatto<span class="req" title="Obbligatorio">*</span></label><input type="email" id="prof-email-contatto" data-obbl="1"></div>
+            <div class="field"><label for="prof-telefono">Telefono</label><input type="text" id="prof-telefono"></div>
+          </div>
+        </div>
+        <div class="card prof-card">
+          <h3>Studio e fatturazione</h3>
+          <p class="muted">Servono per la fatturazione e per l'iscrizione al registro.</p>
+          <div class="prof-campi">
+            <div class="field"><label for="prof-ragione-sociale">Nome Studio/Ragione sociale<span class="req" title="Obbligatorio">*</span></label><input type="text" id="prof-ragione-sociale" data-obbl="1" placeholder="Es. Studio Rossi Amministrazioni Srl"></div>
+            <div class="field"><label for="prof-partita-iva">Partita IVA</label><input type="text" id="prof-partita-iva"></div>
+            <div class="field"><label for="prof-indirizzo-studio">Indirizzo studio<span class="req" title="Obbligatorio">*</span></label><input type="text" id="prof-indirizzo-studio" data-obbl="1"></div>
+            <div class="field"><label for="prof-numero-registro">Numero iscrizione Registro Amministratori</label><input type="text" id="prof-numero-registro"></div>
+            <div class="field"><label for="prof-metodo-pagamento">Metodo di pagamento</label><input type="text" id="prof-metodo-pagamento" placeholder="Es. Carta che termina per 1234"></div>
+          </div>
         </div>
       </div>
-      </div>
+      <div class="prof-errore hidden" id="prof-errore" role="alert"></div>
 
       <button class="btn brass" onclick="salvaProfiloAmministratore()">Salva profilo</button>
 
@@ -2106,7 +2127,29 @@ function aggiornaNomeStudioTopbar(){
     : ((p.nome||p.cognome) ? (p.nome+' '+p.cognome).trim() : '');
   el.textContent = nomeStudio;
 }
+document.addEventListener('input',e=>{ if(e.target.matches && e.target.matches('#page-profilo [data-obbl]') && e.target.value.trim()) e.target.classList.remove('campo-errore'); });
+function profiloCampiMancanti(){
+  const mancanti=[];
+  document.querySelectorAll('#page-profilo [data-obbl]').forEach(i=>{
+    const vuoto = !i.value.trim();
+    i.classList.toggle('campo-errore', vuoto);
+    if(vuoto){ const l=i.closest('.field').querySelector('label'); mancanti.push({el:i, nome:l.childNodes[0].textContent.trim()}); }
+  });
+  return mancanti;
+}
 function salvaProfiloAmministratore(){
+  // Dal Profilo i campi obbligatori devono essere compilati; dalle Preferenze si salva comunque.
+  if(currentPage==='profilo'){
+    const mancanti = profiloCampiMancanti();
+    const box = document.getElementById('prof-errore');
+    if(mancanti.length){
+      box.textContent = 'Compila i campi obbligatori: ' + mancanti.map(m=>m.nome).join(', ') + '.';
+      box.classList.remove('hidden');
+      mancanti[0].el.focus();
+      return;
+    }
+    box.classList.add('hidden');
+  }
   const p = amministratore;
   p.nome = document.getElementById('prof-nome').value.trim();
   p.cognome = document.getElementById('prof-cognome').value.trim();
@@ -7115,7 +7158,7 @@ Distinti saluti
 {{firma_amministratore}}`;
 
 let __contatoreOspiti = 1;
-// LT-302 — Token dei link personali: 30 caratteri casuali (circa 155 bit) presi dal generatore
+// LT-303 — Token dei link personali: 30 caratteri casuali (circa 155 bit) presi dal generatore
 // sicuro del browser, al posto di Math.random (prevedibile e di soli 8 caratteri).
 function generaTokenForte(){
   const alfabeto = 'abcdefghijkmnpqrstuvwxyz23456789';
@@ -11304,7 +11347,7 @@ function sbCostruisci(D){
   ricalcolaContatoriId();
 }
 
-// LT-302 — Accesso di condòmini e ospiti con il link, SENZA login: l'unica cosa che il database
+// LT-303 — Accesso di condòmini e ospiti con il link, SENZA login: l'unica cosa che il database
 // accetta è il token. La funzione partecipa_carica restituisce solo ciò che quella persona può
 // vedere (dei vicini: nome, interno, millesimi; mai email né token).
 async function sbCaricaPartecipante(token){
@@ -11864,7 +11907,7 @@ function vivoAvviaPartecipante(sb, token){
 
 let __versioneStatoLocale = 0;
 function salvaStato(soloLocale){
-  // LT-302: chi entra col link da Supabase ha solo i dati ridotti che gli spettano: non deve mai
+  // LT-303: chi entra col link da Supabase ha solo i dati ridotti che gli spettano: non deve mai
   // scrivere lo stato completo (né in locale né altrove). Le sue azioni passeranno da funzioni
   // dedicate del database (tappa 5).
   if(__sbAn.partecipante) return true;
