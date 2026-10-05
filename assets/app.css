@@ -450,3 +450,16 @@ body.skin .profilo .dropdown { z-index: 300; }
 .cond-data{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary);}
 .cond-data input{height:38px;padding:0 10px;border:1px solid var(--border);border-radius:9px;background:var(--surface-card);color:var(--text-primary);font:inherit;font-size:14px;}
 .cond-data input:focus{outline:2px solid var(--focus);outline-offset:1px;}
+
+/* Profilo: due colonne e campi obbligatori */
+.prof-legenda{margin:0 0 12px;font-size:13px;color:var(--text-secondary);}
+.req{color:#dc2626;font-weight:700;margin-left:3px;}
+.prof-colonne{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start;margin-bottom:18px;}
+.prof-card h3{margin:0 0 4px;font-size:16px;}
+.prof-card>.muted{margin:0 0 14px;font-size:13px;}
+.prof-campi{display:grid;gap:14px;}
+.prof-card .field{margin:0;}
+.campo-errore{border-color:#dc2626 !important;box-shadow:0 0 0 3px rgba(220,38,38,.15);}
+.prof-errore{margin:0 0 14px;padding:10px 14px;border:1px solid var(--danger-border);background:var(--danger-bg);color:var(--danger-text);border-radius:9px;font-size:14px;}
+.prof-errore.hidden{display:none;}
+@media (max-width:860px){.prof-colonne{grid-template-columns:1fr;}}
