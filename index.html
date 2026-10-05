@@ -758,6 +758,10 @@
   .arc-riga .arc-tipo{grid-column:2;grid-row:3;}
 }
 .cond-pill.viola{background:var(--status-review-bg);color:var(--status-review-text);}
+
+.cond-data{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary);}
+.cond-data input{height:38px;padding:0 10px;border:1px solid var(--border);border-radius:9px;background:var(--surface-card);color:var(--text-primary);font:inherit;font-size:14px;}
+.cond-data input:focus{outline:2px solid var(--focus);outline-offset:1px;}
 </style>
 <link rel="stylesheet" href="/assets/app.css?v=296">
 <script src="/assets/tema.js"></script>
@@ -827,7 +831,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/10/2026">LT-301</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/10/2026">LT-302</span>
   </div>
 
   <!-- MAIN -->
@@ -1741,6 +1745,20 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
     <div class="page hidden" id="page-registrazioni">
       <div class="page-head">
         <div><div class="eyebrow">Storico</div><div class="page-title-row"><button class="page-back" onclick="tornaIndietro()" aria-label="Indietro"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M14.5 8 10 12l4.5 4"/><path d="M10.3 12h6.2"/></svg></button><h1>Archivio</h1></div><p class="sub">Verbale e registrazione (disponibile 60 giorni) di ogni assemblea conclusa, ordinate dalla più vicina alla più lontana.</p></div>
+      </div>
+      <div class="cond-filtri" id="arc-filtri">
+        <div class="cond-cerca"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" id="arc-filtro-oggetto" placeholder="Cerca nell'oggetto…" autocomplete="off" oninput="arcFiltroImposta()"></div>
+        <label class="cond-data"><span>Dal</span><input type="date" id="arc-filtro-dal" onchange="arcFiltroImposta()"></label>
+        <label class="cond-data"><span>Al</span><input type="date" id="arc-filtro-al" onchange="arcFiltroImposta()"></label>
+        <div class="cond-dd" id="arc-dd-tipo">
+          <button type="button" class="cond-dd-btn" id="arc-dd-tipo-btn" aria-haspopup="true" aria-expanded="false" onclick="arcDdApri()"><span id="arc-dd-tipo-lbl">Tipo</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+          <div class="cond-dd-menu hidden" id="arc-dd-tipo-menu">
+            <label><input type="checkbox" value="ordinaria" onchange="arcFiltroImposta()"> Ordinaria</label>
+            <label><input type="checkbox" value="straordinaria" onchange="arcFiltroImposta()"> Straordinaria</label>
+          </div>
+        </div>
+        <button type="button" class="cond-link" id="arc-azzera" onclick="arcFiltriAzzera()">Azzera filtri</button>
+        <span class="cond-conta" id="arc-conta"></span>
       </div>
       <div id="archivio-lista">
         <div class="empty" id="archivio-empty">Nessuna assemblea archiviata.</div>
@@ -7097,7 +7115,7 @@ Distinti saluti
 {{firma_amministratore}}`;
 
 let __contatoreOspiti = 1;
-// LT-301 — Token dei link personali: 30 caratteri casuali (circa 155 bit) presi dal generatore
+// LT-302 — Token dei link personali: 30 caratteri casuali (circa 155 bit) presi dal generatore
 // sicuro del browser, al posto di Math.random (prevedibile e di soli 8 caratteri).
 function generaTokenForte(){
   const alfabeto = 'abcdefghijkmnpqrstuvwxyz23456789';
@@ -10719,11 +10737,56 @@ function arcAnteprima(id){
 function arcVediRegistrazione(){
   mostraAvviso('In questa demo il video non è realmente conservato — qui vedresti la registrazione di quella seduta.');
 }
+const __arcFiltro = { oggetto:'', dal:'', al:'', tipi:[], bld:null };
+function arcFiltroImposta(){
+  __arcFiltro.oggetto = document.getElementById('arc-filtro-oggetto').value||'';
+  __arcFiltro.dal = document.getElementById('arc-filtro-dal').value||'';
+  __arcFiltro.al = document.getElementById('arc-filtro-al').value||'';
+  __arcFiltro.tipi = [...document.querySelectorAll('#arc-dd-tipo-menu input:checked')].map(i=>i.value);
+  renderRegistrazioni();
+}
+function arcDdApri(aperto){
+  const m=document.getElementById('arc-dd-tipo-menu'), btn=document.getElementById('arc-dd-tipo-btn');
+  if(!m) return;
+  const apri = typeof aperto==='boolean' ? aperto : m.classList.contains('hidden');
+  m.classList.toggle('hidden',!apri); btn.setAttribute('aria-expanded',String(apri));
+}
+function arcFiltriAzzera(){
+  Object.assign(__arcFiltro,{oggetto:'',dal:'',al:'',tipi:[]});
+  ['arc-filtro-oggetto','arc-filtro-dal','arc-filtro-al'].forEach(id=>{ const e=document.getElementById(id); if(e) e.value=''; });
+  document.querySelectorAll('#arc-dd-tipo-menu input').forEach(c=>c.checked=false);
+  arcDdApri(false); renderRegistrazioni();
+}
+function arcPassaFiltri(a){
+  const f=__arcFiltro;
+  const q=f.oggetto.trim().toLowerCase();
+  if(q && !(a.oggetto||'').toLowerCase().includes(q)) return false;
+  if(f.tipi.length && !f.tipi.includes(a.tipo==='straordinaria'?'straordinaria':'ordinaria')) return false;
+  if(f.dal || f.al){
+    const iso = parseDataItalianaToIso(a.dataSeconda);
+    if(!iso) return false;
+    if(f.dal && iso < f.dal) return false;
+    if(f.al && iso > f.al) return false;
+  }
+  return true;
+}
+document.addEventListener('click',e=>{ const w=document.getElementById('arc-dd-tipo'); if(w && !w.contains(e.target)) arcDdApri(false); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') arcDdApri(false); });
 function renderRegistrazioni(){
   const b=getActiveBuilding();
   const el=document.getElementById('archivio-lista');
-  const concluse = (b.assemblee||[]).filter(a=>a.stato==='conclusa').sort((x,y)=>valoreOrdinamentoAssemblea(y)-valoreOrdinamentoAssemblea(x));
-  if(concluse.length===0){ el.innerHTML='<div class="empty" id="archivio-empty">Nessuna assemblea archiviata.</div>'; return; }
+  // i filtri valgono per un solo condominio: cambiando condominio si azzerano
+  if(__arcFiltro.bld!==b.id){ __arcFiltro.bld=b.id; Object.assign(__arcFiltro,{oggetto:'',dal:'',al:'',tipi:[]}); __arcEspansi.clear(); __arcAnteprima.clear();
+    ['arc-filtro-oggetto','arc-filtro-dal','arc-filtro-al'].forEach(id=>{ const x=document.getElementById(id); if(x) x.value=''; });
+    document.querySelectorAll('#arc-dd-tipo-menu input').forEach(c=>c.checked=false); }
+  const tutteConcluse = (b.assemblee||[]).filter(a=>a.stato==='conclusa').sort((x,y)=>valoreOrdinamentoAssemblea(y)-valoreOrdinamentoAssemblea(x));
+  const concluse = tutteConcluse.filter(arcPassaFiltri);
+  const f=__arcFiltro, filtrato = !!(f.oggetto.trim()||f.dal||f.al||f.tipi.length);
+  const lbl=document.getElementById('arc-dd-tipo-lbl'); if(lbl) lbl.textContent = f.tipi.length ? 'Tipo ('+f.tipi.length+')' : 'Tipo';
+  const conta=document.getElementById('arc-conta'); if(conta) conta.textContent = tutteConcluse.length ? (filtrato ? concluse.length+' di '+tutteConcluse.length : tutteConcluse.length+' assemblee') : '';
+  const az=document.getElementById('arc-azzera'); if(az) az.disabled=!filtrato;
+  if(tutteConcluse.length===0){ el.innerHTML='<div class="empty" id="archivio-empty">Nessuna assemblea archiviata.</div>'; return; }
+  if(concluse.length===0){ el.innerHTML='<div class="empty">Nessuna assemblea corrisponde ai filtri.</div>'; return; }
 
   const oggiIso = new Date().toISOString().slice(0,10);
   const righe = concluse.map(a=>{
@@ -11241,7 +11304,7 @@ function sbCostruisci(D){
   ricalcolaContatoriId();
 }
 
-// LT-301 — Accesso di condòmini e ospiti con il link, SENZA login: l'unica cosa che il database
+// LT-302 — Accesso di condòmini e ospiti con il link, SENZA login: l'unica cosa che il database
 // accetta è il token. La funzione partecipa_carica restituisce solo ciò che quella persona può
 // vedere (dei vicini: nome, interno, millesimi; mai email né token).
 async function sbCaricaPartecipante(token){
@@ -11801,7 +11864,7 @@ function vivoAvviaPartecipante(sb, token){
 
 let __versioneStatoLocale = 0;
 function salvaStato(soloLocale){
-  // LT-301: chi entra col link da Supabase ha solo i dati ridotti che gli spettano: non deve mai
+  // LT-302: chi entra col link da Supabase ha solo i dati ridotti che gli spettano: non deve mai
   // scrivere lo stato completo (né in locale né altrove). Le sue azioni passeranno da funzioni
   // dedicate del database (tappa 5).
   if(__sbAn.partecipante) return true;
