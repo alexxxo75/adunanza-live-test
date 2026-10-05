@@ -806,6 +806,10 @@
 .mx-tot-ok{color:var(--status-done-text);} .mx-tot-ko{color:var(--danger);}
 .mx-ok{margin-top:12px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--status-done-bg);color:var(--status-done-text);font-size:14px;text-align:left;}
 #mx-undo-btn.hidden{display:none;}
+#tbl-condomini .cond-ico{width:34px;height:34px;}
+#tbl-condomini .cond-ico[data-tip]:hover::after,#tbl-condomini .cond-ico[data-tip]:focus-visible::after{bottom:calc(100% + 6px);right:0;}
+.cond-ico.cond-ico-del:hover{background:var(--danger-border);color:var(--danger-text);}
+:root[data-theme="dark"] .cond-ico.cond-ico-del,:root[data-theme="dark"] .cond-ico.cond-ico-del:hover{color:var(--danger-text);}
 </style>
 <link rel="stylesheet" href="/assets/app.css?v=296">
 <script src="/assets/tema.js"></script>
@@ -875,7 +879,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/10/2026">LT-306</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/10/2026">LT-307</span>
   </div>
 
   <!-- MAIN -->
@@ -4536,7 +4540,9 @@ function renderCondomini(){
     tdGruppo.appendChild(selGruppo); tr.appendChild(tdGruppo);
 
     const tdAz=document.createElement('td');
-    const rm=document.createElement('span'); rm.className='tag-close'; rm.textContent='Rimuovi'; rm.onclick=()=>removeCondomino(c.id);
+    const rm=document.createElement('button'); rm.type='button'; rm.className='cond-ico cond-ico-del'; rm.setAttribute('data-tip','Rimuovi condòmino'); rm.setAttribute('aria-label','Rimuovi '+([c.cognome,c.nome].filter(Boolean).join(' ')||'condòmino'));
+    rm.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/></svg>';
+    rm.onclick=()=>{ if(confirm('Rimuovere '+([c.cognome,c.nome].filter(Boolean).join(' ')||'questo condòmino')+' dall\'elenco?')) removeCondomino(c.id); };
     tdAz.appendChild(rm); tr.appendChild(tdAz);
 
     tbody.appendChild(tr);
@@ -7409,7 +7415,7 @@ Distinti saluti
 {{firma_amministratore}}`;
 
 let __contatoreOspiti = 1;
-// LT-306 — Token dei link personali: 30 caratteri casuali (circa 155 bit) presi dal generatore
+// LT-307 — Token dei link personali: 30 caratteri casuali (circa 155 bit) presi dal generatore
 // sicuro del browser, al posto di Math.random (prevedibile e di soli 8 caratteri).
 function generaTokenForte(){
   const alfabeto = 'abcdefghijkmnpqrstuvwxyz23456789';
@@ -11598,7 +11604,7 @@ function sbCostruisci(D){
   ricalcolaContatoriId();
 }
 
-// LT-306 — Accesso di condòmini e ospiti con il link, SENZA login: l'unica cosa che il database
+// LT-307 — Accesso di condòmini e ospiti con il link, SENZA login: l'unica cosa che il database
 // accetta è il token. La funzione partecipa_carica restituisce solo ciò che quella persona può
 // vedere (dei vicini: nome, interno, millesimi; mai email né token).
 async function sbCaricaPartecipante(token){
@@ -12158,7 +12164,7 @@ function vivoAvviaPartecipante(sb, token){
 
 let __versioneStatoLocale = 0;
 function salvaStato(soloLocale){
-  // LT-306: chi entra col link da Supabase ha solo i dati ridotti che gli spettano: non deve mai
+  // LT-307: chi entra col link da Supabase ha solo i dati ridotti che gli spettano: non deve mai
   // scrivere lo stato completo (né in locale né altrove). Le sue azioni passeranno da funzioni
   // dedicate del database (tappa 5).
   if(__sbAn.partecipante) return true;
