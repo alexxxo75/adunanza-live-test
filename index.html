@@ -730,6 +730,34 @@
 .cond-box{display:flex;align-items:baseline;gap:10px;padding:10px 16px;background:var(--surface-card);border:1px solid var(--border);border-radius:var(--raggio);box-shadow:var(--ombra);}
 .cond-box-n{font-size:22px;font-weight:700;color:var(--text-primary);line-height:1;}
 .cond-box-l{font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-secondary);}
+
+/* Archivio: tabella assemblee (riusa le classi .cond-*) */
+.arc-riga.cond-testa,.arc-riga.cond-riga{grid-template-columns:40px 130px minmax(180px,1fr) 130px 196px;}
+.arc-data{display:flex;flex-direction:column;line-height:1.3;font-size:14px;color:var(--text-primary);}
+.arc-data .muted{font-size:12px;color:var(--text-secondary);}
+.arc-oggetto{font-weight:500;}
+.cond-sez{font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:6px;}
+.arc-invio{background:var(--surface-card);border:1px solid var(--border);border-radius:9px;padding:10px 12px;margin-bottom:8px;}
+.arc-file{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 0;font-size:14px;}
+.arc-file-az{display:flex;gap:6px;}
+.cond-ico[data-tip]{position:relative;}
+.cond-ico[data-tip]:hover::after,.cond-ico[data-tip]:focus-visible::after{content:attr(data-tip);position:absolute;z-index:60;bottom:calc(100% + 8px);right:0;white-space:nowrap;background:#0f172a;color:#f8fafc;font-size:12px;font-weight:500;padding:6px 10px;border-radius:7px;box-shadow:0 4px 14px rgba(0,0,0,.25);pointer-events:none;}
+.cond-ico.ok{background:var(--status-done-bg);color:var(--status-done-text);}
+.cond-ico.ok:hover{filter:brightness(.95);}
+.cond-ico.scaduta{background:var(--status-waiting-bg);color:var(--status-waiting-text);cursor:not-allowed;}
+.cond-ico.nd{background:var(--status-off-bg);color:var(--text-muted);cursor:not-allowed;}
+.cond-ico.attivo{background:var(--accent);color:var(--accent-text);}
+.cond-ico.inviato{background:var(--status-done-bg);color:var(--status-done-text);}
+:root[data-theme="dark"] .cond-ico.ok,:root[data-theme="dark"] .cond-ico.inviato{background:var(--status-done-bg);color:var(--status-done-text);}
+:root[data-theme="dark"] .cond-ico.scaduta{background:var(--status-waiting-bg);color:var(--status-waiting-text);}
+:root[data-theme="dark"] .cond-ico.nd{background:var(--status-off-bg);color:var(--text-muted);}
+:root[data-theme="dark"] .cond-ico.attivo{background:var(--accent);color:#fff;}
+@media (max-width:760px){
+  .arc-riga.cond-riga{grid-template-columns:36px 1fr auto;}
+  .arc-riga .arc-oggetto{grid-column:2/4;}
+  .arc-riga .arc-tipo{grid-column:2;grid-row:3;}
+}
+.cond-pill.viola{background:var(--status-review-bg);color:var(--status-review-text);}
 </style>
 <link rel="stylesheet" href="/assets/app.css?v=296">
 <script src="/assets/tema.js"></script>
@@ -799,7 +827,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/10/2026">LT-300</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/10/2026">LT-301</span>
   </div>
 
   <!-- MAIN -->
@@ -7069,7 +7097,7 @@ Distinti saluti
 {{firma_amministratore}}`;
 
 let __contatoreOspiti = 1;
-// LT-300 — Token dei link personali: 30 caratteri casuali (circa 155 bit) presi dal generatore
+// LT-301 — Token dei link personali: 30 caratteri casuali (circa 155 bit) presi dal generatore
 // sicuro del browser, al posto di Math.random (prevedibile e di soli 8 caratteri).
 function generaTokenForte(){
   const alfabeto = 'abcdefghijkmnpqrstuvwxyz23456789';
@@ -10672,65 +10700,82 @@ function evidenziaAssembleaInArchivio(assembleaId){
     }, 2500);
   }, 100);
 }
+const __arcEspansi = new Set();      // assemblee con la riga aperta (allegati inviati)
+const __arcAnteprima = new Set();    // assemblee con l'anteprima del verbale visibile
+const __ARC = (p)=>'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>';
+const __ARC_ICO = {
+  video:  __ARC('<rect x="2" y="6" width="13" height="12" rx="2"/><path d="m15 10 6-3v10l-6-3z"/>'),
+  scarica:__ARC('<path d="M12 3v12m0 0-4-4m4 4 4-4M4 20h16"/>'),
+  occhio: __ARC('<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'),
+  invio:  __ARC('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>'),
+  invioOk:__ARC('<path d="M21 12V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h8"/><path d="m3 7 9 6 9-6M16 19l2 2 4-4"/>')
+};
+function arcToggle(id){ if(__arcEspansi.has(id)) __arcEspansi.delete(id); else __arcEspansi.add(id); renderRegistrazioni(); }
+function arcAnteprima(id){
+  if(__arcAnteprima.has(id)){ __arcAnteprima.delete(id); }
+  else { __arcAnteprima.add(id); __arcEspansi.add(id); }
+  renderRegistrazioni();
+}
+function arcVediRegistrazione(){
+  mostraAvviso('In questa demo il video non è realmente conservato — qui vedresti la registrazione di quella seduta.');
+}
 function renderRegistrazioni(){
   const b=getActiveBuilding();
   const el=document.getElementById('archivio-lista');
   const concluse = (b.assemblee||[]).filter(a=>a.stato==='conclusa').sort((x,y)=>valoreOrdinamentoAssemblea(y)-valoreOrdinamentoAssemblea(x));
-  if(concluse.length===0){ el.innerHTML='<div class="empty">Nessuna assemblea archiviata.</div>'; return; }
+  if(concluse.length===0){ el.innerHTML='<div class="empty" id="archivio-empty">Nessuna assemblea archiviata.</div>'; return; }
 
   const oggiIso = new Date().toISOString().slice(0,10);
-  el.innerHTML = concluse.map(a=>{
+  const righe = concluse.map(a=>{
     const scadIso = parseDataItalianaToIso(a.registrazioneScadenza);
     const disponibileVideo = a.registrazioneAttiva && (!scadIso || scadIso >= oggiIso);
-    const giaInviatoArchivio = a.invioVerbaleDocumenti && a.invioVerbaleDocumenti.storicoInvii && a.invioVerbaleDocumenti.storicoInvii.length>0;
-    const etichettaInvioArchivio = giaInviatoArchivio ? 'Documenti già inviati - Reinvia' : 'Invio Verbale & Documenti';
-    return `<div class="card" id="archivio-assemblea-${a.id}" style="margin-bottom:16px;">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:10px;">
-        <div>
-          <div style="font-size:19px;font-weight:700;color:var(--ink);">${a.dataSeconda||'data non impostata'}</div>
-          <div class="muted">ore ${a.oraSeconda||'--:--'}</div>
-          <div style="font-size:15px;font-weight:700;color:var(--ink);margin-top:2px;">${escapeHtml(a.oggetto||'(oggetto non indicato)')}</div>
-          <div class="muted">${a.tipo}</div>
-        </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
-          ${a.registrazioneAttiva
-            ? (disponibileVideo
-                ? `<span class="badge">🎥 Registrazione disponibile fino al ${a.registrazioneScadenza}</span>`
-                : `<span class="badge pending">🎥 Registrazione scaduta</span>`)
-            : `<span class="muted">Nessuna registrazione</span>`}
-          <button class="btn small brass" onclick="apriInvioVerbale(${b.id}, ${a.id})">✉ ${etichettaInvioArchivio}</button>
-        </div>
-      </div>
-      ${a.registrazioneAttiva ? `<button class="btn small secondary" ${disponibileVideo?'':'disabled'} style="margin-bottom:12px;" onclick="mostraAvviso('In questa demo il video non è realmente conservato — qui vedresti la registrazione Jitsi di quella seduta.')">Visualizza registrazione</button>` : ''}
-      ${a.verbale
-        ? `<div style="display:flex;gap:8px;margin-bottom:10px;">
-             <button class="btn small brass" onclick="scaricaVerbaleArchivio(${b.id}, ${a.id})">⬇ Scarica verbale (.txt)</button>
-             <button class="btn small secondary" onclick="toggleAnteprimaVerbaleArchivio(${a.id})">👁 Anteprima</button>
-           </div>
-           <div class="verbale-doc hidden" id="anteprima-verbale-${a.id}" style="padding:18px 20px;font-size:12.5px;">${amministratore.logoDataUrl ? `<img src="${amministratore.logoDataUrl}" style="max-height:38px;display:block;margin-bottom:8px;">` : `<div class="seal" style="width:56px;height:56px;font-size:7px;">${b.nome.toUpperCase()}</div>`}<h4 style="font-size:14px;">Verbale</h4>${escapeHtml(a.verbale)}</div>`
-        : `<p class="muted">Nessun verbale generato per questa assemblea.</p>`}
-      ${(a.invioVerbaleDocumenti && a.invioVerbaleDocumenti.storicoInvii && a.invioVerbaleDocumenti.storicoInvii.length)
-        ? `<div style="margin-top:16px;">
-             <div class="section-title" style="font-size:13px;">Allegati inviati</div>
-             ${a.invioVerbaleDocumenti.storicoInvii.map((invio,i)=>{
-                const dataInvio = new Date(invio.timestamp).toLocaleString('it-IT', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'});
-                const nDestinatari = invio.destinatari ? invio.destinatari.length : (invio.destinatariCount||0);
-                const etichetta = a.invioVerbaleDocumenti.storicoInvii.length>1 ? `Invio n. ${i+1} — ${dataInvio}` : `Inviato il ${dataInvio}`;
-                return `<div class="card" style="margin:8px 0;padding:12px 14px;">
-                  <div class="muted" style="margin-bottom:6px;">${etichetta} — ${nDestinatari} destinatari</div>
-                  ${invio.files.map((f,fi)=>`<div class="list-row" style="padding:4px 0;border:none;">
-                    <span>📎 ${escapeHtml(f.nome)}</span>
-                    <span style="display:flex;gap:6px;">
-                      <button class="btn small brass" onclick="scaricaAllegatoInvio(${b.id}, ${a.id}, ${i}, ${fi})">⬇ Scarica</button>
-                      <button class="btn small secondary" onclick="anteprimaAllegatoInvio(${b.id}, ${a.id}, ${i}, ${fi})">👁 Anteprima</button>
-                    </span>
-                  </div>`).join('')}
-                </div>`;
-             }).join('')}
-           </div>`
-        : ''}
-    </div>`;
+    const inviati = (a.invioVerbaleDocumenti && a.invioVerbaleDocumenti.storicoInvii) || [];
+    const giaInviato = inviati.length>0;
+    const aperto = __arcEspansi.has(a.id);
+    const antepr = __arcAnteprima.has(a.id) && !!a.verbale;
+    const tipoStr = a.tipo==='straordinaria' ? 'Straordinaria' : 'Ordinaria';
+
+    // Registrazione: tre stati, colore diverso e tooltip con la data di ultima disponibilità
+    let regClasse, regTip, regAttivo=false;
+    if(!a.registrazioneAttiva){ regClasse='nd'; regTip='Nessuna registrazione per questa assemblea'; }
+    else if(disponibileVideo){ regClasse='ok'; regAttivo=true; regTip='Registrazione disponibile fino al '+(a.registrazioneScadenza||'—'); }
+    else { regClasse='scaduta'; regTip='Registrazione scaduta il '+(a.registrazioneScadenza||'—'); }
+    const btnReg = `<button class="cond-ico arc-reg ${regClasse}" data-tip="${escapeHtml(regTip)}" aria-label="${escapeHtml(regTip)}" ${regAttivo?`onclick="arcVediRegistrazione()"`:'aria-disabled="true" tabindex="-1"'}>${__ARC_ICO.video}</button>`;
+    const btnScarica = a.verbale
+      ? `<button class="cond-ico" data-tip="Scarica verbale (.txt)" aria-label="Scarica verbale" onclick="scaricaVerbaleArchivio(${b.id}, ${a.id})">${__ARC_ICO.scarica}</button>`
+      : `<button class="cond-ico nd" data-tip="Nessun verbale generato" aria-label="Nessun verbale" aria-disabled="true" tabindex="-1">${__ARC_ICO.scarica}</button>`;
+    const btnAntepr = a.verbale
+      ? `<button class="cond-ico${antepr?' attivo':''}" data-tip="${antepr?'Nascondi anteprima verbale':'Anteprima verbale'}" aria-label="Anteprima verbale" onclick="arcAnteprima(${a.id})">${__ARC_ICO.occhio}</button>`
+      : `<button class="cond-ico nd" data-tip="Nessun verbale generato" aria-label="Nessun verbale" aria-disabled="true" tabindex="-1">${__ARC_ICO.occhio}</button>`;
+    const tipInvio = giaInviato ? 'Documenti già inviati — Reinvia' : 'Invio verbale & documenti';
+    const btnInvio = `<button class="cond-ico${giaInviato?' inviato':''}" data-tip="${tipInvio}" aria-label="${tipInvio}" onclick="apriInvioVerbale(${b.id}, ${a.id})">${giaInviato?__ARC_ICO.invioOk:__ARC_ICO.invio}</button>`;
+
+    const sezAntepr = antepr ? `<div class="verbale-doc" id="anteprima-verbale-${a.id}" style="padding:18px 20px;font-size:12.5px;">${amministratore.logoDataUrl ? `<img src="${amministratore.logoDataUrl}" style="max-height:38px;display:block;margin-bottom:8px;">` : `<div class="seal" style="width:56px;height:56px;font-size:7px;">${escapeHtml((b.nome||'').toUpperCase())}</div>`}<h4 style="font-size:14px;">Verbale</h4>${escapeHtml(a.verbale)}</div>` : '';
+    const sezAllegati = giaInviato
+      ? `<div><div class="cond-sez">Allegati inviati</div>` + inviati.map((invio,i)=>{
+          const dataInvio = new Date(invio.timestamp).toLocaleString('it-IT', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'});
+          const nDest = invio.destinatari ? invio.destinatari.length : (invio.destinatariCount||0);
+          const etichetta = inviati.length>1 ? `Invio n. ${i+1} — ${dataInvio}` : `Inviato il ${dataInvio}`;
+          return `<div class="arc-invio"><div class="muted" style="margin-bottom:6px;">${etichetta} — ${nDest} destinatari</div>` +
+            (invio.files||[]).map((f,fi)=>`<div class="arc-file"><span>📎 ${escapeHtml(f.nome)}</span><span class="arc-file-az">
+              <button class="cond-ico" data-tip="Scarica" aria-label="Scarica" onclick="scaricaAllegatoInvio(${b.id}, ${a.id}, ${i}, ${fi})">${__ARC_ICO.scarica}</button>
+              <button class="cond-ico" data-tip="Anteprima" aria-label="Anteprima" onclick="anteprimaAllegatoInvio(${b.id}, ${a.id}, ${i}, ${fi})">${__ARC_ICO.occhio}</button></span></div>`).join('') + '</div>';
+        }).join('') + '</div>'
+      : '<div class="cond-vuoto">Nessun documento ancora inviato per questa assemblea.</div>';
+    const dettaglio = !aperto ? '' : `<div class="cond-dettaglio">${sezAntepr}${sezAllegati}</div>`;
+
+    return `<div class="cond-gruppo${aperto?' aperto':''}" id="archivio-assemblea-${a.id}">
+      <div class="cond-riga arc-riga">
+        <button class="cond-chevron" aria-expanded="${aperto}" aria-label="Mostra dettagli" onclick="arcToggle(${a.id})">${__ICO.chevron}</button>
+        <div class="arc-data"><b>${escapeHtml(a.dataSeconda||'data non impostata')}</b><span class="muted">ore ${escapeHtml(a.oraSeconda||'--:--')}</span></div>
+        <div class="cond-nome arc-oggetto" onclick="arcToggle(${a.id})">${escapeHtml(a.oggetto||'(oggetto non indicato)')}</div>
+        <div class="arc-tipo"><span class="cond-pill ${a.tipo==='straordinaria'?'viola':'ok'}">${tipoStr}</span></div>
+        <div class="cond-azioni">${btnReg}${btnScarica}${btnAntepr}${btnInvio}</div>
+      </div>${dettaglio}</div>`;
   }).join('');
+  el.innerHTML = `<div class="cond-tab">
+    <div class="cond-testa arc-riga"><div></div><div>Data e ora</div><div>Oggetto</div><div>Tipo</div><div class="cond-azioni-t">Azioni</div></div>
+    ${righe}</div>`;
 }
 function terminaAssemblea(){
   const b=getActiveBuilding();
@@ -11196,7 +11241,7 @@ function sbCostruisci(D){
   ricalcolaContatoriId();
 }
 
-// LT-300 — Accesso di condòmini e ospiti con il link, SENZA login: l'unica cosa che il database
+// LT-301 — Accesso di condòmini e ospiti con il link, SENZA login: l'unica cosa che il database
 // accetta è il token. La funzione partecipa_carica restituisce solo ciò che quella persona può
 // vedere (dei vicini: nome, interno, millesimi; mai email né token).
 async function sbCaricaPartecipante(token){
@@ -11756,7 +11801,7 @@ function vivoAvviaPartecipante(sb, token){
 
 let __versioneStatoLocale = 0;
 function salvaStato(soloLocale){
-  // LT-300: chi entra col link da Supabase ha solo i dati ridotti che gli spettano: non deve mai
+  // LT-301: chi entra col link da Supabase ha solo i dati ridotti che gli spettano: non deve mai
   // scrivere lo stato completo (né in locale né altrove). Le sue azioni passeranno da funzioni
   // dedicate del database (tappa 5).
   if(__sbAn.partecipante) return true;
