@@ -775,6 +775,16 @@
 .prof-errore{margin:0 0 14px;padding:10px 14px;border:1px solid var(--danger-border);background:var(--danger-bg);color:var(--danger-text);border-radius:9px;font-size:14px;}
 .prof-errore.hidden{display:none;}
 @media (max-width:860px){.prof-colonne{grid-template-columns:1fr;}}
+
+/* Wizard condominio, punto 5: barra azioni + finestre */
+.cond-barra-az{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 14px;}
+.modal-box.modal-largo{max-width:720px;width:calc(100% - 32px);max-height:calc(100vh - 40px);overflow:auto;text-align:left;}
+.mc-griglia{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:12px;}
+.mc-griglia .field{margin:0;}
+.modal-largo .modal-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end;margin-top:14px;}
+.mx-drop{display:flex;flex-direction:column;align-items:center;gap:6px;padding:26px 16px;margin-top:12px;border:2px dashed var(--border);border-radius:12px;background:var(--surface);color:var(--text-secondary);cursor:pointer;text-align:center;transition:.12s;}
+.mx-drop:hover,.mx-drop.sopra,.mx-drop:focus-visible{border-color:var(--accent);background:var(--brand-50);color:var(--accent);outline:none;}
+:root[data-theme="dark"] .mx-drop:hover,:root[data-theme="dark"] .mx-drop.sopra{background:rgba(59,130,246,.12);}
 </style>
 <link rel="stylesheet" href="/assets/app.css?v=296">
 <script src="/assets/tema.js"></script>
@@ -844,7 +854,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/10/2026">LT-303</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/10/2026">LT-304</span>
   </div>
 
   <!-- MAIN -->
@@ -1099,6 +1109,10 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
       </div>
       <div class="card frame-dark-hover">
         <p class="muted" style="margin-bottom:10px;">Ogni riga è modificabile direttamente: correggi errori o aggiungi un subentro anche dopo l'invio della convocazione.</p>
+        <div class="cond-barra-az">
+          <button class="btn" onclick="apriModaleAggiungiCondomino()">+ Aggiungi condòmino</button>
+          <button class="btn secondary" onclick="apriModaleCaricaExcel()">Carica da Excel i dati dei condòmini</button>
+        </div>
         <div class="table-wrap">
           <table id="tbl-condomini">
             <thead><tr id="tbl-condomini-head"></tr></thead>
@@ -1869,6 +1883,46 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
 <!-- Sostituisce gli alert() nativi del browser: quelli mostrano sempre il titolo "<indirizzo del
      sito> dice" (impossibile da personalizzare, per motivi di sicurezza del browser stesso) —
      questo modale, tutto nostro, mostra invece "⚠️ Attenzione" come titolo vero. -->
+<!-- Punto 5 del wizard condominio: aggiungi condòmino (stessi campi del punto 4) e carica da Excel -->
+<div class="modal-overlay hidden" id="modal-aggiungi-condomino" onclick="if(event.target===this) chiudiModaleAggiungiCondomino()">
+  <div class="modal-box modal-largo" role="dialog" aria-modal="true" aria-labelledby="mc-titolo">
+    <h3 id="mc-titolo">Aggiungi condòmino</h3>
+    <div class="mc-griglia">
+      <div class="field"><label for="mc-nome">Nome<span class="req">*</span></label><input id="mc-nome" placeholder="Es. Maria"></div>
+      <div class="field"><label for="mc-cognome">Cognome</label><input id="mc-cognome" placeholder="Es. Rossi (opzionale)"></div>
+      <div class="field"><label for="mc-interno">Interno</label><input id="mc-interno" placeholder="Es. Int. 4"></div>
+      <div class="field"><label for="mc-unita">Unità immobiliare</label><input id="mc-unita" placeholder="Es. Box 3 / Sub. 12"></div>
+      <div class="field"><label for="mc-email">Email<span class="req">*</span></label><input id="mc-email" placeholder="maria.rossi@email.it"></div>
+    </div>
+    <div class="mc-griglia" id="mc-millesimi-inputs"></div>
+    <div class="prof-errore hidden" id="mc-errore" role="alert"></div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="chiudiModaleAggiungiCondomino()">Annulla</button>
+      <button class="btn secondary" onclick="aggiungiCondominoDaModale(true)">Aggiungi e inserisci un altro</button>
+      <button class="btn" onclick="aggiungiCondominoDaModale(false)">Aggiungi all'elenco</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="modal-carica-excel" onclick="if(event.target===this) chiudiModaleCaricaExcel()">
+  <div class="modal-box modal-largo" role="dialog" aria-modal="true" aria-labelledby="mx-titolo">
+    <h3 id="mx-titolo">Carica da Excel i dati dei condòmini</h3>
+    <p class="muted" style="text-align:left;">Colonne riconosciute: Cognome, Nome (opzionale), Interno (opzionale), Unità immobiliare (opzionale), Email, e una o più colonne "Millesimi ..." (es. "Millesimi Proprietà", "Millesimi Giardino"). Se il file non ha titoli riconoscibili, viene letto per posizione: Cognome (e Nome, se insieme) — Nome — Interno — Unità immobiliare — Email — Millesimi proprietà — altri millesimi.</p>
+    <div class="mx-drop" id="mx-drop" tabindex="0" role="button" aria-label="Scegli un file o trascinalo qui"
+         onclick="document.getElementById('mx-file').click()"
+         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('mx-file').click();}"
+         ondragover="event.preventDefault();this.classList.add('sopra')" ondragleave="this.classList.remove('sopra')"
+         ondrop="event.preventDefault();this.classList.remove('sopra');caricaExcelDaModale(event.dataTransfer.files[0])">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+      <div><b>Trascina qui il file</b> oppure clicca per sceglierlo</div>
+      <div class="muted" style="font-size:12px;">.xlsx, .xls, .csv</div>
+    </div>
+    <input type="file" id="mx-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="caricaExcelDaModale(this.files[0]); this.value='';">
+    <div id="mx-feedback" class="muted" style="margin-top:10px;text-align:left;" role="status"></div>
+    <div class="modal-actions"><button class="btn secondary" onclick="chiudiModaleCaricaExcel()">Chiudi</button></div>
+  </div>
+</div>
+
 <div class="modal-overlay hidden" id="modal-avviso-generico">
   <div class="modal-box">
     <h3>⚠️ Attenzione</h3>
@@ -3803,6 +3857,50 @@ function addCondomino(){
   renderCondomini();
 }
 
+// ---------- Punto 5 del wizard: finestre "Aggiungi condòmino" e "Carica da Excel" ----------
+function apriModaleAggiungiCondomino(){
+  const b=getWorkingBuilding();
+  document.getElementById('mc-millesimi-inputs').innerHTML = b.tabelleMillesimali.map(t=>`<div class="field"><label>Millesimi — ${escapeHtml(t)}</label><input type="number" class="mc-mill-input" data-tabella="${escapeHtml(t)}" placeholder="0"></div>`).join('');
+  ['mc-nome','mc-cognome','mc-interno','mc-unita','mc-email'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('mc-errore').classList.add('hidden');
+  document.getElementById('modal-aggiungi-condomino').classList.remove('hidden');
+  setTimeout(()=>document.getElementById('mc-nome').focus(),30);
+}
+function chiudiModaleAggiungiCondomino(){ document.getElementById('modal-aggiungi-condomino').classList.add('hidden'); }
+function aggiungiCondominoDaModale(continua){
+  const v=id=>document.getElementById(id).value.trim();
+  const nome=v('mc-nome'), cognome=v('mc-cognome'), interno=v('mc-interno'), unita=v('mc-unita'), email=v('mc-email');
+  const err=document.getElementById('mc-errore');
+  if(!nome||!email){
+    err.textContent='Compila almeno nome ed email.'; err.classList.remove('hidden');
+    document.getElementById(!nome?'mc-nome':'mc-email').focus(); return;
+  }
+  const millesimi={};
+  document.querySelectorAll('.mc-mill-input').forEach(inp=>{ millesimi[inp.dataset.tabella] = parseFloat(inp.value)||0; });
+  getWorkingBuilding().condomini.push({id:idCounter++, nome, cognome, interno, unita, email, millesimi, invitato:false, gruppoCon:null, token: generaTokenForte()});
+  renderCondomini();
+  toast('Condòmino aggiunto: '+[cognome,nome].filter(Boolean).join(' ')+'.');
+  if(continua){
+    ['mc-nome','mc-cognome','mc-interno','mc-unita','mc-email'].forEach(id=>document.getElementById(id).value='');
+    document.querySelectorAll('.mc-mill-input').forEach(i=>i.value='');
+    err.classList.add('hidden'); document.getElementById('mc-nome').focus();
+  } else chiudiModaleAggiungiCondomino();
+}
+function apriModaleCaricaExcel(){
+  document.getElementById('mx-feedback').textContent='';
+  document.getElementById('modal-carica-excel').classList.remove('hidden');
+  setTimeout(()=>document.getElementById('mx-drop').focus(),30);
+}
+function chiudiModaleCaricaExcel(){ document.getElementById('modal-carica-excel').classList.add('hidden'); }
+function caricaExcelDaModale(file){
+  const fb=document.getElementById('mx-feedback');
+  if(!file) return;
+  if(!/\.(xlsx|xls|csv)$/i.test(file.name)){ fb.textContent='Formato non supportato: usa un file .xlsx, .xls o .csv.'; return; }
+  fb.textContent='Lettura di "'+file.name+'"…';
+  importaExcelFile(file, fb, { ok:()=>chiudiModaleCaricaExcel() });
+}
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ chiudiModaleAggiungiCondomino(); chiudiModaleCaricaExcel(); } });
+
 function rilevaColonneAnagrafica(headers){
   let keyNome=null, keyCognome=null, keyNomeCompleto=null, keyEmail=null, keyInterno=null, keyUnita=null;
   const millesimiCols = []; // {header, tabella}
@@ -3893,7 +3991,13 @@ function parseNumeroDecimale(v){
 function handleExcelUpload(evt){
   const file = evt.target.files[0];
   if(!file) return;
-  const feedback = document.getElementById('excel-feedback');
+  importaExcelFile(file, document.getElementById('excel-feedback'), { annullato:()=>{ evt.target.value=''; } });
+}
+// Lettura del file Excel/CSV: usata sia dal punto 3 (campo file) sia dalla finestra "Carica da
+// Excel" del punto 5. opts.annullato() = chiamata se l'utente rinuncia alla sostituzione;
+// opts.ok() = chiamata a importazione riuscita; opts.errore() = file non leggibile/non valido.
+function importaExcelFile(file, feedback, opts){
+  opts = opts||{};
   const reader = new FileReader();
   reader.onload = function(e){
     try{
@@ -3901,19 +4005,20 @@ function handleExcelUpload(evt){
       const wb = XLSX.read(data, {type:'array'});
       const sheet = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(sheet, {defval:''});
-      if(rows.length===0){ feedback.textContent='Il file sembra vuoto.'; return; }
+      if(rows.length===0){ feedback.textContent='Il file sembra vuoto.'; if(opts.errore) opts.errore(); return; }
 
       const headers = Object.keys(rows[0]);
       const {keyNome, keyCognome, keyNomeCompleto, keyEmail, keyInterno, keyUnita, millesimiCols} = rilevaColonneAnagrafica(headers);
       if(!(keyNome||keyNomeCompleto) || !keyEmail || millesimiCols.length===0){
         feedback.textContent='Non trovo le colonne attese (Nome, Email, almeno una colonna Millesimi...). Controlla le intestazioni del file.';
+        if(opts.errore) opts.errore();
         return;
       }
 
       const building = getWorkingBuilding();
       if(building.condomini.length>0){
         const ok = confirm(`Stai per sostituire l'anagrafica attuale (${building.condomini.length} condòmini) con quella del nuovo file. I dati precedenti andranno persi. Continuare?`);
-        if(!ok){ feedback.textContent='Caricamento annullato: è rimasta l\'anagrafica precedente.'; evt.target.value=''; return; }
+        if(!ok){ feedback.textContent='Caricamento annullato: è rimasta l\'anagrafica precedente.'; if(opts.annullato) opts.annullato(); return; }
       }
 
       // Prima passata: leggo i valori grezzi di ogni riga valida (nome ed email presenti)
@@ -3974,6 +4079,7 @@ function handleExcelUpload(evt){
       feedback.textContent = `Anagrafica sostituita: ${importati} righe caricate su "${building.nome}" — tabelle millesimali rilevate: ${millesimiCols.map(m=>m.tabella).join(', ')}.${notaScala}${notaSenzaEmail}`;
       renderCondomini();
       toast('Anagrafica sostituita con il nuovo file Excel.');
+      if(opts.ok) opts.ok();
       // Un unico controllo duplicati su tutta l'anagrafica appena importata, invece di uno per
       // ciascuna tabella (che mostrerebbe più popup in sequenza, uno sopra l'altro).
       building.tabelleMillesimali.forEach(t=>{ if(!building.tabelleGiaControllatePerDuplicati.includes(t)) building.tabelleGiaControllatePerDuplicati.push(t); });
@@ -3982,6 +4088,7 @@ function handleExcelUpload(evt){
       else salvaStato();
     }catch(err){
       feedback.textContent='Non sono riuscito a leggere il file. Verifica che sia un .xlsx valido.';
+      if(opts.errore) opts.errore();
     }
   };
   reader.readAsArrayBuffer(file);
@@ -7158,7 +7265,7 @@ Distinti saluti
 {{firma_amministratore}}`;
 
 let __contatoreOspiti = 1;
-// LT-303 — Token dei link personali: 30 caratteri casuali (circa 155 bit) presi dal generatore
+// LT-304 — Token dei link personali: 30 caratteri casuali (circa 155 bit) presi dal generatore
 // sicuro del browser, al posto di Math.random (prevedibile e di soli 8 caratteri).
 function generaTokenForte(){
   const alfabeto = 'abcdefghijkmnpqrstuvwxyz23456789';
@@ -11347,7 +11454,7 @@ function sbCostruisci(D){
   ricalcolaContatoriId();
 }
 
-// LT-303 — Accesso di condòmini e ospiti con il link, SENZA login: l'unica cosa che il database
+// LT-304 — Accesso di condòmini e ospiti con il link, SENZA login: l'unica cosa che il database
 // accetta è il token. La funzione partecipa_carica restituisce solo ciò che quella persona può
 // vedere (dei vicini: nome, interno, millesimi; mai email né token).
 async function sbCaricaPartecipante(token){
@@ -11907,7 +12014,7 @@ function vivoAvviaPartecipante(sb, token){
 
 let __versioneStatoLocale = 0;
 function salvaStato(soloLocale){
-  // LT-303: chi entra col link da Supabase ha solo i dati ridotti che gli spettano: non deve mai
+  // LT-304: chi entra col link da Supabase ha solo i dati ridotti che gli spettano: non deve mai
   // scrivere lo stato completo (né in locale né altrove). Le sue azioni passeranno da funzioni
   // dedicate del database (tappa 5).
   if(__sbAn.partecipante) return true;
