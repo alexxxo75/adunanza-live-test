@@ -494,3 +494,7 @@ body.skin .profilo .dropdown { z-index: 300; }
 .mx-tot-ok{color:var(--status-done-text);} .mx-tot-ko{color:var(--danger);}
 .mx-ok{margin-top:12px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--status-done-bg);color:var(--status-done-text);font-size:14px;text-align:left;}
 #mx-undo-btn.hidden{display:none;}
+#tbl-condomini .cond-ico{width:34px;height:34px;}
+#tbl-condomini .cond-ico[data-tip]:hover::after,#tbl-condomini .cond-ico[data-tip]:focus-visible::after{bottom:calc(100% + 6px);right:0;}
+.cond-ico.cond-ico-del:hover{background:var(--danger-border);color:var(--danger-text);}
+:root[data-theme="dark"] .cond-ico.cond-ico-del,:root[data-theme="dark"] .cond-ico.cond-ico-del:hover{color:var(--danger-text);}
