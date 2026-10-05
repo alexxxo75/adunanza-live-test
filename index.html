@@ -796,6 +796,16 @@
 .mx-modo label{justify-content:flex-start !important;text-align:left;}
 .mx-modo input[type=radio]{width:16px !important;height:16px;flex:none;padding:0;margin:3px 0 0;}
 .mx-modo label span{flex:1;}
+
+.mx-sommario{margin:12px 0 8px;font-size:14px;color:var(--text-primary);}
+.mx-tab-wrap{overflow:auto;border:1px solid var(--border);border-radius:9px;}
+.mx-tab{width:100%;border-collapse:collapse;font-size:13px;}
+.mx-tab th{background:var(--surface);text-align:left;padding:7px 10px;font-size:12px;text-transform:uppercase;letter-spacing:.03em;color:var(--text-secondary);}
+.mx-tab td{padding:7px 10px;border-top:1px solid var(--border);color:var(--text-primary);}
+.mx-note{margin:10px 0 0;padding-left:18px;font-size:13px;color:var(--text-secondary);}
+.mx-tot-ok{color:var(--status-done-text);} .mx-tot-ko{color:var(--danger);}
+.mx-ok{margin-top:12px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--status-done-bg);color:var(--status-done-text);font-size:14px;text-align:left;}
+#mx-undo-btn.hidden{display:none;}
 </style>
 <link rel="stylesheet" href="/assets/app.css?v=296">
 <script src="/assets/tema.js"></script>
@@ -865,7 +875,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/10/2026">LT-305</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 02/10/2026">LT-306</span>
   </div>
 
   <!-- MAIN -->
@@ -1120,6 +1130,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
         <span class="wiz-titolo-az">
           <button type="button" class="cond-ico" data-tip="Aggiungi condòmino" aria-label="Aggiungi condòmino" onclick="apriModaleAggiungiCondomino()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="4"/><path d="M2 21v-1a6 6 0 0 1 6-6h2M19 8v6M16 11h6"/></svg></button>
           <button type="button" class="cond-ico" data-tip="Carica da Excel i dati dei condòmini" aria-label="Carica da Excel i dati dei condòmini" onclick="apriModaleCaricaExcel()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 18v-6m0 0-2.5 2.5M12 12l2.5 2.5"/></svg></button>
+                  <button type="button" class="cond-ico hidden" id="mx-undo-btn" data-tip="Annulla l'ultima importazione da Excel" aria-label="Annulla l'ultima importazione da Excel" onclick="mxAnnullaImportazione(false)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
         </span>
       </div>
       <div class="card frame-dark-hover">
@@ -1915,27 +1926,45 @@ Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 20
   </div>
 </div>
 
-<div class="modal-overlay hidden" id="modal-carica-excel" onclick="if(event.target===this) chiudiModaleCaricaExcel()">
+<div class="modal-overlay hidden" id="modal-carica-excel" onclick="if(event.target===this) chiudiModaleCaricaExcel()" ondragover="event.preventDefault();document.getElementById('mx-drop').classList.add('sopra')" ondragleave="if(event.target===this)document.getElementById('mx-drop').classList.remove('sopra')" ondrop="mxDrop(event)">
   <div class="modal-box modal-largo" role="dialog" aria-modal="true" aria-labelledby="mx-titolo">
     <h3 id="mx-titolo">Carica da Excel i dati dei condòmini</h3>
     <p class="muted" style="text-align:left;">Colonne riconosciute: Cognome, Nome (opzionale), Interno (opzionale), Unità immobiliare (opzionale), Email, e una o più colonne "Millesimi ..." (es. "Millesimi Proprietà", "Millesimi Giardino"). Se il file non ha titoli riconoscibili, viene letto per posizione: Cognome (e Nome, se insieme) — Nome — Interno — Unità immobiliare — Email — Millesimi proprietà — altri millesimi.</p>
     <fieldset class="mx-modo hidden" id="mx-modo">
       <legend>Nell'elenco ci sono già <b id="mx-n-esistenti">0</b> condòmini. Cosa vuoi fare con quelli del file?</legend>
-      <label><input type="radio" name="mx-modo" value="aggiungi" checked> <span><b>Aggiungi</b> ai condòmini già presenti</span></label>
-      <label><input type="radio" name="mx-modo" value="sostituisci"> <span><b>Sostituisci</b> l'elenco attuale (i dati attuali andranno persi)</span></label>
+      <label><input type="radio" name="mx-modo" value="aggiungi" checked onchange="mxAggiornaBottone()"> <span><b>Aggiungi</b> ai condòmini già presenti</span></label>
+      <label><input type="radio" name="mx-modo" value="sostituisci" onchange="mxAggiornaBottone()"> <span><b>Sostituisci</b> l'elenco attuale (i dati attuali andranno persi)</span></label>
     </fieldset>
-    <div class="mx-drop" id="mx-drop" tabindex="0" role="button" aria-label="Scegli un file o trascinalo qui"
-         onclick="document.getElementById('mx-file').click()"
-         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('mx-file').click();}"
-         ondragover="event.preventDefault();this.classList.add('sopra')" ondragleave="this.classList.remove('sopra')"
-         ondrop="event.preventDefault();this.classList.remove('sopra');caricaExcelDaModale(event.dataTransfer.files[0])">
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
-      <div><b>Trascina qui il file</b> oppure clicca per sceglierlo</div>
-      <div class="muted" style="font-size:12px;">.xlsx, .xls, .csv</div>
+
+    <div id="mx-fase-file">
+      <div class="mx-drop" id="mx-drop" tabindex="0" role="button" aria-label="Scegli un file o trascinalo qui"
+           onclick="document.getElementById('mx-file').click()"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('mx-file').click();}">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+        <div><b>Trascina qui il file</b> oppure clicca per sceglierlo</div>
+        <div class="muted" style="font-size:12px;">.xlsx, .xls, .csv — dopo averlo scelto vedrai un'anteprima e potrai confermare o annullare</div>
+      </div>
+      <input type="file" id="mx-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="caricaExcelDaModale(this.files[0]); this.value='';">
+      <div id="mx-feedback" class="muted" style="margin-top:10px;text-align:left;" role="status"></div>
+      <div class="modal-actions"><button class="btn secondary" onclick="chiudiModaleCaricaExcel()">Chiudi</button></div>
     </div>
-    <input type="file" id="mx-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="caricaExcelDaModale(this.files[0]); this.value='';">
-    <div id="mx-feedback" class="muted" style="margin-top:10px;text-align:left;" role="status"></div>
-    <div class="modal-actions"><button class="btn secondary" onclick="chiudiModaleCaricaExcel()">Chiudi</button></div>
+
+    <div id="mx-fase-anteprima" class="hidden">
+      <div id="mx-anteprima"></div>
+      <div class="modal-actions">
+        <button class="btn secondary" onclick="mxFase('file')">Scegli un altro file</button>
+        <button class="btn secondary" onclick="chiudiModaleCaricaExcel()">Annulla</button>
+        <button class="btn" id="mx-btn-conferma" onclick="mxConferma()">Importa</button>
+      </div>
+    </div>
+
+    <div id="mx-fase-risultato" class="hidden">
+      <div id="mx-risultato" class="mx-ok" role="status"></div>
+      <div class="modal-actions">
+        <button class="btn secondary" onclick="mxAnnullaImportazione(true)">Annulla importazione</button>
+        <button class="btn" onclick="chiudiModaleCaricaExcel()">Chiudi</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -3902,24 +3931,97 @@ function aggiungiCondominoDaModale(continua){
     err.classList.add('hidden'); document.getElementById('mc-nome').focus();
   } else chiudiModaleAggiungiCondomino();
 }
+let __mxFile = null;     // file scelto, in attesa di conferma
+let __mxUndo = null;     // fotografia dell'elenco prima dell'ultima importazione {b, c, t, g}
+function mxFase(f){
+  ['file','anteprima','risultato'].forEach(x=>document.getElementById('mx-fase-'+x).classList.toggle('hidden', x!==f));
+  const haElenco = getWorkingBuilding().condomini.length>0;
+  document.getElementById('mx-modo').classList.toggle('hidden', f==='risultato' || !haElenco);
+  document.getElementById('mx-n-esistenti').textContent = getWorkingBuilding().condomini.length;
+}
 function apriModaleCaricaExcel(){
+  __mxFile = null;
   document.getElementById('mx-feedback').textContent='';
-  const n=getWorkingBuilding().condomini.length;
-  document.getElementById('mx-n-esistenti').textContent=n;
-  document.getElementById('mx-modo').classList.toggle('hidden', n===0);
   document.querySelector('input[name="mx-modo"][value="aggiungi"]').checked=true;
+  mxFase('file');
   document.getElementById('modal-carica-excel').classList.remove('hidden');
   setTimeout(()=>document.getElementById('mx-drop').focus(),30);
 }
-function chiudiModaleCaricaExcel(){ document.getElementById('modal-carica-excel').classList.add('hidden'); }
+function chiudiModaleCaricaExcel(){
+  document.getElementById('modal-carica-excel').classList.add('hidden');
+  document.getElementById('mx-drop').classList.remove('sopra');
+}
+function mxDrop(ev){
+  ev.preventDefault();
+  document.getElementById('mx-drop').classList.remove('sopra');
+  const fase = ['file','anteprima'].find(x=>!document.getElementById('mx-fase-'+x).classList.contains('hidden'));
+  if(!fase) return;                         // nella schermata del risultato un trascinamento non fa nulla
+  caricaExcelDaModale(ev.dataTransfer && ev.dataTransfer.files[0]);
+}
 function caricaExcelDaModale(file){
   const fb=document.getElementById('mx-feedback');
   if(!file) return;
+  mxFase('file');
   if(!/\.(xlsx|xls|csv)$/i.test(file.name)){ fb.textContent='Formato non supportato: usa un file .xlsx, .xls o .csv.'; return; }
+  __mxFile = file;
   fb.textContent='Lettura di "'+file.name+'"…';
-  const haElenco = getWorkingBuilding().condomini.length>0;
-  const modo = haElenco ? document.querySelector('input[name="mx-modo"]:checked').value : 'sostituisci';
-  importaExcelFile(file, fb, { modo, ok:()=>chiudiModaleCaricaExcel() });
+  // Prima solo un'ANTEPRIMA: nulla viene modificato finché non si preme "Importa".
+  importaExcelFile(file, fb, { anteprima:info=>mxMostraAnteprima(file, info) });
+}
+function mxMostraAnteprima(file, info){
+  const righe=info.righe, n=righe.length;
+  const prime = righe.slice(0,5);
+  const intest = '<tr><th>Cognome</th><th>Nome</th><th>Email</th>'+info.tabelle.map(t=>'<th>'+escapeHtml(t)+'</th>').join('')+'</tr>';
+  const corpo = prime.map(r=>'<tr><td>'+escapeHtml(r.cognome)+'</td><td>'+escapeHtml(r.nome)+'</td><td>'+escapeHtml(r.email)+'</td>'+info.tabelle.map(t=>'<td>'+r.millesimi[t]+'</td>').join('')+'</tr>').join('');
+  const note=[];
+  info.tabelle.forEach(t=>{ const tot=info.somme[t]; note.push('Totale '+escapeHtml(t)+': <b class="'+(Math.abs(tot-1000)<0.5?'mx-tot-ok':'mx-tot-ko')+'">'+tot+'</b> (dovrebbe fare 1000)'); });
+  if(info.scalate.length) note.push('Valori di '+info.scalate.map(escapeHtml).join(', ')+' 1000 volte più grandi del previsto: verranno divisi per 1000.');
+  if(info.senzaEmail) note.push(info.senzaEmail+' condòmin'+(info.senzaEmail===1?'o':'i')+' senza email.');
+  if(info.scartate>0) note.push(info.scartate+' righe senza nome/cognome verranno ignorate.');
+  document.getElementById('mx-anteprima').innerHTML =
+    '<div class="mx-sommario"><b>'+escapeHtml(file.name)+'</b> — '+n+' condòmin'+(n===1?'o':'i')+' trovati; tabelle millesimali: '+info.tabelle.map(escapeHtml).join(', ')+'</div>'+
+    '<div class="mx-tab-wrap"><table class="mx-tab"><thead>'+intest+'</thead><tbody>'+corpo+'</tbody></table></div>'+
+    (n>prime.length?'<div class="muted" style="font-size:12px;margin-top:4px;">… e altre '+(n-prime.length)+' righe</div>':'')+
+    '<ul class="mx-note">'+note.map(x=>'<li>'+x+'</li>').join('')+'</ul>';
+  __mxFile._n = n;
+  mxFase('anteprima');
+  mxAggiornaBottone();
+}
+function mxModoScelto(){
+  return getWorkingBuilding().condomini.length>0 ? document.querySelector('input[name="mx-modo"]:checked').value : 'sostituisci';
+}
+function mxAggiornaBottone(){
+  const btn=document.getElementById('mx-btn-conferma'); if(!btn || !__mxFile) return;
+  const n=__mxFile._n||0;
+  btn.textContent = mxModoScelto()==='aggiungi' ? 'Aggiungi '+n+' condòmini' : 'Sostituisci con '+n+' condòmini';
+}
+function mxConferma(){
+  if(!__mxFile) return;
+  const b=getWorkingBuilding();
+  const modo=mxModoScelto();
+  const foto={ b, c:JSON.parse(JSON.stringify(b.condomini)), t:JSON.parse(JSON.stringify(b.tabelleMillesimali||[])), g:JSON.parse(JSON.stringify(b.tabelleGiaControllatePerDuplicati||[])) };
+  const fb=document.getElementById('mx-risultato');
+  importaExcelFile(__mxFile, fb, { modo, senzaConferma:true, ok:()=>{
+    __mxUndo = foto;
+    mxFase('risultato');
+    mxAggiornaUndo();
+  }, errore:()=>{ mxFase('file'); document.getElementById('mx-feedback').textContent=fb.textContent; } });
+}
+function mxAnnullaImportazione(daModale){
+  if(!__mxUndo) return;
+  if(!daModale && !confirm("Ripristinare l'elenco dei condòmini com'era prima dell'ultima importazione da Excel? Le modifiche fatte dopo l'importazione andranno perse.")) return;
+  const f=__mxUndo; __mxUndo=null;
+  f.b.condomini=f.c; f.b.tabelleMillesimali=f.t; f.b.tabelleGiaControllatePerDuplicati=f.g;
+  renderCondomini(); salvaStato();
+  toast("Importazione annullata: elenco ripristinato.");
+  mxAggiornaUndo();
+  if(daModale){ __mxFile=null; document.getElementById('mx-feedback').textContent="Importazione annullata: l'elenco è tornato com'era prima."; mxFase('file'); }
+}
+function mxAggiornaUndo(){
+  const btn=document.getElementById('mx-undo-btn'); if(!btn) return;
+  let visibile=false;
+  try{ visibile = !!__mxUndo && currentPage==='dashboard' && __mxUndo.b===getWorkingBuilding(); }catch(e){}
+  btn.classList.toggle('hidden', !visibile);
 }
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ chiudiModaleAggiungiCondomino(); chiudiModaleCaricaExcel(); } });
 
@@ -4039,7 +4141,7 @@ function importaExcelFile(file, feedback, opts){
 
       const building = getWorkingBuilding();
       const aggiungi = opts.modo==='aggiungi';
-      if(!aggiungi && building.condomini.length>0){
+      if(!aggiungi && !opts.anteprima && !opts.senzaConferma && building.condomini.length>0){
         const ok = confirm(`Stai per sostituire l'anagrafica attuale (${building.condomini.length} condòmini) con quella del nuovo file. I dati precedenti andranno persi. Continuare?`);
         if(!ok){ feedback.textContent='Caricamento annullato: è rimasta l\'anagrafica precedente.'; if(opts.annullato) opts.annullato(); return; }
       }
@@ -4081,6 +4183,15 @@ function importaExcelFile(file, feedback, opts){
         if(somma>50000){ fattoreScala[mc.tabella]=0.001; tabelleScalateNote.push(mc.tabella); }
         else{ fattoreScala[mc.tabella]=1; }
       });
+
+      // Solo anteprima (finestra "Carica da Excel"): non tocca nulla, restituisce quello che leggerebbe
+      if(opts.anteprima){
+        const righeAnt = righeValide.map(ri=>({nome:ri.nome, cognome:ri.cognome, email:ri.email, interno:ri.interno, unita:ri.unita,
+          millesimi:Object.fromEntries(millesimiCols.map(mc=>[mc.tabella, arrotondaMillesimi(ri.millesimiGrezzi[mc.tabella]*fattoreScala[mc.tabella])]))}));
+        const somme = Object.fromEntries(millesimiCols.map(mc=>[mc.tabella, arrotondaMillesimi(righeAnt.reduce((t,r)=>t+(r.millesimi[mc.tabella]||0),0))]));
+        opts.anteprima({righe:righeAnt, tabelle:millesimiCols.map(m=>m.tabella), somme, scalate:tabelleScalateNote, senzaEmail:righeAnt.filter(r=>!r.email).length, scartate:rows.length-righeAnt.length});
+        return;
+      }
 
       // Il nuovo file sostituisce completamente anagrafica e tabelle millesimali precedenti
       if(!aggiungi){
@@ -4350,6 +4461,7 @@ function confermaCollegamentoDuplicati(){
 }
 
 function renderCondomini(){
+  if(typeof mxAggiornaUndo==='function') mxAggiornaUndo();
   const building = getWorkingBuilding();
   // Ordine alfabetico per cognome (poi nome, a parità di cognome), sempre — non solo alla
   // prima apertura: così la tabella resta ordinata anche dopo aggiunte o modifiche manuali.
@@ -7297,7 +7409,7 @@ Distinti saluti
 {{firma_amministratore}}`;
 
 let __contatoreOspiti = 1;
-// LT-305 — Token dei link personali: 30 caratteri casuali (circa 155 bit) presi dal generatore
+// LT-306 — Token dei link personali: 30 caratteri casuali (circa 155 bit) presi dal generatore
 // sicuro del browser, al posto di Math.random (prevedibile e di soli 8 caratteri).
 function generaTokenForte(){
   const alfabeto = 'abcdefghijkmnpqrstuvwxyz23456789';
@@ -11486,7 +11598,7 @@ function sbCostruisci(D){
   ricalcolaContatoriId();
 }
 
-// LT-305 — Accesso di condòmini e ospiti con il link, SENZA login: l'unica cosa che il database
+// LT-306 — Accesso di condòmini e ospiti con il link, SENZA login: l'unica cosa che il database
 // accetta è il token. La funzione partecipa_carica restituisce solo ciò che quella persona può
 // vedere (dei vicini: nome, interno, millesimi; mai email né token).
 async function sbCaricaPartecipante(token){
@@ -12046,7 +12158,7 @@ function vivoAvviaPartecipante(sb, token){
 
 let __versioneStatoLocale = 0;
 function salvaStato(soloLocale){
-  // LT-305: chi entra col link da Supabase ha solo i dati ridotti che gli spettano: non deve mai
+  // LT-306: chi entra col link da Supabase ha solo i dati ridotti che gli spettano: non deve mai
   // scrivere lo stato completo (né in locale né altrove). Le sue azioni passeranno da funzioni
   // dedicate del database (tappa 5).
   if(__sbAn.partecipante) return true;
