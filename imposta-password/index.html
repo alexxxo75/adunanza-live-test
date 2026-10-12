@@ -83,6 +83,20 @@
     $('btn-salva').disabled = true;
     messaggio('Salvataggio…', 'info');
     var r = await sb.auth.updateUser({ password: a });
+    // Con il 2FA attivo Supabase non accetta il cambio da una sessione aperta da un link email:
+    // in quel caso lo fa il server, che verifica che il token arrivi davvero dal link.
+    if (r.error && /aal2/i.test(r.error.message || '')) {
+      try {
+        var ses = await sb.auth.getSession();
+        var rr = await fetch('/api/account/imposta-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ses.data.session.access_token },
+          body: JSON.stringify({ password: a })
+        });
+        var jj = {}; try { jj = await rr.json(); } catch (e2) {}
+        r = (rr.ok && jj.ok) ? { error: null } : { error: { message: jj.errore || 'Impossibile salvare la password.' } };
+      } catch (e3) { r = { error: { message: 'Impossibile salvare la password.' } }; }
+    }
     if (r.error) {
       var m = r.error.message || '';
       if (/same|different from the old/i.test(m)) m = 'Scegli una password diversa dalla precedente.';
