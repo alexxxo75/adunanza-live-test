@@ -15,6 +15,8 @@
 .ico-btn{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;border:1px solid var(--border);border-radius:8px;background:var(--surface,transparent);color:var(--text,inherit);cursor:pointer}
 .ico-btn:hover{background:var(--border-soft)}
 .ico-btn:disabled{opacity:.5;cursor:default}
+.ico-btn.ico-spento{opacity:.35;cursor:not-allowed}
+.ico-btn.ico-spento:hover{background:var(--surface,transparent)}
 .ico-btn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .ico-btn.pericolo{color:var(--danger);border-color:var(--danger-border)}
 .ico-btn.pericolo:hover{background:var(--danger-bg)}
@@ -409,6 +411,7 @@
   }
 
   var elencoDati = [];
+  var con2fa = null;   // { idUtente: true } per chi ha il 2FA attivo; null = non so (icona attiva per tutti)
   var filtro = { testo: '', tipo: {}, stato: {} };
   function statoDi(u) { return !u.attivo ? 'disattivo' : (u.invito_accettato === false ? 'invitato' : 'attivo'); }
   function passaFiltri(u) {
@@ -478,6 +481,13 @@
     if (r.error) { $('elenco').textContent = ''; messaggio('elenco-msg', 'Impossibile caricare l\'elenco: ' + r.error.message, 'err'); return; }
     elencoDati = r.data || [];
     disegnaElenco();
+    // Quali account hanno davvero il 2FA attivo? Se la richiesta fallisce, l'icona resta attiva per tutti (come prima).
+    try {
+      var s2 = await chiamaApi('/api/amministratori/stato-2fa', {});
+      con2fa = {};
+      (s2.con_2fa || []).forEach(function (id) { con2fa[id] = true; });
+      disegnaElenco();
+    } catch (e) { con2fa = null; }
   }
 
   function disegnaElenco() {
@@ -508,7 +518,13 @@
           box.appendChild(iconaBtn(SVG.mail, 'Reinvia l\'email di invito', '', function (ev) { reinvia(u, 'email', ev.currentTarget); }));
           box.appendChild(iconaBtn(SVG.link, 'Copia il link per impostare la password', '', function (ev) { reinvia(u, 'link', ev.currentTarget); }));
         }
-        box.appendChild(iconaBtn(SVG.chiave, 'Azzera la verifica in due passaggi (telefono perso)', '', function (ev) { azzera2fa(u, ev.currentTarget); }));
+        if (con2fa && !con2fa[u.id]) {
+          var spento = iconaBtn(SVG.chiave, 'Verifica in due passaggi non attiva: niente da azzerare', 'ico-spento', function () {});
+          spento.setAttribute('aria-disabled', 'true'); spento.tabIndex = -1;
+          box.appendChild(spento);
+        } else {
+          box.appendChild(iconaBtn(SVG.chiave, 'Azzera la verifica in due passaggi (telefono perso)', '', function (ev) { azzera2fa(u, ev.currentTarget); }));
+        }
         box.appendChild(u.attivo
           ? iconaBtn(SVG.x, 'Disattiva utente', 'pericolo', function (ev) { cambiaStato(u, ev.currentTarget); })
           : iconaBtn(SVG.su, 'Riattiva utente', '', function (ev) { cambiaStato(u, ev.currentTarget); }));
@@ -548,6 +564,7 @@
     try {
       var j = await chiamaApi('/api/amministratori/azzera-2fa', { id: utente.id });
       messaggio('elenco-msg', j.rimossi ? 'Verifica in due passaggi azzerata per ' + nome + '.' : nome + ' non aveva la verifica in due passaggi attiva.', 'ok');
+      if (con2fa) { delete con2fa[utente.id]; disegnaElenco(); }
     } catch (e) {
       messaggio('elenco-msg', e.message, 'err');
     }
