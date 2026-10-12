@@ -168,6 +168,35 @@
       </section>
     </div>
 
+    <div id="modale-modifica" class="modale" hidden>
+      <div class="modale-sfondo"></div>
+      <section class="carta modale-carta" role="dialog" aria-modal="true" aria-labelledby="mod-titolo">
+        <button id="btn-chiudi-modifica" class="ico-btn modale-x" type="button" aria-label="Chiudi">
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+        <div class="carta-testa">
+          <h2 id="mod-titolo">Modifica dati utente</h2>
+          <p>L'email è anche il nome di accesso: se la cambi, la persona dovrà usare quella nuova.</p>
+        </div>
+      <div class="griglia">
+        <div><label for="mod-nome">Nome</label><input id="mod-nome" type="text" autocomplete="off"></div>
+        <div><label for="mod-cognome">Cognome</label><input id="mod-cognome" type="text" autocomplete="off"></div>
+      </div>
+      <div class="griglia">
+        <div><label for="mod-email">Email</label><input id="mod-email" type="email" autocomplete="off" inputmode="email"></div>
+        <div>
+          <label for="mod-ruolo">Tipo di utente</label>
+          <select id="mod-ruolo">
+            <option value="amministratore">Amministratore di condominio</option>
+            <option value="administrator">ADMINISTRATOR (gestione della piattaforma)</option>
+          </select>
+        </div>
+      </div>
+      <button id="btn-salva-modifica" class="btn btn-primario" type="button" style="margin-top:18px">Salva modifiche</button>
+      <div id="mod-msg" class="msg" hidden></div>
+      </section>
+    </div>
+
     <div class="filtri" id="filtri">
       <div class="filtro-cerca">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -375,6 +404,7 @@
     link: '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>',
     x: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>',
     su: '<svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>',
+    matita: '<svg viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="m13.5 6.5 4 4"/></svg>',
     chiave: '<svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="m10.8 12.2 8.7-8.7M16 7l3 3"/></svg>'
   };
   var tipEl = null;
@@ -518,6 +548,7 @@
           box.appendChild(iconaBtn(SVG.mail, 'Reinvia l\'email di invito', '', function (ev) { reinvia(u, 'email', ev.currentTarget); }));
           box.appendChild(iconaBtn(SVG.link, 'Copia il link per impostare la password', '', function (ev) { reinvia(u, 'link', ev.currentTarget); }));
         }
+        box.appendChild(iconaBtn(SVG.matita, 'Modifica dati (nome, cognome, email, ruolo)', '', function () { apriModifica(u); }));
         if (con2fa && !con2fa[u.id]) {
           var spento = iconaBtn(SVG.chiave, 'Verifica in due passaggi non attiva: niente da azzerare', 'ico-spento', function () {});
           spento.setAttribute('aria-disabled', 'true'); spento.tabIndex = -1;
@@ -597,6 +628,58 @@
   }
   function chiudiModale() { $('modale-invito').hidden = true; if (tipEl) { tipEl.remove(); tipEl = null; } $('btn-nuovo').focus(); }
 
+
+  var daModificare = null;
+  function apriModifica(u) {
+    daModificare = u;
+    messaggio('mod-msg', '');
+    $('mod-nome').value = u.nome || '';
+    $('mod-cognome').value = u.cognome || '';
+    $('mod-email').value = u.email || '';
+    $('mod-ruolo').value = u.ruolo;
+    $('modale-modifica').hidden = false;
+    setTimeout(function () { $('mod-nome').focus(); }, 30);
+  }
+  function chiudiModifica() { $('modale-modifica').hidden = true; daModificare = null; if (tipEl) { tipEl.remove(); tipEl = null; } }
+  async function salvaModifica() {
+    var u = daModificare; if (!u) return;
+    var dati = {
+      id: u.id,
+      nome: $('mod-nome').value.trim(),
+      cognome: $('mod-cognome').value.trim(),
+      email: $('mod-email').value.trim().toLowerCase(),
+      ruolo: $('mod-ruolo').value
+    };
+    if (!dati.nome || !dati.email) { messaggio('mod-msg', 'Inserisci almeno nome ed email.', 'err'); return; }
+    var emailCambia = dati.email !== String(u.email || '').toLowerCase();
+    if (dati.nome === (u.nome || '') && dati.cognome === (u.cognome || '') && !emailCambia && dati.ruolo === u.ruolo) {
+      messaggio('mod-msg', 'Nessuna modifica da salvare.', 'info'); return;
+    }
+    if (dati.ruolo !== u.ruolo) {
+      var testo = dati.ruolo === 'administrator'
+        ? 'Stai rendendo ADMINISTRATOR questa persona: avrà gli stessi poteri tuoi sulla gestione degli account.\n\nProcedere?'
+        : 'Stai togliendo il ruolo ADMINISTRATOR a questa persona: non potrà più usare questa pagina.\n\nProcedere?';
+      if (!window.confirm(testo)) return;
+    }
+    if (emailCambia && !window.confirm('Cambiando l\'email, la persona dovrà accedere con ' + dati.email + ' (la password resta la stessa).\n\nProcedere?')) return;
+    var btn = $('btn-salva-modifica');
+    btn.disabled = true;
+    messaggio('mod-msg', 'Salvataggio in corso…', 'info');
+    try {
+      await chiamaApi('/api/amministratori/modifica', dati);
+      var pendente = emailCambia && u.attivo && u.invito_accettato === false;
+      await caricaElenco();
+      if (pendente) {
+        messaggio('mod-msg', 'Salvato. Poiché l\'invito non era ancora stato accettato, usa "Reinvia email" o "Copia link" per mandarlo al nuovo indirizzo.', 'ok');
+      } else {
+        chiudiModifica();
+      }
+    } catch (e) {
+      messaggio('mod-msg', e.message, 'err');
+    }
+    btn.disabled = false;
+  }
+
   async function invita() {
     var btn = $('btn-invita');
     var dati = {
@@ -667,6 +750,10 @@
     $('login-password').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') accedi(); });
     $('btn-dimenticata').addEventListener('click', passwordDimenticata);
     $('btn-invita').addEventListener('click', invita);
+    $('btn-salva-modifica').addEventListener('click', salvaModifica);
+    $('btn-chiudi-modifica').addEventListener('click', chiudiModifica);
+    $('modale-modifica').querySelector('.modale-sfondo').addEventListener('click', chiudiModifica);
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('modale-modifica').hidden) chiudiModifica(); });
     iniziaFiltri();
     tip($('btn-nuovo'), 'Invita un nuovo utente');
     $('btn-nuovo').addEventListener('click', apriModale);
