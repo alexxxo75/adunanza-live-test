@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-308 — creata il 13/10/2026 alle 10:04
+  Versione: LT-309 — creata il 13/10/2026 alle 11:00
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -337,7 +337,7 @@
   /* ORDINE DEL GIORNO — un riquadro per punto */
   .odg-box{background:#fff;border:1px solid var(--line);border-left:4px solid var(--brass);border-radius:2px;padding:16px 18px;margin-bottom:14px;}
   .odg-box-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px;}
-  .odg-num{font-family:var(--font-mono);font-size:11px;color:var(--brass);text-transform:uppercase;letter-spacing:.08em;}
+  .odg-num{font-family:var(--font-mono);font-size:11.5px;font-weight:700;color:var(--brass);text-transform:uppercase;letter-spacing:.08em;}
   .odg-poll-toggle{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-soft);margin-top:10px;}
   .odg-poll-config{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line);display:none;}
   .odg-poll-config.show{display:block;}
@@ -811,7 +811,7 @@
 .cond-ico.cond-ico-del:hover{background:var(--danger-border);color:var(--danger-text);}
 :root[data-theme="dark"] .cond-ico.cond-ico-del,:root[data-theme="dark"] .cond-ico.cond-ico-del:hover{color:var(--danger-text);}
 </style>
-<link rel="stylesheet" href="/assets/app.css?v=308">
+<link rel="stylesheet" href="/assets/app.css?v=309">
 <script src="/assets/tema.js"></script>
 </head>
 <body>
@@ -879,7 +879,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 13/10/2026 alle 10:04">LT-308</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 13/10/2026 alle 11:00">LT-309</span>
   </div>
 
   <!-- MAIN -->
@@ -4504,28 +4504,28 @@ function renderCondomini(){
       return b && b.condomini.find(x=>x.id===idRiga);
     };
 
-    const tdCognome=document.createElement('td');
-    const inCognome=document.createElement('input'); inCognome.value=c.cognome||''; inCognome.oninput=()=>{ const r=trovaRigaAttuale(); if(r) r.cognome=inCognome.value; }; inCognome.onblur=()=>renderCondomini();
+    const tdCognome=document.createElement('td'); tdCognome.className='c-cognome';
+    const inCognome=document.createElement('input'); inCognome.className='cell-cognome'; inCognome.value=c.cognome||''; inCognome.oninput=()=>{ const r=trovaRigaAttuale(); if(r) r.cognome=inCognome.value; }; inCognome.onblur=()=>renderCondomini();
     tdCognome.appendChild(inCognome); tr.appendChild(tdCognome);
 
-    const tdNome=document.createElement('td');
+    const tdNome=document.createElement('td'); tdNome.className='c-nome';
     const inNome=document.createElement('input'); inNome.className='cell-nome'; inNome.value=c.nome; inNome.oninput=()=>{ const r=trovaRigaAttuale(); if(r) r.nome=inNome.value; }; inNome.onblur=()=>renderCondomini();
     tdNome.appendChild(inNome); tr.appendChild(tdNome);
 
-    const tdInterno=document.createElement('td');
-    const inInterno=document.createElement('input'); inInterno.value=c.interno||''; inInterno.oninput=()=>{ const r=trovaRigaAttuale(); if(r) r.interno=inInterno.value; }; inInterno.onblur=()=>salvaStato();
+    const tdInterno=document.createElement('td'); tdInterno.className='c-interno';
+    const inInterno=document.createElement('input'); inInterno.className='cell-interno'; inInterno.value=c.interno||''; inInterno.oninput=()=>{ const r=trovaRigaAttuale(); if(r) r.interno=inInterno.value; }; inInterno.onblur=()=>salvaStato();
     tdInterno.appendChild(inInterno); tr.appendChild(tdInterno);
 
-    const tdUnita=document.createElement('td');
-    const inUnita=document.createElement('input'); inUnita.value=c.unita||''; inUnita.oninput=()=>{ const r=trovaRigaAttuale(); if(r) r.unita=inUnita.value; }; inUnita.onblur=()=>salvaStato();
+    const tdUnita=document.createElement('td'); tdUnita.className='c-unita';
+    const inUnita=document.createElement('input'); inUnita.className='cell-unita'; inUnita.value=c.unita||''; inUnita.oninput=()=>{ const r=trovaRigaAttuale(); if(r) r.unita=inUnita.value; }; inUnita.onblur=()=>salvaStato();
     tdUnita.appendChild(inUnita); tr.appendChild(tdUnita);
 
-    const tdEmail=document.createElement('td');
+    const tdEmail=document.createElement('td'); tdEmail.className='c-email';
     const inEmail=document.createElement('input'); inEmail.className='cell-email'; inEmail.value=c.email; inEmail.oninput=()=>{ const r=trovaRigaAttuale(); if(r) r.email=inEmail.value; }; inEmail.onblur=()=>salvaStato();
     tdEmail.appendChild(inEmail); tr.appendChild(tdEmail);
 
     building.tabelleMillesimali.forEach(t=>{
-      const tdM=document.createElement('td');
+      const tdM=document.createElement('td'); tdM.className='c-mill';
       const inM=document.createElement('input'); inM.type='number'; inM.className='cell-mill'; inM.value=c.millesimi[t]||0;
       inM.oninput=()=>{ const r=trovaRigaAttuale(); if(r) r.millesimi[t]=parseFloat(inM.value)||0; renderTotaliMillesimi(); };
       inM.onblur=()=>salvaStato();
@@ -7261,7 +7261,7 @@ function renderTabellaRiepilogoInvitati(a, b){
       // che sono comunque convocate, ma tramite l'unica email/link del primario.
       const secondarie = tuttiIConvocati.filter(x=>x.unificatoCon===c.id);
       const righeSecondarie = secondarie.map(s=>
-        `<tr style="background:#EDEAE2;color:var(--text-soft);"><td colspan="5" style="padding-left:34px;font-size:12.5px;">- ${escapeHtml(nomeCompletoCondomino(s))} (${escapeHtml(s.unita||s.interno||'altra unità')}) — stessa email/link del primario, nessuna email separata inviata</td></tr>`
+        `<tr style="background:#EDEAE2;color:#4b5563;"><td colspan="5" style="padding-left:34px;font-size:12.5px;">- ${escapeHtml(nomeCompletoCondomino(s))} (${escapeHtml(s.unita||s.interno||'altra unità')}) — stessa email/link del primario, nessuna email separata inviata</td></tr>`
       ).join('');
       return rigaPrincipale + righeSecondarie;
     }).join('');
@@ -7509,7 +7509,7 @@ function renderOspitiInvito(){
       <div class="row-inline" style="align-items:center;">
         <button class="btn small brass" style="flex:0;white-space:nowrap;" onclick="inviaInvitoOspite('${o.id}')">✉ Invia invito</button>
         <button class="btn small secondary" style="flex:0;white-space:nowrap;" onclick="anteprimaInvitoOspite('${o.id}')">Anteprima</button>
-        <button class="btn small secondary" style="flex:0;white-space:nowrap;" onclick="eliminaOspiteInvito('${o.id}')">🗑 Togli</button>
+        <button class="btn small secondary" style="flex:0;white-space:nowrap;" onclick="eliminaOspiteInvito('${o.id}')">🗑 Elimina</button>
         <div class="muted" style="font-size:12.5px;">${o.invitoInviato ? '✅ Invito inviato il ' + escapeHtml(o.invitoInviato) : 'Invito non ancora inviato'}${(o.ingressi && o.ingressi.length) ? ' — entrato in videochiamata alle ' + escapeHtml(o.ingressi[0]) : ''}</div>
       </div>
       <div style="font-family:var(--font-mono);font-size:11.5px;margin-top:8px;word-break:break-all;opacity:.7;">${escapeHtml(linkOspite(a,o))}</div>
@@ -8180,7 +8180,7 @@ function renderOdgBlocks(){
         </div>`;
         if(__odgModuloModificaPreparatoAperto===prep.id){
           const formMod=document.createElement('div');
-          formMod.style.cssText='background:#fff;border:1px solid var(--line);border-radius:4px;padding:14px 16px;margin-top:10px;';
+          formMod.style.cssText='background:var(--paper-card);color:var(--text);border:1px solid var(--line);border-radius:4px;padding:14px 16px;margin-top:10px;';
           formMod.innerHTML = `
             <div class="field"><label>Domanda del sondaggio</label><input type="text" id="modifica-sondaggio-domanda-${prep.id}" value="${escapeHtml(prep.question)}"></div>
             <div class="field"><label>Opzioni di voto (una per riga)</label><textarea id="modifica-sondaggio-opzioni-${prep.id}" rows="3">${escapeHtml(prep.opzioniTesto)}</textarea></div>
