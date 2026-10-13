@@ -197,9 +197,15 @@ async function ingressoDaily({ ruolo, nome, stanzaRichiesta }) {
           properties: {
             lang: 'it',
             enable_prejoin_ui: false,   // Riunion ha già la sua schermata "prima di entrare"
-            enable_chat: false,
-            enable_hand_raising: false,
-            enable_people_ui: false,
+            enable_chat: false,         // Riunion ha la sua chat, e quella finisce nel verbale
+            enable_hand_raising: false, // idem per l'alza-la-mano: una mano alzata dentro il
+                                        // video l'amministratore non la vedrebbe nell'appello
+            // ATTENZIONE, lezione imparata alla prima prova: l'elenco partecipanti di Daily va
+            // lasciato ACCESO. Sembrava un doppione dell'elenco di Riunion, ma non lo è: quello
+            // di Riunion serve all'appello e al verbale, mentre questo è la plancia da cui
+            // l'amministratore zittisce o allontana qualcuno. Spegnendolo gli si tolgono i
+            // poteri da moderatore, che è esattamente il contrario di quello che vogliamo.
+            enable_people_ui: true,
             enable_screenshare: true
           }
         }
