@@ -540,3 +540,16 @@ body.skin #anteprima-email-render, body.skin #anteprima-email-render * { color: 
 body.skin #anteprima-email-render .muted { color: #5b6472; }
 body.skin #anteprima-email-render .email-link-btn,
 body.skin #anteprima-email-render .email-link-btn * { color: #ffffff; }
+
+/* ============ LT-310 ============ */
+
+/* Riquadro video della pagina dell'amministratore: era largo quanto la pagina e, con le sue
+   proporzioni 16/10, su un portatile diventava più alto dello schermo. Ora la larghezza è
+   legata all'altezza della finestra, così il video non supera mai metà schermo in altezza,
+   e resta centrato. Il riquadro "fissato" in basso a destra non è toccato: ha già le sue
+   misure. */
+body.skin #video-box:not(.pinned) {
+  max-width: min(calc(50vh * 1.6), 900px);
+  margin-left: auto;
+  margin-right: auto;
+}
