@@ -55,12 +55,12 @@
   :root:not([data-theme="light"]) {
     color-scheme: dark;
     --surface: #0b1220;
-    --surface-card: #131c2e;
-    --border: #26334a;
-    --border-soft: #1b2639;
+    --surface-card: #22314f;
+    --border: #3e5179;
+    --border-soft: #2d3e62;
     --text-primary: #f1f5f9;
     --text-secondary: #b6c2d4;
-    --text-muted: #7c8ba1;
+    --text-muted: #9fadc2;
     --barra-bg: #0a1020;
     --barra-border: #1b2639;
     --barra-hover: #16213a;
@@ -78,12 +78,12 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
   --surface: #0b1220;
-  --surface-card: #131c2e;
-  --border: #26334a;
-  --border-soft: #1b2639;
+  --surface-card: #22314f;
+  --border: #3e5179;
+  --border-soft: #2d3e62;
   --text-primary: #f1f5f9;
   --text-secondary: #b6c2d4;
-  --text-muted: #7c8ba1;
+  --text-muted: #9fadc2;
   --barra-bg: #0a1020;
   --barra-border: #1b2639;
   --barra-hover: #16213a;

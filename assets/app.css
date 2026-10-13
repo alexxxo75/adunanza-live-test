@@ -46,6 +46,8 @@
   --status-review-bg: #ede9fe;  --status-review-text: #5b21b6;
   --status-off-bg: #f1f5f9;     --status-off-text: #475569;
   --danger-bg: #fee2e2; --danger-text: #991b1b; --danger: #dc2626; --danger-border: #fecaca;
+  --cal-sab-bg: var(--status-working-bg); --cal-sab-txt: var(--status-working-text);
+  --cal-dom-bg: var(--danger-bg);         --cal-dom-txt: var(--danger-text);
 
   --ombra: 0 1px 2px rgba(15, 23, 42, .06), 0 1px 3px rgba(15, 23, 42, .04);
   --raggio: 10px;
@@ -56,12 +58,12 @@
   :root:not([data-theme="light"]) {
     color-scheme: dark;
     --surface: #0b1220;
-    --surface-card: #131c2e;
-    --border: #26334a;
-    --border-soft: #1b2639;
+    --surface-card: #22314f;
+    --border: #3e5179;
+    --border-soft: #2d3e62;
     --text-primary: #f1f5f9;
     --text-secondary: #b6c2d4;
-    --text-muted: #7c8ba1;
+    --text-muted: #9fadc2;
     --barra-bg: #0a1020;
     --barra-border: #1b2639;
     --barra-hover: #16213a;
@@ -73,18 +75,20 @@
     --status-review-bg: #2a1f55;  --status-review-text: #c4b5fd;
     --status-off-bg: #1b2639;     --status-off-text: #b6c2d4;
     --danger-bg: #3b1518; --danger-text: #fca5a5; --danger: #f87171; --danger-border: #7f1d1d;
+    --cal-sab-bg: #2a5192; --cal-sab-txt: #dbeafe;
+    --cal-dom-bg: #7f2d38; --cal-dom-txt: #fecaca;
     --ombra: 0 1px 2px rgba(0, 0, 0, .4);
   }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
   --surface: #0b1220;
-  --surface-card: #131c2e;
-  --border: #26334a;
-  --border-soft: #1b2639;
+  --surface-card: #22314f;
+  --border: #3e5179;
+  --border-soft: #2d3e62;
   --text-primary: #f1f5f9;
   --text-secondary: #b6c2d4;
-  --text-muted: #7c8ba1;
+  --text-muted: #9fadc2;
   --barra-bg: #0a1020;
   --barra-border: #1b2639;
   --barra-hover: #16213a;
@@ -96,6 +100,8 @@
   --status-review-bg: #2a1f55;  --status-review-text: #c4b5fd;
   --status-off-bg: #1b2639;     --status-off-text: #b6c2d4;
   --danger-bg: #3b1518; --danger-text: #fca5a5; --danger: #f87171; --danger-border: #7f1d1d;
+    --cal-sab-bg: #2a5192; --cal-sab-txt: #dbeafe;
+    --cal-dom-bg: #7f2d38; --cal-dom-txt: #fecaca;
   --ombra: 0 1px 2px rgba(0, 0, 0, .4);
 }
 
@@ -249,8 +255,8 @@ body.skin .calendar-nav-btn:hover { background: var(--border-soft); }
 body.skin .calendar-daylabel { color: var(--text-muted); font-size: 10px; font-weight: 600; }
 body.skin .calendar-cell { background: var(--border-soft); color: var(--text-primary); border-radius: 8px; font-family: var(--font-body); }
 body.skin .calendar-cell.cal-empty { background: transparent; }
-body.skin .calendar-cell.sat { background: var(--status-working-bg); color: var(--status-working-text); }
-body.skin .calendar-cell.sun { background: var(--danger-bg); color: var(--danger-text); }
+body.skin .calendar-cell.sat { background: var(--cal-sab-bg); color: var(--cal-sab-txt); }
+body.skin .calendar-cell.sun { background: var(--cal-dom-bg); color: var(--cal-dom-txt); }
 body.skin .calendar-cell.today { box-shadow: inset 0 0 0 2px var(--accent); background: var(--brand-100); color: var(--brand-700); }
 body.skin .calendar-cell.today .day-num { color: var(--brand-700); }
 body.skin .calendar-cell.has-assembly { background: var(--accent); color: #fff; }
