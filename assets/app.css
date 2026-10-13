@@ -48,6 +48,7 @@
   --danger-bg: #fee2e2; --danger-text: #991b1b; --danger: #dc2626; --danger-border: #fecaca;
   --cal-sab-bg: var(--status-working-bg); --cal-sab-txt: var(--status-working-text);
   --cal-dom-bg: var(--danger-bg);         --cal-dom-txt: var(--danger-text);
+  --odg-num: var(--brand-700);
 
   --ombra: 0 1px 2px rgba(15, 23, 42, .06), 0 1px 3px rgba(15, 23, 42, .04);
   --raggio: 10px;
@@ -77,6 +78,7 @@
     --danger-bg: #3b1518; --danger-text: #fca5a5; --danger: #f87171; --danger-border: #7f1d1d;
     --cal-sab-bg: #2a5192; --cal-sab-txt: #dbeafe;
     --cal-dom-bg: #7f2d38; --cal-dom-txt: #fecaca;
+    --odg-num: #93c5fd;
     --ombra: 0 1px 2px rgba(0, 0, 0, .4);
   }
 }
@@ -102,6 +104,7 @@
   --danger-bg: #3b1518; --danger-text: #fca5a5; --danger: #f87171; --danger-border: #7f1d1d;
     --cal-sab-bg: #2a5192; --cal-sab-txt: #dbeafe;
     --cal-dom-bg: #7f2d38; --cal-dom-txt: #fecaca;
+    --odg-num: #93c5fd;
   --ombra: 0 1px 2px rgba(0, 0, 0, .4);
 }
 
@@ -308,7 +311,7 @@ body.skin .chat-msg, body.skin .chat-msg b { color: var(--text-primary); }
 body.skin .chat-msg.admin b { color: var(--accent); }
 
 /* ---------- tabelle ---------- */
-body.skin th { font-family: var(--font-body); font-size: 11.5px; font-weight: 600; letter-spacing: .06em; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+body.skin th { font-family: var(--font-body); font-size: 11.5px; font-weight: 600; letter-spacing: .06em; color: var(--text-secondary); border-bottom: 1px solid var(--border); }
 body.skin td { border-bottom: 1px solid var(--border-soft); }
 body.skin tfoot td { background: var(--border-soft); border-top: 2px solid var(--border); color: var(--text-primary); }
 
@@ -504,3 +507,36 @@ body.skin .profilo .dropdown { z-index: 300; }
 #tbl-condomini .cond-ico[data-tip]:hover::after,#tbl-condomini .cond-ico[data-tip]:focus-visible::after{bottom:calc(100% + 6px);right:0;}
 .cond-ico.cond-ico-del:hover{background:var(--danger-border);color:var(--danger-text);}
 :root[data-theme="dark"] .cond-ico.cond-ico-del,:root[data-theme="dark"] .cond-ico.cond-ico-del:hover{color:var(--danger-text);}
+
+/* ============ LT-309 — leggibilità ============ */
+
+/* Colonne della tabella dei condòmini: prima erano tutte della stessa larghezza, così i
+   cognomi restavano tagliati mentre le colonne dei millesimi sprecavano spazio. Ora ogni
+   colonna si stringe sul proprio contenuto (il "width:1%" serve esattamente a questo) e
+   quella dell'email si prende lo spazio che avanza. */
+body.skin #tbl-condomini { width: auto; min-width: 100%; }
+body.skin #tbl-condomini td input, body.skin #tbl-condomini td select { width: 100%; min-width: 0; }
+body.skin #tbl-condomini td.c-cognome, body.skin #tbl-condomini td.c-nome { width: 1%; min-width: 150px; }
+body.skin #tbl-condomini td.c-interno { width: 1%; min-width: 72px; }
+body.skin #tbl-condomini td.c-unita   { width: 1%; min-width: 86px; }
+body.skin #tbl-condomini td.c-mill    { width: 1%; min-width: 82px; }
+body.skin #tbl-condomini td.c-email   { min-width: 210px; }
+body.skin #tbl-condomini th { white-space: nowrap; }
+
+/* "Punto 1", "Punto 2"…: erano sottili e in un blu troppo scuro per il fondo schiarito. */
+body.skin .odg-num { color: var(--odg-num); font-weight: 700; }
+
+/* Il filo blu a sinistra del riquadro diventa un bordo intero mentre ci stai scrivendo
+   dentro: così si vede a colpo d'occhio su quale punto stai lavorando. */
+body.skin .odg-box { transition: border-color .12s, box-shadow .12s; }
+body.skin .odg-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+
+/* ---- Isole chiare ----
+   L'anteprima dell'email resta bianca di proposito: deve mostrare l'email come apparirà
+   davvero nella posta di un condòmino, non come appare dentro Riunion. Ma il testo, lì dentro,
+   deve tornare scuro: altrimenti con il tema scuro è bianco su bianco, che è esattamente il
+   motivo per cui l'anteprima risultava vuota. */
+body.skin #anteprima-email-render, body.skin #anteprima-email-render * { color: #1E1F22; }
+body.skin #anteprima-email-render .muted { color: #5b6472; }
+body.skin #anteprima-email-render .email-link-btn,
+body.skin #anteprima-email-render .email-link-btn * { color: #ffffff; }
