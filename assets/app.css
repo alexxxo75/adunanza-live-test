@@ -555,3 +555,14 @@ body.skin #video-box:not(.pinned) {
   margin-left: auto;
   margin-right: auto;
 }
+
+/* ============ LT-315 ============ */
+
+/* Righe delle unità unite, nella tabella dell'appello: hanno una fascia chiara fissa, quindi
+   il testo deve essere scuro anche con il tema scuro — altrimenti è grigio chiaro su crema e
+   non si legge. Stesso grigio già usato per le righe secondarie del riepilogo invitati (LT-309),
+   così le due tabelle si assomigliano invece di andare ognuna per conto suo. La regola copre
+   anche le scritte "tenui" dentro la riga, che altrimenti resterebbero indietro. */
+body.skin tr.riga-unita,
+body.skin tr.riga-unita td,
+body.skin tr.riga-unita .muted { color: #4b5563; }
