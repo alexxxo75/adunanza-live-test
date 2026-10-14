@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-311 — creata il 14/10/2026 alle 09:06
+  Versione: LT-313 — creata il 14/10/2026 alle 09:57
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -879,7 +879,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 14/10/2026 alle 09:06">LT-311</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 14/10/2026 alle 09:57">LT-313</span>
   </div>
 
   <!-- MAIN -->
@@ -2583,7 +2583,25 @@ let usciteVolontariamenteInAttesaDiRientro = false; // true se questo dispositiv
 // a funzionare la si riconosce di nuovo online in automatico.
 // Fase di test: un battito ogni 15 secondi. Da allungare quando si uscirà dalla fase di prova.
 const INTERVALLO_PING_MS = 15000;
-const TENTATIVI_PING_PRIMA_DI_USCITA = 3;
+// LT-313 — DIFETTO REALE, la causa delle entrate e uscite ravvicinate.
+// Prima si contavano i GIRI di controllo: 3 giri senza un segnale nuovo e la persona veniva
+// dichiarata uscita. Il guaio è che il giro di controllo gira su un binario separato (un Web
+// Worker, che il browser non rallenta mai) mentre la LETTURA dei segnali dal database usava un
+// timer normale, che il browser rallenta fino a un giro al minuto appena la pagina
+// dell'amministratore non è più in primo piano. Risultato: il giudice continuava a sentenziare
+// ogni 15 secondi guardando dati fermi da un minuto, e dichiarava uscite persone che stavano
+// battendo regolarmente. Appena la lettura ripartiva, rientravano tutte insieme — le entrate e
+// uscite ravvicinate che si vedevano nel registro. Con Firebase non succedeva perché i segnali
+// arrivavano da soli, spinti dal server; con Supabase vanno letti, e una lettura ferma sembrava
+// silenzio.
+// Ora: l'uscita si decide sul TEMPO davvero trascorso dall'ultimo segnale nuovo, e solo se i
+// dati su cui si giudica sono freschi. Se la lettura è indietro, il giro salta: meglio non
+// decidere che decidere al buio.
+const SILENZIO_PRIMA_DI_USCITA_MS = 120000;   // due minuti di vero silenzio
+const FRESCHEZZA_BATTITI_MS = 25000;          // oltre questo, la lettura è considerata indietro
+let __battitiAggiornatiIl = 0;                // quando è andata a buon fine l'ultima lettura dei segnali
+let __pingUltimoCicloValido = 0;              // ultimo giro deciso con dati freschi
+let __pingVistoQuandoLocale = {};             // quando QUESTO amministratore ha visto l'ultimo segnale nuovo di ciascuno
 // Dati grezzi dei battiti in arrivo dal canale Firebase separato (vedi __fbAscoltaBattiti):
 // {buildingId: {assembleaId: {condominoId: {valore, modalita}}}}. Aggiornati in tempo reale
 // dall'ascoltatore collegato più sotto; eseguiCicloPing() li legge ad ogni giro.
@@ -2594,7 +2612,6 @@ let __ultimoDatiBattiti = {};
 // volte di fila ne è mancato uno), non dati da condividere. Restano quindi solo qui, in
 // memoria locale, chiave "buildingId:assembleaId:condominoId".
 let __pingUltimoVistoLocale = {};
-let __pingMancateLocale = {};
 
 // --- lato condòmino: manda un segnale di battito ogni 15 secondi, sempre, senza aspettare
 // nulla da Adunanza — è pag cell stessa ad avvisare periodicamente "sono ancora qui", non più
@@ -9313,7 +9330,7 @@ function segnaSubitoOnline(building, idRisolto){
     if(!aFresca) return;
     const rec = (aFresca.appello.online||[]).find(r=>r.condominoId===idRisolto);
     if(!rec) aFresca.appello.online.push({condominoId: idRisolto, entrata: oraAdesso(), uscita: null});
-    else{ delete rec.uscita; delete rec.usciteAutomatica; }
+    else registraRientroOnline(rec);
   });
   if(__sbAn.partecipante && currentCondomino && idRisolto===currentCondomino.id) vivoAzione('online');
 }
@@ -10654,8 +10671,14 @@ function costruisciTabellaMovimentiVerbale(assemblea){
     (lista||[]).forEach(r=>{
       const c = getActiveBuilding().condomini.find(x=>x.id===r.condominoId);
       if(!c) return;
-      if(r.entrata && r.entrata>assemblea.oraInizio) movimenti.push({ora:r.entrata, nome:nomeCompletoCondomino(c), evento:'Ingresso ('+tipo+')'});
-      if(r.uscita) movimenti.push({ora:r.uscita, nome:nomeCompletoCondomino(c), evento:'Uscita ('+tipo+')'});
+      // LT-313: i periodi già chiusi (uscita seguita da rientro) vanno a verbale come tutti gli
+      // altri movimenti — prima sparivano, perché il rientro cancellava l'uscita.
+      (r.periodi||[]).forEach((per,idx)=>{
+        if(per.entrata && per.entrata>assemblea.oraInizio) movimenti.push({ora:per.entrata, nome:nomeCompletoCondomino(c), evento:(idx>0?'Rientro (':'Ingresso (')+tipo+')'});
+        if(per.uscita) movimenti.push({ora:per.uscita, nome:nomeCompletoCondomino(c), evento:'Uscita ('+tipo+(per.automatica?', collegamento interrotto':'')+')'});
+      });
+      if(r.entrata && r.entrata>assemblea.oraInizio) movimenti.push({ora:r.entrata, nome:nomeCompletoCondomino(c), evento:(r.periodi&&r.periodi.length?'Rientro (':'Ingresso (')+tipo+')'});
+      if(r.uscita) movimenti.push({ora:r.uscita, nome:nomeCompletoCondomino(c), evento:'Uscita ('+tipo+(r.usciteAutomatica?', collegamento interrotto':'')+')'});
     });
   };
   registra(assemblea.appello.online, 'online');
@@ -11932,6 +11955,16 @@ const LIVESB_ADMIN = true;
 const VIVO_INTERVALLO_MS = 2500;
 const __vivo = {map:new Map(), timer:null, inCorso:false, richiesta:false, poll:null, tentativi:0, pollInCorso:false};
 const VIVO_ESCLUSE_ASS = new Set([...SB_CHIAVI_ASS, ...SB_CHIAVI_ASS_SE_PRESENTI, 'id', 'odg', 'ospiti']);
+// LT-312 — DIFETTO REALE CORRETTO. Il nome del Presidente e quello del Segretario erano
+// classificati fra i dati "d'archivio" dell'assemblea (SB_CHIAVI_ASS, insieme a oggetto, data,
+// luogo, testo della convocazione): roba che si decide prima e che il link del partecipante non
+// rilegge mai. Ma questi due nomi si decidono DURANTE l'assemblea, quindi devono viaggiare sul
+// canale vivo come l'appello, la chat e i sondaggi. Finché restavano esclusi, l'amministratore
+// li scriveva e nella pagina del cellulare non arrivavano mai: il riquadro restava fermo su
+// "in attesa di nomina" per tutta l'assemblea.
+// Viaggiano in più sul canale vivo, senza togliere nulla al salvataggio d'archivio di sempre.
+const VIVO_CARICHE_VIVE = ['presidenteNominato','segretarioNominato','cronologiaCarichePresidenzaSegreteria'];
+VIVO_CARICHE_VIVE.forEach(k=>VIVO_ESCLUSE_ASS.delete(k));
 const VIVO_ESCLUSE_ODG = new Set([...SB_CHIAVI_ODG, 'id']);
 const VIVO_ESCLUSE_OSP = new Set([...SB_CHIAVI_OSPITE, 'id', 'invitoInviato']);
 function vivoParteViva(obj, escluse){
@@ -11954,7 +11987,10 @@ function vivoEstrai(b, a){
 // Rimette nell'assemblea (in memoria) il documento vivo ricevuto.
 function vivoApplica(b, a, d){
   d = d || {};
-  Object.keys(a).forEach(k=>{ if(!VIVO_ESCLUSE_ASS.has(k) && !(k in d)) delete a[k]; });
+  // I tre campi di LT-312 non si cancellano mai quando mancano dal documento ricevuto: le righe
+  // già esistenti sul database sono state scritte quando quei campi non viaggiavano ancora, e
+  // senza questa cautela la prima lettura cancellerebbe i nomi già scritti dall'amministratore.
+  Object.keys(a).forEach(k=>{ if(!VIVO_ESCLUSE_ASS.has(k) && VIVO_CARICHE_VIVE.indexOf(k)<0 && !(k in d)) delete a[k]; });
   Object.keys(d).forEach(k=>{ if(k.indexOf('__')!==0) a[k] = vivoClone(d[k]); });
   // I nomi delle persone esterne delegate li scrive il condòmino dal suo link: niente simboli che possano essere scambiati per codice
   if(Array.isArray(a.deleghiEsterni)) a.deleghiEsterni.forEach(e=>{ if(e && typeof e.nome==='string') e.nome = e.nome.replace(/[<>&"`]/g,'').trim(); });
@@ -12092,8 +12128,17 @@ async function vivoLeggiBattiti(){
 function vivoAvviaAdmin(){
   if(!LIVESB_ADMIN || __vivo.poll) return;
   window.__sbAscoltaBattiti = (cb)=>{
-    const giro = async ()=>{ try{ cb(await vivoLeggiBattiti()); }catch(e){ console.warn('[Riunion] lettura battiti non riuscita:', e); } };
-    giro(); setInterval(giro, 4000);
+    // LT-313: la lettura dei segnali di presenza era su un timer normale, che il browser
+    // rallenta fino a un giro al minuto quando la pagina non è in primo piano — mentre il giro
+    // di controllo che DECIDE le uscite gira su un Web Worker e non rallenta mai. Da lì le
+    // uscite inventate. Ora anche la lettura usa lo stesso binario affidabile, e ogni lettura
+    // riuscita lascia l'ora: il giro di controllo la guarda e, se è vecchia, non decide nulla.
+    const giro = async ()=>{
+      try{ cb(await vivoLeggiBattiti()); __battitiAggiornatiIl = Date.now(); }
+      catch(e){ console.warn('[Riunion] lettura battiti non riuscita:', e); }
+    };
+    giro();
+    if(!creaWorkerIntervalloAffidabile(giro, 4000, 'lettura-battiti')) setInterval(giro, 4000);
   };
   __vivo.poll = setInterval(vivoPollAdmin, VIVO_INTERVALLO_MS);
   const el = document.getElementById('fb-stato-connessione');
@@ -12668,8 +12713,40 @@ function collegaAscoltoFirebase(){
 // convocato (condòmini ed eventuali persone esterne delegate), non solo chi risultava già
 // online prima — così anche il primissimo battito di qualcuno viene riconosciuto subito,
 // senza dover dipendere da nessun'altra funzione che lo marchi online in anticipo.
+// LT-313 — DIFETTO REALE CORRETTO: chi rientrava dopo un'uscita cancellava l'uscita e basta.
+// La riga dell'appello restava con l'orario del PRIMO ingresso e dell'uscita non rimaneva
+// traccia: nel verbale quel pezzo di assemblea spariva, mentre invece è esattamente ciò che
+// va messo a verbale (chi era collegato e quando). Ora ogni periodo chiuso viene conservato
+// nella riga stessa, e l'ingresso riparte con l'ora vera del rientro.
+function registraRientroOnline(rec){
+  if(!rec) return;
+  if(rec.uscita){
+    rec.periodi = rec.periodi || [];
+    rec.periodi.push({entrata: rec.entrata, uscita: rec.uscita, automatica: !!rec.usciteAutomatica});
+    rec.entrata = oraAdesso();
+  }
+  delete rec.uscita;
+  delete rec.usciteAutomatica;
+}
 function eseguiCicloPing(){
   try{
+  // LT-313 — prima di decidere qualsiasi cosa: i dati su cui decidiamo sono aggiornati?
+  const adesso = Date.now();
+  if(adesso - __battitiAggiornatiIl > FRESCHEZZA_BATTITI_MS){
+    // La lettura dei segnali è indietro (pagina in secondo piano, rete lenta, database che non
+    // risponde). In questa condizione TUTTI sembrerebbero silenziosi: non si dichiara uscito
+    // nessuno, si salta il giro e si riprova al prossimo.
+    const ind = document.getElementById('fb-ultimo-ping');
+    if(ind) ind.textContent = '⏸ Giro saltato: i segnali di presenza non sono aggiornati in questo momento.';
+    return;
+  }
+  // Se i giri precedenti erano stati saltati, nel frattempo siamo stati "ciechi": non possiamo
+  // far pesare quel silenzio a chi stava battendo regolarmente. Riazzeriamo l'orologio di tutti
+  // e ricominciamo a misurare da adesso.
+  if(__pingUltimoCicloValido && (adesso - __pingUltimoCicloValido) > (FRESCHEZZA_BATTITI_MS + INTERVALLO_PING_MS)){
+    Object.keys(__pingVistoQuandoLocale).forEach(k=>{ __pingVistoQuandoLocale[k] = adesso; });
+  }
+  __pingUltimoCicloValido = adesso;
   const daSegnareOnline = []; // [{buildingId, assembleaId, condominoId}] — primo battito mai visto, o rientro dopo un'uscita automatica
   const daSegnareUsciti = []; // [{buildingId, assembleaId, condominoId}]
   // Stesse due liste, ma per chi sta battendo in modalità "solo voto" (link dedicato, niente
@@ -12736,14 +12813,15 @@ function eseguiCicloPing(){
         // Se era uscito VOLONTARIAMENTE (ha premuto "Lascia l'assemblea"), non lo rimettiamo
         // online da soli nemmeno se un battito residuo dovesse ancora arrivare: serve un suo
         // tocco esplicito su "Rientra in assemblea".
-        battitiVisti.push({buildingId: bb.id, assembleaId: a.id, condominoId: id, ultimoVisto: valoreAttuale, mancate: 0});
+        battitiVisti.push({buildingId: bb.id, assembleaId: a.id, condominoId: id, ultimoVisto: valoreAttuale, quando: adesso});
       }else if(eraOnlineAttivo){
-        // Era attivo, ma nessun nuovo battito da quando abbiamo controllato l'ultima volta.
-        const mancateAggiornate = (__pingMancateLocale[chiaveLocale]||0) + 1;
-        if(mancateAggiornate >= TENTATIVI_PING_PRIMA_DI_USCITA){
+        // Era attivo, ma nessun segnale nuovo. Non contiamo i giri: guardiamo da quanto tempo
+        // vero non arriva niente, misurato sull'orologio di questo computer.
+        const quandoVisto = __pingVistoQuandoLocale[chiaveLocale] || adesso;
+        if(adesso - quandoVisto >= SILENZIO_PRIMA_DI_USCITA_MS){
           (inSoloVoto ? daSegnareVotoAutonomoUsciti : daSegnareUsciti).push({buildingId: bb.id, assembleaId: a.id, condominoId: id});
         }
-        battitiVisti.push({buildingId: bb.id, assembleaId: a.id, condominoId: id, ultimoVisto: valoreAttuale, mancate: mancateAggiornate});
+        battitiVisti.push({buildingId: bb.id, assembleaId: a.id, condominoId: id, ultimoVisto: valoreAttuale, quando: quandoVisto});
       }
       // Se non era online e non ha mandato un nuovo battito, non c'è nulla da fare: resta come sta.
     });
@@ -12756,7 +12834,7 @@ function eseguiCicloPing(){
       if(!a) return;
       const rec = (a.appello.online||[]).find(r=>r.condominoId===condominoId);
       if(!rec) a.appello.online.push({condominoId, entrata:oraAdesso(), uscita:null});
-      else{ delete rec.uscita; delete rec.usciteAutomatica; }
+      else registraRientroOnline(rec);
     });
     daSegnareUsciti.forEach(({buildingId, assembleaId, condominoId})=>{
       const bb = buildings.find(x=>x.id===buildingId);
@@ -12777,7 +12855,7 @@ function eseguiCicloPing(){
       a.votoAutonomo = a.votoAutonomo || [];
       const rec = a.votoAutonomo.find(r=>r.condominoId===condominoId);
       if(!rec) a.votoAutonomo.push({condominoId, entrata:oraAdesso(), uscita:null});
-      else{ delete rec.uscita; delete rec.usciteAutomatica; }
+      else registraRientroOnline(rec);
     });
     daSegnareVotoAutonomoUsciti.forEach(({buildingId, assembleaId, condominoId})=>{
       const bb = buildings.find(x=>x.id===buildingId);
@@ -12796,10 +12874,10 @@ function eseguiCicloPing(){
   if(daSegnareOnline.length || daSegnareUsciti.length || daSegnareVotoAutonomo.length || daSegnareVotoAutonomoUsciti.length){
     eseguiConUnioneSuServer(applicaPiano);
   }
-  battitiVisti.forEach(({buildingId, assembleaId, condominoId, ultimoVisto, mancate})=>{
+  battitiVisti.forEach(({buildingId, assembleaId, condominoId, ultimoVisto, quando})=>{
     const chiaveLocale = buildingId+':'+assembleaId+':'+condominoId;
     if(ultimoVisto != null) __pingUltimoVistoLocale[chiaveLocale] = ultimoVisto;
-    __pingMancateLocale[chiaveLocale] = mancate;
+    __pingVistoQuandoLocale[chiaveLocale] = quando;
   });
   if(daSegnareOnline.length || daSegnareUsciti.length || daSegnareVotoAutonomo.length || daSegnareVotoAutonomoUsciti.length) renderAppello(); // aggiorniamo subito la tabella visibile, senza aspettare l'eco di Firebase
   const indicatorePing = document.getElementById('fb-ultimo-ping');
