@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-313 — creata il 14/10/2026 alle 09:57
+  Versione: LT-315 — creata il 14/10/2026 alle 16:32
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -811,7 +811,7 @@
 .cond-ico.cond-ico-del:hover{background:var(--danger-border);color:var(--danger-text);}
 :root[data-theme="dark"] .cond-ico.cond-ico-del,:root[data-theme="dark"] .cond-ico.cond-ico-del:hover{color:var(--danger-text);}
 </style>
-<link rel="stylesheet" href="/assets/app.css?v=311">
+<link rel="stylesheet" href="/assets/app.css?v=315">
 <script src="/assets/tema.js"></script>
 </head>
 <body>
@@ -879,7 +879,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 14/10/2026 alle 09:57">LT-313</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 14/10/2026 alle 16:32">LT-315</span>
   </div>
 
   <!-- MAIN -->
@@ -1600,10 +1600,13 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
       <div class="frame-dark-title">Verbale d'assemblea — generato con AI</div>
       <div id="sezione-verbale" class="card">
         <div class="field">
-          <label>Ordine del giorno / appunti presi durante la riunione</label>
-          <textarea id="verbale-input" rows="5" placeholder="Es. Punto 1: approvazione bilancio consuntivo 2025...">Punto 1: Approvazione bilancio consuntivo 2025. Il rendiconto è stato illustrato dall'amministratore senza osservazioni rilevanti da parte dei condòmini.
-Punto 2: Rendiconto lavori di rifacimento facciata, conclusi in anticipo di due settimane rispetto al preventivo.
-Punto 3: Proposta di rinnovo dell'incarico all'amministratore per il triennio 2027-2029.</textarea>
+          <label>Appunti presi durante la riunione</label>
+          <!-- LT-314: qui c'erano tre frasi di esempio (bilancio 2025, facciata, rinnovo incarico)
+               lasciate dalla prima versione dimostrativa. Non erano un segnaposto: restavano
+               nella casella, finivano nel verbale e si ritrovavano identiche in assemblee che
+               parlavano d'altro. Tolte. -->
+          <textarea id="verbale-input" rows="6" placeholder="Due righe per ogni punto bastano: cosa è stato esposto, chi è intervenuto, come si è arrivati alla decisione. I presenti, i millesimi e gli esiti delle votazioni NON vanno scritti qui: li conosce già Riunion e li mette nel verbale da sé."></textarea>
+          <div class="note" style="margin-top:8px;">Il verbale viene scritto da un'intelligenza artificiale a partire da questi appunti. I dati certi dell'assemblea — presenti, deleghe, millesimi, esiti delle votazioni, ingressi e uscite — non passano dall'AI: vengono riportati dai dati registrati. Prima di archiviarlo, rileggilo e correggilo: la firma la mette il Segretario, non il programma.</div>
         </div>
         <button class="btn" id="gen-verbale-btn" onclick="generaVerbale()">Genera verbale con AI</button>
         <div id="verbale-output" style="margin-top:16px;"></div>
@@ -5759,8 +5762,8 @@ function renderAppello(){
   if(validazioneEl){
     const percMill = totMillConvocati>0 ? Math.round((millPresenti/totMillConvocati)*1000)/10 : 0;
     const rigaQuorum = quorumRegolare
-      ? `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line);display:flex;align-items:flex-start;gap:8px;"><span>🟢</span><span>${testoQuorum}: l'assemblea è regolarmente costituita in seconda convocazione ai sensi dell'art. 1136, comma 3, c.c.</span></div>`
-      : `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line);display:flex;align-items:flex-start;gap:8px;"><span>🔴</span><span style="color:#8C1F1F;font-weight:700;">${testoQuorum}: l'assemblea, in seconda convocazione, non è regolarmente costituita ai sensi dell'art. 1136, comma 3, c.c.</span></div>`;
+      ? `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line);display:flex;align-items:flex-start;gap:8px;"><span>🟢</span><span style="color:var(--status-done-text);font-weight:700;">${testoQuorum}: l'assemblea è regolarmente costituita in seconda convocazione ai sensi dell'art. 1136, comma 3, c.c.</span></div>`
+      : `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line);display:flex;align-items:flex-start;gap:8px;"><span>🔴</span><span style="color:var(--danger-text);font-weight:700;">${testoQuorum}: l'assemblea, in seconda convocazione, non è regolarmente costituita ai sensi dell'art. 1136, comma 3, c.c.</span></div>`;
     validazioneEl.innerHTML =
       `<div class="grid grid-2">` +
         `<div><div class="muted" style="font-size:12px;">Teste presenti</div><div style="font-size:22px;font-weight:700;">${testePresenti} <span class="muted" style="font-size:14px;font-weight:400;">/ ${totaleTeste} partecipanti convocati</span></div></div>` +
@@ -5813,8 +5816,8 @@ function renderAppello(){
     const unBottone = '<button class="btn" onclick="chiudiAvvisoQuorum()">Chiudi avviso</button>';
     if(assemblea.iniziata && assemblea.quorumBannerAttenzioneVisibile){
       quorumAvvisoTipoCorrente = 'attenzione';
-      document.getElementById('quorum-avviso-titolo').innerHTML = '<span style="color:#8C1F1F;">- ATTENZIONE -</span>';
-      document.getElementById('quorum-avviso-testo').innerHTML = '<span style="color:#8C1F1F;font-weight:700;">A seguito dell\'uscita dall\'assemblea di alcuni condomini, viene meno il quorum richiesto dall\'art. 1136 c.c.</span>';
+      document.getElementById('quorum-avviso-titolo').innerHTML = '<span style="color:var(--danger-text);">- ATTENZIONE -</span>';
+      document.getElementById('quorum-avviso-testo').innerHTML = '<span style="color:var(--danger-text);font-weight:700;">A seguito dell\'uscita dall\'assemblea di alcuni condomini, viene meno il quorum richiesto dall\'art. 1136 c.c.</span>';
       if(quorumAzioniEl) quorumAzioniEl.innerHTML = dueBottoni;
       quorumModalEl.classList.remove('hidden');
     }else if(assemblea.iniziata && assemblea.quorumBannerRistabilitoVisibile){
@@ -5840,8 +5843,8 @@ function renderAppello(){
     if(assemblea.iniziata){
       startEl.innerHTML = `<div class="frame-dark"><div class="card"><div class="badge">🟢 Assemblea iniziata alle ${assemblea.oraInizio}</div><p class="muted" style="margin-top:6px;">Da questo momento ingressi e uscite anticipate vengono registrati con l'orario.</p></div></div>`;
     }else if(mostraAvvisoAvvioSenzaQuorum){
-      startEl.innerHTML = `<div class="frame-dark"><div class="card" style="border:2px solid #8C1F1F;">` +
-        `<div style="color:#8C1F1F;font-weight:700;">🔴 L'assemblea, in seconda convocazione, non è ancora regolarmente costituita: ${testoQuorum}. Attendere l'arrivo di altri condomini.</div>` +
+      startEl.innerHTML = `<div class="frame-dark"><div class="card" style="border:2px solid var(--danger);">` +
+        `<div style="color:var(--danger-text);font-weight:700;">🔴 L'assemblea, in seconda convocazione, non è ancora regolarmente costituita: ${testoQuorum}. Attendere l'arrivo di altri condomini.</div>` +
         `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">` +
           `<button class="btn secondary" onclick="annullaAvvisoAvvioSenzaQuorum()">Attendi</button>` +
           `<button class="btn brass" onclick="iniziaAssemblea(true)">Avvia l'assemblea</button>` +
@@ -6098,8 +6101,13 @@ function renderAppello(){
     if(unitaUnificate.length>0){
       [c, ...unitaUnificate].forEach(u=>{
         const trUnita=document.createElement('tr');
+        // LT-315: la fascia chiara resta (serve a distinguere queste righe non interattive), ma
+        // il colore del testo non può più essere quello "tenue" del tema scuro: è un grigio
+        // chiaro pensato per fondi scuri, e su questa fascia chiara spariva. Stesso rimedio già
+        // usato per il riepilogo degli invitati: il colore lo dà app.css alla classe qui sotto,
+        // così copre anche le scritte .muted dentro la riga.
+        trUnita.className='riga-unita';
         trUnita.style.background='#EDEAE2';
-        trUnita.style.color='var(--text-soft)';
         const tdUnitaNome=document.createElement('td');
         tdUnitaNome.style.paddingLeft='34px';
         tdUnitaNome.innerHTML = `- ${escapeHtml(nomeCompletoCondomino(u))} <span class="muted">(${escapeHtml(u.unita||u.interno||'unità')})</span>`;
@@ -10789,19 +10797,29 @@ async function generaVerbale(){
     return;
   }
 
-  const prompt = `Sei un assistente che redige verbali di assemblea condominiale in italiano formale e giuridicamente corretto.
-Genera un verbale d'assemblea completo basandoti su queste informazioni:
-
-Condominio: "${buildingAttivo.nome}"
-Tipo assemblea: ${a.tipo}
-Data assemblea: ${dataAssemblea}
-${carichePresidenzaTxt}
-Partecipanti presenti: ${partecipantiTxt}
-${bloccoOspiti.testoPiano ? bloccoOspiti.testoPiano + '\n' : ''}Appunti/ordine del giorno discusso: ${appunti}
-Esito delle votazioni svolte, punto per punto, con i millesimi:
-${sondaggioTxt}
-
-Struttura il verbale con: intestazione, presenti/assenti, ordine del giorno numerato, discussione sintetica per ogni punto, delibere assunte con relativo esito di voto, chiusura seduta con orario. Il Presidente e il Segretario indicati sopra vanno SEMPRE riportati nell'intestazione del verbale; se è indicato un cambio di Presidente o Segretario durante la seduta, riportalo nel punto del verbale in cui è avvenuto, con l'orario. Usa un tono formale ma scorrevole. Non aggiungere commenti fuori dal testo del verbale.`;
+  // LT-314 — I DATI CERTIFICATI. Tutto ciò che è un numero, un nome o un esito viene da qui,
+  // cioè dalle stesse tabelle che l'applicazione costruisce da sé: all'AI arrivano già scritti
+  // e con l'istruzione di ricopiarli senza toccarli. È la ragione per cui un verbale fatto da
+  // Riunion può essere più affidabile di una registrazione data in pasto a un'AI qualsiasi:
+  // la parte che non si può sbagliare non passa dall'AI.
+  const righeOdgVerbale = (a.odg||[]).map((p,i)=>`${i+1}. ${p.testo||'(punto senza titolo)'}`).join('\n') || '(nessun punto registrato)';
+  const bloccoA = [
+    `Condominio: ${buildingAttivo.nome}${buildingAttivo.via ? ' — '+buildingAttivo.via : ''}${buildingAttivo.comune ? ', '+buildingAttivo.comune : ''}`,
+    `Assemblea: ${a.tipo||'—'}, modalità ${a.modalita||'—'}`,
+    `Data e ora: ${dataAssemblea}`,
+    a.luogo ? `Luogo: ${a.luogo}` : null,
+    a.oraInizio ? `Apertura dei lavori: ore ${a.oraInizio}` : null,
+    '',
+    carichePresidenzaTxt,
+    '',
+    'ORDINE DEL GIORNO',
+    righeOdgVerbale,
+    '',
+    tabPresenti.testoPiano,
+    bloccoOspiti.testoPiano || null,
+    tabMovimenti.testoPiano || null,
+    tabSondaggi.testoPiano || null
+  ].filter(x=>x!==null && x!==undefined).join('\n');
 
   const idCondominioPerVerbale = buildingAttivo.id;
   const idAssembleaPerVerbale = assemblea.id;
@@ -10815,46 +10833,84 @@ Struttura il verbale con: intestazione, presenti/assenti, ordine del giorno nume
     const aFresco = bFresco ? (bFresco.assemblee||[]).find(x=>x.id===idAssembleaPerVerbale) : null;
     return {bFresco, aFresco};
   }
+  // LT-314 — DIFETTO REALE CORRETTO. Qui c'era una chiamata diretta ad api.anthropic.com fatta
+  // dal browser, senza alcuna chiave: era un residuo della primissima versione dimostrativa,
+  // che girava dentro l'anteprima di Claude. Sul sito pubblicato non ha MAI potuto funzionare:
+  // falliva ogni volta e il programma ripiegava in silenzio sul modello a testo fisso. Ecco
+  // perché tutti i verbali finora si somigliavano. Ora la richiesta passa dal nostro server
+  // (/api/verbale), dove sta la chiave, come già avviene per il video.
   try{
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({
-        model:"claude-sonnet-4-6",
-        max_tokens:1000,
-        messages:[{role:"user", content: prompt}]
-      })
+    const risposta = await fetch('/api/verbale', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ token: await bigliettoSessioneCorrente(), bloccoA, bloccoB: appunti })
     });
-    if(!response.ok) throw new Error('risposta HTTP '+response.status);
-    const data = await response.json();
-    const testo = (data.content||[]).map(b=>b.text||'').join('\n').trim();
+    const dati = await risposta.json().catch(()=>null);
+    if(!risposta.ok || !dati || !dati.ok) throw new Error((dati && dati.errore) || ('risposta HTTP '+risposta.status));
+    const testo = String(dati.verbale||'').trim();
     if(!testo) throw new Error('risposta vuota');
-    document.getElementById('verbale-output').innerHTML =
-      `<div class="verbale-doc">${logoOSigilloVerbale(buildingAttivo.nome)}<h4>Verbale d'assemblea</h4>${escapeHtml(testo)}${tabelleHtml}</div>
-       <button class="btn small secondary" style="margin-top:12px;" onclick="scaricaVerbale()">Scarica verbale (.txt)</button>`;
-    window._verbaleTesto = testo + tabelleTesto;
+    mostraVerbaleDaRivedere(buildingAttivo, testo, dati.modello);
+    window._verbaleTesto = testo;
     const {aFresco} = recuperaRiferimentiFreschiPerVerbale();
-    if(aFresco) aFresco.verbale = testo + tabelleTesto;
+    if(aFresco) aFresco.verbale = testo;
     salvaStato();
-    toast('Verbale generato con AI.');
+    toast('Verbale scritto. Rileggilo e correggilo prima di archiviarlo.');
   }catch(e){
-    // La generazione IA richiede di aprire questo file dentro l'anteprima di Claude: se il
-    // file viene invece scaricato e aperto come normale pagina web, questa chiamata fallisce
-    // sempre (nessuna chiave API disponibile in un file HTML statico). In questo caso
-    // generiamo comunque un verbale utilizzabile con un modello a testo fisso, così il
-    // pulsante non risulta "morto" e il flusso dell'assemblea può proseguire.
-    const testoFallback = generaVerbaleModelloFisso(buildingAttivo, a, appunti, partecipantiTxt, righeSondaggi, dataAssemblea);
+    // Se il server non risponde o la chiave non è configurata, l'assemblea non si ferma: si
+    // produce comunque un verbale utilizzabile con il modello a testo fisso, dicendo però
+    // chiaramente cosa è successo invece di far finta di niente.
+    const testoFallback = generaVerbaleModelloFisso(buildingAttivo, a, appunti, partecipantiTxt, righeSondaggi, dataAssemblea, carichePresidenzaTxt);
     document.getElementById('verbale-output').innerHTML =
-      `<div class="note" style="border-color:var(--brass);color:var(--ink);margin-bottom:12px;">Generazione con AI non disponibile in questo momento (${escapeHtml(e.message)}) — è stato usato un modello a testo fisso. La generazione AI funziona solo quando questo file è aperto nell'anteprima di Claude, non se scaricato e aperto come pagina normale.</div>
+      `<div class="note" style="border-color:var(--brass);margin-bottom:12px;">Il verbale con AI non è stato prodotto (${escapeHtml(e.message)}). Qui sotto trovi il verbale compilato con i dati dell'assemblea, senza la parte discorsiva.</div>
       <div class="verbale-doc">${logoOSigilloVerbale(buildingAttivo.nome)}<h4>Verbale d'assemblea</h4>${escapeHtml(testoFallback)}${tabelleHtml}</div>
        <button class="btn small secondary" style="margin-top:12px;" onclick="scaricaVerbale()">Scarica verbale (.txt)</button>`;
     window._verbaleTesto = testoFallback + tabelleTesto;
     const {aFresco} = recuperaRiferimentiFreschiPerVerbale();
     if(aFresco) aFresco.verbale = testoFallback + tabelleTesto;
     salvaStato();
-    toast('AI non disponibile: generato un verbale con modello a testo fisso.');
+    toast('AI non disponibile: generato un verbale con i soli dati.');
   }
   if(btn){ btn.disabled=false; btn.textContent='Genera verbale con AI'; }
+}
+// Il biglietto della sessione dell'amministratore collegato: serve al server per sapere che
+// chi chiede un verbale è davvero qualcuno che è entrato in Riunion, e non un estraneo che ha
+// trovato l'indirizzo della funzione e se ne serve a spese nostre.
+async function bigliettoSessioneCorrente(){
+  try{
+    const sb = window.__cancello && window.__cancello.sb;
+    if(!sb) return '';
+    const r = await sb.auth.getSession();
+    return (r && r.data && r.data.session && r.data.session.access_token) || '';
+  }catch(e){ return ''; }
+}
+// Mostra il verbale in una casella MODIFICABILE, non come testo stampato. È voluto: la firma
+// in fondo la mette il Segretario, quindi deve poterlo correggere prima di archiviarlo, senza
+// passare da un altro programma. Finché non salva, resta quello che ha scritto l'AI.
+function mostraVerbaleDaRivedere(building, testo, modello){
+  const cont = document.getElementById('verbale-output');
+  cont.innerHTML =
+    `<div class="note" style="margin-bottom:10px;">Bozza scritta dall'AI${modello?' ('+escapeHtml(modello)+')':''}. Rileggila: i punti segnati <b>[da verificare]</b> sono quelli su cui l'AI non ha voluto decidere da sola, e vanno guardati per primi.</div>
+     <textarea id="verbale-rivedibile" rows="22" style="width:100%;font-family:var(--font-mono);font-size:13px;line-height:1.5;"></textarea>
+     <div class="row-inline" style="margin-top:10px;gap:8px;flex-wrap:wrap;">
+       <button class="btn small" onclick="salvaVerbaleRivisto()">Salva il verbale</button>
+       <button class="btn small secondary" onclick="scaricaVerbale()">Scarica verbale (.txt)</button>
+     </div>`;
+  const casella = document.getElementById('verbale-rivedibile');
+  casella.value = testo;
+  casella.addEventListener('input', ()=>{ window._verbaleTesto = casella.value; });
+}
+function salvaVerbaleRivisto(){
+  const casella = document.getElementById('verbale-rivedibile');
+  if(!casella) return;
+  const testo = casella.value.trim();
+  if(!testo){ toast('Il verbale è vuoto: non c\'è niente da salvare.'); return; }
+  const b = getActiveBuilding();
+  const assemblea = getAssembleaInCorso(b);
+  if(!assemblea){ toast('Nessuna assemblea in corso.'); return; }
+  assemblea.verbale = testo;
+  window._verbaleTesto = testo;
+  salvaStato();
+  toast('Verbale salvato.');
 }
 // Verbale generato senza IA, componendo un testo strutturato a partire dai dati raccolti:
 // usato quando la chiamata al modello non è disponibile (es. file aperto fuori da Claude).
