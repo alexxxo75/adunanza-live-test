@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-310 — creata il 13/10/2026 alle 15:10
+  Versione: LT-311 — creata il 14/10/2026 alle 09:06
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -811,7 +811,7 @@
 .cond-ico.cond-ico-del:hover{background:var(--danger-border);color:var(--danger-text);}
 :root[data-theme="dark"] .cond-ico.cond-ico-del,:root[data-theme="dark"] .cond-ico.cond-ico-del:hover{color:var(--danger-text);}
 </style>
-<link rel="stylesheet" href="/assets/app.css?v=310">
+<link rel="stylesheet" href="/assets/app.css?v=311">
 <script src="/assets/tema.js"></script>
 </head>
 <body>
@@ -879,7 +879,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 13/10/2026 alle 15:10">LT-310</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 14/10/2026 alle 09:06">LT-311</span>
   </div>
 
   <!-- MAIN -->
@@ -1540,9 +1540,9 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
       <div class="frame-dark-title">👤 Presidente e Segretario dell'assemblea</div>
       <div class="card" id="cariche-assemblea-card">
         <label>Presidente nominato:</label>
-        <input type="text" id="input-presidente-nominato" placeholder="Nome e cognome" oninput="segnaScritturaCaricaAssemblea()" onchange="salvaCaricaAssemblea('Presidente', this.value)">
+        <input type="text" id="input-presidente-nominato" placeholder="Nome e cognome" oninput="segnaScritturaCaricaAssemblea('Presidente', this.value)" onchange="salvaSubitoCaricaAssemblea('Presidente', this.value)">
         <label style="margin-top:10px;display:block;">Segretario nominato:</label>
-        <input type="text" id="input-segretario-nominato" placeholder="Nome e cognome" oninput="segnaScritturaCaricaAssemblea()" onchange="salvaCaricaAssemblea('Segretario', this.value)">
+        <input type="text" id="input-segretario-nominato" placeholder="Nome e cognome" oninput="segnaScritturaCaricaAssemblea('Segretario', this.value)" onchange="salvaSubitoCaricaAssemblea('Segretario', this.value)">
         <div class="note" style="margin-top:10px;">Questi nominativi vengono riportati nel verbale. Se cambiano nel corso dell'assemblea, il verbale registrerà anche l'orario del cambio.</div>
         <div id="cronologia-cariche-assemblea" class="muted" style="font-size:12.5px;margin-top:8px;"></div>
       </div>
@@ -8024,11 +8024,34 @@ function segnaAperturaTendinaVoti(){ __ultimaAperturaTendinaVotiEpoch = Date.now
 function tendinaVotiRecentementeAperta(){ return (Date.now() - __ultimaAperturaTendinaVotiEpoch) < DURATA_PROTEZIONE_TENDINA_VOTI_MS; }
 // Segna che l'amministratore ha appena interagito col riquadro Presidente/Segretario: usata
 // dalla stessa logica "non ridisegnare se ci si sta scrivendo dentro" già in uso altrove.
-function segnaScritturaCaricaAssemblea(){ /* la protezione vera è già in staScrivendoInCampoProtetto() via il focus reale */ }
+// LT-311 — Salvataggio mentre si scrive. Prima il nome veniva salvato soltanto quando
+// l'amministratore usciva dal campo (onchange): chi scriveva il nome e passava subito a
+// guardare il telefono non vedeva comparire nulla, perché non era stato salvato niente.
+// Ora ogni tasto riavvia un'attesa di poco più di un secondo: appena l'amministratore smette
+// di scrivere il nome parte verso gli altri. L'attesa serve a non scrivere sul database una
+// volta per ogni lettera.
+const ATTESA_SALVATAGGIO_CARICA_MS = 1200;
+const __timerCariche = { Presidente: null, Segretario: null };
+function segnaScritturaCaricaAssemblea(ruolo, valore){
+  clearTimeout(__timerCariche[ruolo]);
+  __timerCariche[ruolo] = setTimeout(function(){ salvaCaricaAssemblea(ruolo, valore); }, ATTESA_SALVATAGGIO_CARICA_MS);
+}
+// Uscendo dal campo non si aspetta: si salva subito e si annulla l'attesa in corso.
+function salvaSubitoCaricaAssemblea(ruolo, valore){
+  clearTimeout(__timerCariche[ruolo]);
+  salvaCaricaAssemblea(ruolo, valore);
+}
 // Salva il nome del Presidente o del Segretario per l'assemblea in corso. Se il nome cambia
 // rispetto a quello già registrato, la modifica viene anche annotata con l'orario in una
 // cronologia dedicata, che finirà nel verbale (richiesto esplicitamente: se questi nominativi
 // cambiano durante l'assemblea, il verbale deve riportare quando e chi è il nuovo nominativo).
+// LT-311: il terzo parametro dice che il salvataggio arriva dalla scrittura in corso e non
+// dall'uscita dal campo. Serve a tenere pulita la cronologia che finisce nel verbale: mentre
+// si scrive "Mario Rossi" il nome passa per "Mario", "Mario R", "Mario Ro"… e senza questo
+// accorgimento il verbale annoterebbe una nomina per ognuno di quei passaggi. Le correzioni
+// fatte nel giro di due minuti aggiornano quindi la riga già annotata invece di aggiungerne
+// una nuova; l'ora resta quella della prima scrittura, che è il momento vero della nomina.
+const FINESTRA_UNIONE_CRONOLOGIA_CARICHE_MS = 120000;
 function salvaCaricaAssemblea(ruolo, nuovoNomeGrezzo){
   const b = getActiveBuilding();
   const assemblea = getAssembleaInCorso(b);
@@ -8039,10 +8062,20 @@ function salvaCaricaAssemblea(ruolo, nuovoNomeGrezzo){
   if(nuovoNome === vecchioNome) return; // nessuna modifica reale, non serve annotare nulla
   assemblea[campo] = nuovoNome;
   assemblea.cronologiaCarichePresidenzaSegreteria = assemblea.cronologiaCarichePresidenzaSegreteria || [];
-  assemblea.cronologiaCarichePresidenzaSegreteria.push({
-    ora: new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}),
-    ruolo, vecchioNome, nuovoNome
-  });
+  const cron = assemblea.cronologiaCarichePresidenzaSegreteria;
+  const ultima = cron[cron.length-1];
+  const daUnire = ultima && ultima.ruolo === ruolo && ultima.epoch &&
+                  (Date.now() - ultima.epoch) < FINESTRA_UNIONE_CRONOLOGIA_CARICHE_MS;
+  if(daUnire){
+    if(nuovoNome === (ultima.vecchioNome||'')) cron.pop(); // tornato al punto di partenza: la riga non ha più senso
+    else { ultima.nuovoNome = nuovoNome; ultima.epoch = Date.now(); }
+  } else {
+    cron.push({
+      ora: new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}),
+      epoch: Date.now(),
+      ruolo, vecchioNome, nuovoNome
+    });
+  }
   salvaStato();
   renderCaricheAssemblea();
   renderCvPollArea(); // aggiorna anche il riquadro lato condòmino, se sta guardando in questo momento
@@ -10488,17 +10521,20 @@ function renderCvPollArea_interno(){
 // Estratta a parte: la stessa identica costruzione serve sia nella vista normale sia — in
 // layout orizzontale, dopo aver votato — insieme al piccolo avviso "hai votato", quando il
 // sondaggio si restringe invece di restare a schermo pieno.
-// Riquadro Presidente/Segretario, mostrato prima dell'ordine del giorno lato condòmino — solo
-// se almeno uno dei due è già stato nominato (altrimenti resterebbe un riquadro vuoto inutile).
+// Riquadro Presidente/Segretario, mostrato prima dell'ordine del giorno lato condòmino.
+// LT-311: prima compariva solo quando almeno uno dei due nomi era già stato scritto, e finché
+// non lo era il condòmino non vedeva nulla — non poteva distinguere "non ancora nominati" da
+// "questa assemblea non li prevede". Ora il riquadro c'è sempre, e i due nomi mancanti sono
+// scritti come in attesa.
 function costruisciRiquadroCaricheCondomino(assembleaCorrente){
   const pres = assembleaCorrente.presidenteNominato;
   const seg = assembleaCorrente.segretarioNominato;
-  if(!pres && !seg) return '';
+  const inAttesa = `<i style="color:#A39C88;font-style:italic;">in attesa di nomina</i>`;
   return `<div class="assist-panel" style="margin-bottom:14px;">
     <h3 style="margin-bottom:6px;">👤 Presidente e Segretario</h3>
     <div style="color:#A39C88;margin-bottom:10px;">Vengono nominati dall'assemblea:</div>
-    ${pres ? `<div>Presidente: <b>${escapeHtml(pres)}</b></div>` : ''}
-    ${seg ? `<div style="margin-top:8px;">Segretario: <b>${escapeHtml(seg)}</b></div>` : ''}
+    <div>Presidente: ${pres ? `<b>${escapeHtml(pres)}</b>` : inAttesa}</div>
+    <div style="margin-top:8px;">Segretario: ${seg ? `<b>${escapeHtml(seg)}</b>` : inAttesa}</div>
   </div>`;
 }
 function costruisciOdgEChiCeCondomino(assembleaCorrente, b){
