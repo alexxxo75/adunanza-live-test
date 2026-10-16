@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-316 — creata il 16/10/2026 alle 15:23
+  Versione: LT-317 — creata il 16/10/2026 alle 16:47
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -879,7 +879,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 16/10/2026 alle 15:23">LT-316</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 16/10/2026 alle 16:47">LT-317</span>
   </div>
 
   <!-- MAIN -->
@@ -10849,10 +10849,26 @@ async function generaVerbale(){
     if(!risposta.ok || !dati || !dati.ok) throw new Error((dati && dati.errore) || ('risposta HTTP '+risposta.status));
     const testo = String(dati.verbale||'').trim();
     if(!testo) throw new Error('risposta vuota');
-    mostraVerbaleDaRivedere(buildingAttivo, testo, dati.modello);
-    window._verbaleTesto = testo;
+    // LT-317 — L'ALLEGATO DEI DATI CERTI, stampato dal programma e non dall'AI.
+    // I dati di presenze, millesimi, deleghe ed esiti arrivano all'AI e lei li ricopia nel
+    // racconto: l'istruzione è di non toccarli, ma resta una macchina che ricopia, e un
+    // millesimo sbagliato in un verbale è il genere di errore che si paga davanti a un giudice.
+    // Qui sotto gli stessi dati vengono riscritti dall'applicazione, carattere per carattere,
+    // dalle stesse tabelle che costruisce da sé. Se le due versioni dovessero divergere, fa
+    // fede questa. Qualche informazione compare due volte: in un verbale è un difetto veniale.
+    const allegatoDati =
+      '\n\n=====================================================================\n' +
+      'ALLEGATO — DATI REGISTRATI DALLA PIATTAFORMA\n' +
+      'Riportati automaticamente da Riunion senza passare dall\'intelligenza\n' +
+      'artificiale. In caso di difformità con il testo che precede, fanno fede\n' +
+      'questi dati su presenze, millesimi, deleghe, esiti e orari.\n' +
+      '=====================================================================\n' +
+      tabelleTesto.replace(/^\n+/, '');
+    const testoCompleto = testo + allegatoDati;
+    mostraVerbaleDaRivedere(buildingAttivo, testoCompleto, dati.modello);
+    window._verbaleTesto = testoCompleto;
     const {aFresco} = recuperaRiferimentiFreschiPerVerbale();
-    if(aFresco) aFresco.verbale = testo;
+    if(aFresco) aFresco.verbale = testoCompleto;
     salvaStato();
     toast('Verbale scritto. Rileggilo e correggilo prima di archiviarlo.');
   }catch(e){
