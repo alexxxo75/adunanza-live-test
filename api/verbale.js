@@ -4,18 +4,16 @@
 // La chiave resta SEMPRE qui sul server, non compare mai nel file HTML che gira nel browser:
 // stessa regola della funzione del video.
 //
-// ===================== DUE FORNITORI, UN INTERRUTTORE =====================
-// Come per il video, la funzione sa parlare con due fornitori e sceglie in base a una
-// variabile d'ambiente su Vercel:
+// ===================== UN FORNITORE, UN INTERRUTTORE =====================
+// Il fornitore si sceglie con una variabile d'ambiente su Vercel, come per il video:
 //
-//   VERBALE_FORNITORE = anthropic   -> usa Claude (valore predefinito)
-//   VERBALE_FORNITORE = openai      -> usa ChatGPT
+//   VERBALE_FORNITORE = anthropic   -> usa Claude (unico valore ammesso oggi)
 //
-// Nella prova del 14-16 ottobre 2026 i due si sono equivalsi: ChatGPT leggermente più prudente,
-// Claude più completo sugli importi. Si è partiti da Anthropic solo perché il pagamento su
-// OpenAI non è andato a buon fine. Il giorno in cui si sbloccasse, si passa all'altro cambiando
-// questa parola su Vercel e ripubblicando: nessun file da modificare, nessun caricamento su
-// GitHub.
+// Nelle prove del 14-16 ottobre 2026 Claude e ChatGPT si sono equivalsi, con Claude più
+// completo sugli importi; la scelta è caduta su Claude e il collegamento con OpenAI, mai
+// entrato in funzione, è stato tolto nella LT-318 per non lasciare in giro codice non provato.
+// La forma a tabella resta: il giorno in cui servisse un secondo fornitore si aggiunge una
+// voce qui sotto e si cambia questa parola su Vercel, senza toccare l'applicazione.
 //
 // ===================== COSA RICEVE E COSA RESTITUISCE =====================
 // Riceve dal browser:
@@ -38,9 +36,8 @@
 // biglietto appartenga davvero a un utente collegato.
 //
 // ===================== VARIABILI D'AMBIENTE USATE =====================
-//   VERBALE_FORNITORE         -> "anthropic" (predefinito) oppure "openai"
+//   VERBALE_FORNITORE         -> "anthropic" (predefinito, unico valore ammesso)
 //   ANTHROPIC_API_KEY         -> la chiave del conto Anthropic (segreta)
-//   OPENAI_API_KEY            -> la chiave del conto OpenAI (segreta)
 //   VERBALE_MODELLO           -> il nome del modello da usare. Se manca, la funzione chiede al
 //                                fornitore l'elenco dei modelli disponibili su QUEL conto e lo
 //                                riporta nel messaggio di errore: così il nome giusto si legge
@@ -157,32 +154,6 @@ const FORNITORI = {
       ? dati.content.filter(b => b && b.type === 'text').map(b => b.text).join('\n').trim()
       : '',
     leggiUso: (dati) => (dati && dati.uso) || (dati && dati.usage) || null
-  },
-  openai: {
-    nome: 'OpenAI',
-    variabileChiave: 'OPENAI_API_KEY',
-    intestazioni: (chiave) => ({
-      Authorization: 'Bearer ' + chiave,
-      'Content-Type': 'application/json'
-    }),
-    urlModelli: 'https://api.openai.com/v1/models',
-    leggiModelli: (dati) => (dati.data || []).map(m => m.id).filter(id => /gpt|o\d/i.test(id)),
-    urlVerbale: 'https://api.openai.com/v1/chat/completions',
-    // OpenAI mette le istruzioni come primo messaggio, e il nome del limite di lunghezza è
-    // cambiato fra una generazione di modelli e l'altra: si provano le forme in ordine.
-    corpi: (modello, materiale) => {
-      const base = { model: modello, messages: [{ role: 'system', content: ISTRUZIONI }, { role: 'user', content: materiale }] };
-      return [
-        Object.assign({}, base, { temperature: 0.2, max_completion_tokens: MAX_RISPOSTA }),
-        Object.assign({}, base, { max_completion_tokens: MAX_RISPOSTA }),
-        Object.assign({}, base, { temperature: 0.2, max_tokens: MAX_RISPOSTA }),
-        base
-      ];
-    },
-    leggiVerbale: (dati) => (dati && dati.choices && dati.choices[0] && dati.choices[0].message)
-      ? String(dati.choices[0].message.content || '').trim()
-      : '',
-    leggiUso: (dati) => (dati && dati.usage) || null
   }
 };
 
@@ -247,7 +218,7 @@ export default async function handler(req, res) {
   const nomeFornitore = (process.env.VERBALE_FORNITORE || 'anthropic').trim().toLowerCase();
   const f = FORNITORI[nomeFornitore];
   if (!f) {
-    res.status(500).json({ ok: false, errore: 'La variabile VERBALE_FORNITORE contiene "' + nomeFornitore + '", che non è un fornitore conosciuto. I valori ammessi sono "anthropic" e "openai".' });
+    res.status(500).json({ ok: false, errore: 'La variabile VERBALE_FORNITORE contiene "' + nomeFornitore + '", che non è un fornitore conosciuto. Il valore ammesso è "anthropic".' });
     return;
   }
 
