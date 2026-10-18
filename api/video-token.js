@@ -4,6 +4,26 @@
 // giusto (moderatore per l'amministratore, partecipante per condòmini e ospiti).
 // Le credenziali restano SEMPRE qui sul server, mai nel file HTML che gira nel browser.
 //
+// ===================== CHI PUÒ ENTRARE, E DOVE (LT-319) =====================
+// Fino alla LT-318 questa funzione dava un biglietto d'ingresso a CHIUNQUE lo chiedesse, per
+// QUALUNQUE stanza, con il ruolo che chiedeva lui. Tre difetti: costi a nostro carico per
+// chiunque trovasse l'indirizzo; un estraneo poteva entrare nella videochiamata di un altro
+// condominio (i nomi delle stanze si possono indovinare); un condòmino poteva chiedere il
+// ruolo di moderatore e zittire o buttare fuori gli altri, amministratore compreso.
+// Ora il server non si fida più di quello che dice il browser e verifica da sé:
+//   - "token"  = biglietto della sessione dell'amministratore. Si controlla presso Supabase
+//                che la stanza appartenga a un'assemblea SUA (con le sue stesse regole di
+//                lettura: un'assemblea di un altro amministratore per lui non esiste).
+//                Solo così si ottiene il ruolo di moderatore.
+//   - "codice" = codice del link personale di un condòmino o di un ospite. Si chiede a
+//                Supabase a quali assemblee dà accesso quel codice (stessa funzione che la
+//                pagina usa all'apertura del link). Il ruolo è SEMPRE "partecipante".
+// Se la verifica non riesce per un motivo qualsiasi, si rifiuta: il danno di un rifiuto è un
+// messaggio con il pulsante "Riprova", quello di un via libera sbagliato è un estraneo dentro
+// un'assemblea.
+// Le stanze valide hanno sempre la forma "asm-<numero condominio>-<numero assemblea>": la
+// vecchia stanza di riserva condivisa ("demo-room") non viene più concessa a nessuno.
+
 // ===================== DUE FORNITORI, UN INTERRUTTORE =====================
 // Da questa versione la funzione sa parlare con DUE fornitori di videochiamata, e sceglie
 // in base a una variabile d'ambiente su Vercel:
@@ -67,6 +87,75 @@ function pulisciNomeStanza(valore) {
     pulito = pulito.slice(0, 18).replace(/-+$/, '') + '-' + improntaBreve(pulito);
   }
   return pulito;
+}
+
+// ============================================================================
+// VERIFICA DI CHI CHIEDE (LT-319)
+// ============================================================================
+function supabaseBase() {
+  const url = (process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+  const chiave = process.env.SUPABASE_PUBLISHABLE_KEY || '';
+  return url && chiave ? { url, chiave } : null;
+}
+
+// "asm-123-456" -> { stabile: "123", assemblea: "456" }. Qualunque altra forma è rifiutata.
+function leggiStanza(stanza) {
+  const m = /^asm-(\d{1,20})-(\d{1,20})$/.exec(typeof stanza === 'string' ? stanza.trim() : '');
+  return m ? { stabile: m[1], assemblea: m[2] } : null;
+}
+
+// Amministratore: il biglietto deve essere valido E la stanza deve essere di una sua assemblea.
+// Le letture avvengono CON il suo biglietto, quindi passano per le regole del database: se
+// l'assemblea è di un altro amministratore, semplicemente non viene trovata.
+async function verificaAmministratore(token, rif) {
+  const sb = supabaseBase();
+  if (!sb) return { errore: 'Configurazione di Supabase mancante sul server (SUPABASE_URL o SUPABASE_PUBLISHABLE_KEY).', codice: 500 };
+  const intest = { apikey: sb.chiave, Authorization: 'Bearer ' + token };
+  try {
+    const u = await fetch(sb.url + '/auth/v1/user', { headers: intest });
+    if (!u.ok) return { errore: 'Sessione non riconosciuta. Esci e rientra in Riunion, poi riprova.', codice: 401 };
+    const s = await fetch(sb.url + '/rest/v1/stabili?select=id&id_app=eq.' + rif.stabile, { headers: intest });
+    if (!s.ok) return { errore: 'Non riesco a verificare il condominio (codice ' + s.status + ').', codice: 502 };
+    const stabili = await s.json();
+    if (!Array.isArray(stabili) || stabili.length !== 1) return { errore: 'Questa videochiamata non appartiene a nessuno dei tuoi condomini.', codice: 403 };
+    const a = await fetch(sb.url + '/rest/v1/assemblee?select=id&id_app=eq.' + rif.assemblea + '&stabile_id=eq.' + encodeURIComponent(stabili[0].id), { headers: intest });
+    if (!a.ok) return { errore: 'Non riesco a verificare l\'assemblea (codice ' + a.status + ').', codice: 502 };
+    const assemblee = await a.json();
+    if (!Array.isArray(assemblee) || assemblee.length !== 1) return { errore: 'Questa videochiamata non appartiene a nessuna delle tue assemblee.', codice: 403 };
+    return { ok: true };
+  } catch (e) {
+    return { errore: 'Verifica dell\'accesso non riuscita: ' + riassunto(e && e.message ? e.message : e), codice: 502 };
+  }
+}
+
+// Condòmino o ospite: il codice del link deve dare accesso a QUESTA assemblea, non conclusa.
+async function verificaPartecipante(codice, rif) {
+  const sb = supabaseBase();
+  if (!sb) return { errore: 'Configurazione di Supabase mancante sul server (SUPABASE_URL o SUPABASE_PUBLISHABLE_KEY).', codice: 500 };
+  try {
+    const r = await fetch(sb.url + '/rest/v1/rpc/partecipa_carica', {
+      method: 'POST',
+      headers: { apikey: sb.chiave, Authorization: 'Bearer ' + sb.chiave, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_token: codice })
+    });
+    if (!r.ok) return { errore: 'Non riesco a verificare il tuo link (codice ' + r.status + ').', codice: 502 };
+    const D = await r.json();
+    if (!D || D.ok !== true) return { errore: 'Questo link non è valido o non è più attivo.', codice: 403 };
+    const stabile = (D.stabili || []).find(x => String(x.id_app) === rif.stabile);
+    const assemblea = stabile && (D.assemblee || []).find(x => String(x.id_app) === rif.assemblea && x.stabile_id === stabile.id);
+    if (!assemblea) return { errore: 'Il tuo link non dà accesso a questa videochiamata.', codice: 403 };
+    if (assemblea.stato === 'conclusa') return { errore: 'Questa assemblea è già conclusa.', codice: 403 };
+    return { ok: true };
+  } catch (e) {
+    return { errore: 'Verifica dell\'accesso non riuscita: ' + riassunto(e && e.message ? e.message : e), codice: 502 };
+  }
+}
+
+// Il nome mostrato in videochiamata: niente a capo, niente simboli che possano essere
+// scambiati per codice, lunghezza ragionevole.
+function pulisciNome(nome, predefinito) {
+  const n = String(nome || '').replace(/[\u0000-\u001f<>&"`]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
+  return n || predefinito;
 }
 
 // ============================================================================
@@ -268,18 +357,44 @@ async function ingressoDaily({ ruolo, nome, stanzaRichiesta }) {
 
 // ============================================================================
 export default async function handler(req, res) {
+  res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Metodo non consentito, usa POST.' });
     return;
   }
 
-  const { ruolo, nome, stanza } = req.body || {};
+  const { ruolo, nome, stanza, token, codice } = req.body || {};
   if (ruolo !== 'moderatore' && ruolo !== 'partecipante') {
     res.status(400).json({ error: 'Il campo "ruolo" deve essere "moderatore" o "partecipante".' });
     return;
   }
 
-  const nomePersona = (nome && String(nome).trim()) || (ruolo === 'moderatore' ? 'Amministratore' : 'Condòmino');
+  const rif = leggiStanza(stanza);
+  if (!rif) {
+    res.status(400).json({ error: 'Non è arrivato un nome di stanza valido: non so a quale assemblea appartiene questa videochiamata.' });
+    return;
+  }
+
+  // LT-319: prima di tutto, chi chiede e se ne ha diritto.
+  let verifica;
+  if (typeof token === 'string' && token) {
+    verifica = await verificaAmministratore(token, rif);          // amministratore: può essere moderatore
+  } else if (typeof codice === 'string' && codice) {
+    if (ruolo === 'moderatore') {
+      res.status(403).json({ error: 'Il ruolo di moderatore è riservato all\'amministratore.' });
+      return;
+    }
+    verifica = await verificaPartecipante(codice, rif);           // condòmino o ospite: solo partecipante
+  } else {
+    res.status(401).json({ error: 'Accesso non riconosciuto: apri la videochiamata dal tuo link personale, oppure accedi a Riunion.' });
+    return;
+  }
+  if (!verifica.ok) {
+    res.status(verifica.codice || 403).json({ error: verifica.errore });
+    return;
+  }
+
+  const nomePersona = pulisciNome(nome, ruolo === 'moderatore' ? 'Amministratore' : 'Condòmino');
   const fornitore = (process.env.VIDEO_FORNITORE || 'digitalsamba').trim().toLowerCase();
 
   try {
