@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-318 — creata il 18/10/2026 alle 11:41
+  Versione: LT-319 — creata il 18/10/2026 alle 14:55
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -874,7 +874,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 18/10/2026 alle 11:41">LT-318</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 18/10/2026 alle 14:55">LT-319</span>
   </div>
 
   <!-- MAIN -->
@@ -9734,17 +9734,23 @@ function etichettaFornitoreVideo(){
   return 'videoconferenza';
 }
 async function richiediLinkVideoConRuolo(ruolo, nome, stanza){
-  // LT-279: si manda anche il nome della stanza di QUESTA assemblea. Se non lo si riesce a
-  // ricavare, il server usa la stanza di riserva, esattamente come prima.
+  // LT-279: si manda anche il nome della stanza di QUESTA assemblea. Dalla LT-319 il server
+  // non concede più la stanza di riserva: senza il nome giusto la richiesta viene rifiutata.
   // Rete di sicurezza: se il server non risponde entro 15 secondi consideriamo fallita la
   // richiesta, invece di restare in attesa per sempre con il riquadro fermo su "Preparazione".
   const attesaMassima = new Promise((_, rifiuta)=>setTimeout(
     ()=>rifiuta(new Error('il server non ha risposto entro 15 secondi')), 15000));
   const richiesta = (async ()=>{
+    // LT-319: il server non dà più il permesso a chiunque lo chieda. Chi ha aperto un link
+    // personale (condòmino o ospite) manda il codice di quel link e può entrare solo come
+    // partecipante; l'amministratore manda il biglietto della sua sessione, e il server
+    // controlla che l'assemblea sia davvero sua prima di farlo moderatore.
+    const codiceLink = __paramsIniziali.get('token') || __paramsIniziali.get('ospite') || '';
+    const prova = codiceLink ? {codice: codiceLink} : {token: await bigliettoSessioneCorrente()};
     const risposta = await fetch('/api/video-token', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ruolo, nome, stanza: stanza || STANZA_VIDEO_DI_RISERVA})
+      body: JSON.stringify(Object.assign({ruolo, nome, stanza: stanza || STANZA_VIDEO_DI_RISERVA}, prova))
     });
     const dati = await risposta.json().catch(()=>({}));
     if(!risposta.ok || !dati.url) throw new Error(dati.error || 'risposta non valida dal server');
