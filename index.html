@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-317 — creata il 16/10/2026 alle 16:47
+  Versione: LT-318 — creata il 18/10/2026 alle 11:41
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -42,17 +42,12 @@
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://meet.jit.si/external_api.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script>
-  // Collegamento per l'invio vero delle email di convocazione, tramite EmailJS (che a sua volta
-  // usa il Gmail dedicato collegato da Alessandro). Restano tutte in un unico account gratuito:
-  // 200 invii al mese — più che sufficiente per i test con famiglia e amici di questa fase.
-  const EMAILJS_SERVICE_ID = 'service_g27itvh';
-  const EMAILJS_TEMPLATE_ID = 'template_uodom5t';
-  try{
-    if(window.emailjs) emailjs.init({ publicKey: 'lR7iGUb9Ilg8SGomQ' });
-    else console.warn('[Adunanza] EmailJS non caricato: l\'invio vero delle email non sarà disponibile in questa sessione.');
-  }catch(e){ console.error('[Adunanza] Inizializzazione EmailJS fallita:', e); }
+  // LT-318 — EmailJS è stato tolto. Le email non partono più dal browser appoggiandosi a una
+  // casella Gmail personale: partono dal server, da /api/invia-email, con il dominio
+  // riunion.it autenticato (SPF, DKIM, DMARC). Qui non c'è più niente da configurare, e
+  // soprattutto non c'è più nessuna chiave: la chiave del servizio di posta sta solo fra le
+  // variabili d'ambiente su Vercel, dove nessuno che apra questa pagina può leggerla.
 </script>
 <script>
   // LT-292 — Firebase è stato tolto: i dati vivi dell'assemblea viaggiano solo da Supabase
@@ -879,7 +874,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 16/10/2026 alle 16:47">LT-317</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 18/10/2026 alle 11:41">LT-318</span>
   </div>
 
   <!-- MAIN -->
@@ -2064,7 +2059,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
 <div class="modal-overlay hidden" id="modal-anteprima-email">
   <div class="modal-box" style="max-width:780px;width:100%;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;">
     <h3 style="margin-bottom:4px;flex-shrink:0;">✉ Anteprima email</h3>
-    <p class="muted" style="font-size:12px;margin-bottom:14px;flex-shrink:0;">Verrà inviata davvero dal Gmail collegato a EmailJS. Puoi correggere l'indirizzo o il testo prima di reinviarla.</p>
+    <p class="muted" style="font-size:12px;margin-bottom:14px;flex-shrink:0;">Verrà inviata davvero, dall'indirizzo del tuo studio. Puoi correggere l'indirizzo o il testo prima di reinviarla.</p>
     <label class="muted" style="font-size:12px;display:block;margin-bottom:3px;flex-shrink:0;">Indirizzo destinatario</label>
     <input type="email" id="anteprima-email-indirizzo" style="margin-bottom:12px;flex-shrink:0;">
     <p class="muted" style="font-size:12px;margin-bottom:3px;flex-shrink:0;">Oggetto: <b id="anteprima-email-oggetto" style="color:var(--ink);"></b></p>
@@ -5389,7 +5384,7 @@ async function invaDelegaAdAmministratore(){
         ? `Delega - ${assembleeRegistrateConEsito[0].oggetto || 'Assemblea'} - ${b.nome}`
         : `Delega - ${b.nome}`;
       const corpoEmailDelega = costruisciTestoDichiarazioneDelega(b, assembleeRegistrateConEsito);
-      inviaEmailVeraTramiteEmailJSMultiplo(destinatariUnici, oggettoEmailDelega, corpoEmailDelega).catch(err=>{
+      inviaEmailVera(destinatariUnici, oggettoEmailDelega, corpoEmailDelega).catch(err=>{
         console.warn('[Adunanza] Invio email di delega non riuscito:', err.message);
         toast('Delega registrata, ma l\'invio dell\'email non è riuscito. Puoi contattare direttamente l\'amministratore.');
       });
@@ -7368,7 +7363,7 @@ async function completaInvioEmailSingola(condominoId, indirizzo, corpo, salvaAna
   // condiviso) — la ricerca per id dentro b.assemblee funziona sempre, qualunque sia lo stato.
   const assembleaFresca = b.assemblee.find(x=>x.id===__anteprimaEmailAssembleaId) || workingAssembly || getAssembleaInCorso(b);
   try{
-    await inviaEmailVeraTramiteEmailJS({email:indirizzo}, (assembleaFresca||{}).oggetto||'', corpo);
+    await inviaEmailVera(indirizzo, (assembleaFresca||{}).oggetto||'', corpo);
     toast(`Email reinviata a ${indirizzo}.`);
     chiudiAnteprimaEmail();
     if(assembleaFresca) renderTabellaRiepilogoInvitati(assembleaFresca, b);
@@ -7384,35 +7379,65 @@ async function completaInvioEmailSingola(condominoId, indirizzo, corpo, salvaAna
     toast('Invio non riuscito: '+(err && err.message ? err.message : 'errore sconosciuto') + '. Riprova, o controlla la configurazione del servizio email.');
   }
 }
-// Invio VERO di una singola email, tramite EmailJS collegato al Gmail dedicato di Alessandro.
-// I link restano cliccabili anche nell'email reale (sono HTML), anche se non avranno lo stesso
-// stile grafico della pagina (i client di posta non leggono il CSS di questo sito).
-function inviaEmailVeraTramiteEmailJS(c, oggetto, corpo){
-  if(!window.emailjs) return Promise.reject(new Error('EmailJS non disponibile in questa sessione'));
-  // Il testo generato usa "a capo" semplici (\n), pensati per essere letti dentro questa
-  // pagina (che li mostra correttamente). In un'email HTML vera, però, un \n da solo non crea
-  // un vero a capo visibile: senza convertirlo, tutto il testo si schiaccia in un unico blocco
-  // compresso — probabilmente quello che si vedeva come "formato cellulare". Aggiungiamo anche
-  // uno stile di base (carattere, dimensione, larghezza massima) per un aspetto più normale.
-  const corpoFormattato = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#2B2E33;max-width:600px;">${corpo.replace(/\n/g,'<br>')}</div>`;
-  return emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-    to_email: c.email,
-    subject: oggetto,
-    message: corpoFormattato
-  });
+// ======================= INVIO VERO DELLE EMAIL (LT-318) =======================
+// Le email partono dal server, da /api/invia-email, non più dal browser. Tre cose cambiano
+// per chi usa il programma, e tutte e tre in meglio:
+//  - il condòmino vede come mittente il nome dello studio dell'amministratore, non un nome
+//    estraneo, e se risponde all'email la risposta arriva all'amministratore;
+//  - l'invio non si interrompe se si chiude la finestra a metà elenco;
+//  - il dominio riunion.it è autenticato, quindi l'email ha molte meno probabilità di
+//    finire nella posta indesiderata.
+// Il testo lo compone sempre l'applicazione, con i suoi "a capo" semplici e i collegamenti
+// già pronti: a trasformarlo in email (a capo visibili, carattere, larghezza) pensa il
+// server, così la formattazione è identica per tutti gli invii.
+
+// Il nome che il destinatario legge come mittente: lo studio, se compilato nel profilo.
+function nomeMittenteEmail(){
+  const rs = (amministratore.ragioneSociale||'').trim();
+  if(rs) return rs;
+  const nc = ((amministratore.nome||'') + ' ' + (amministratore.cognome||'')).trim();
+  return nc || 'Riunion';
 }
-// Variante con PIÙ destinatari nello stesso invio, stesso testo per tutti (es. delega: va sia
-// all'amministratore che al condòmino delegato). destinatariEmail è un array di indirizzi già
-// puliti e senza duplicati.
-function inviaEmailVeraTramiteEmailJSMultiplo(destinatariEmail, oggetto, corpo){
-  if(!window.emailjs) return Promise.reject(new Error('EmailJS non disponibile in questa sessione'));
-  if(!destinatariEmail || destinatariEmail.length===0) return Promise.reject(new Error('Nessun destinatario valido'));
-  const corpoFormattato = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#2B2E33;max-width:600px;">${corpo.replace(/\n/g,'<br>')}</div>`;
-  return emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-    to_email: destinatariEmail.join(', '),
-    subject: oggetto,
-    message: corpoFormattato
-  });
+// L'indirizzo a cui arriva la risposta del condòmino: quello dell'amministratore.
+function rispondiAEmail(){
+  return (amministratore.emailContatto||'').trim() || (amministratore.indirizzoMittente||'').trim() || '';
+}
+// Invio vero. `destinatari` può essere un singolo indirizzo oppure un elenco: nel secondo caso
+// la stessa email va a tutti nello stesso invio (è il caso della delega, che va sia
+// all'amministratore sia al condòmino delegato).
+async function inviaEmailVera(destinatari, oggetto, corpo){
+  const elenco = (Array.isArray(destinatari) ? destinatari : [destinatari])
+    .map(e => (e && e.email) ? String(e.email).trim() : String(e||'').trim())
+    .filter(Boolean);
+  if(elenco.length===0) throw new Error('Nessun destinatario valido');
+
+  const token = await bigliettoSessioneCorrente();
+  if(!token) throw new Error('Sessione scaduta: esci e rientra in Riunion, poi riprova');
+
+  let r;
+  try{
+    r = await fetch('/api/invia-email', {
+      method:'POST',
+      headers:{'content-type':'application/json'},
+      body: JSON.stringify({
+        token,
+        destinatari: elenco,
+        oggetto: oggetto||'',
+        testoHtml: corpo||'',
+        nomeMittente: nomeMittenteEmail(),
+        rispondiA: rispondiAEmail()
+      })
+    });
+  }catch(e){
+    throw new Error('Connessione assente: l\'email non è partita');
+  }
+
+  let dati = null;
+  try{ dati = await r.json(); }catch(e){ /* risposta non leggibile */ }
+  if(!r.ok || !dati || !dati.ok){
+    throw new Error((dati && dati.errore) || ('il servizio di posta ha risposto con un errore ('+r.status+')'));
+  }
+  return dati;
 }
 // ============================ OSPITI DELL'ASSEMBLEA (LT-280) ============================
 // Un ospite è una persona ESTERNA al condominio, invitata a partecipare alla sola
@@ -7588,14 +7613,14 @@ async function inviaInvitoOspite(idOspite){
   const corpo = costruisciEmailOspite(o, a, b);
   if(!confirm('Stai per inviare una email VERA a:\n\n' + (o.nome||'') + ' <' + o.email + '>\n\nConfermi l\'invio?')) return;
   try{
-    await inviaEmailVeraTramiteEmailJS({email:o.email}, oggetto, corpo);
+    await inviaEmailVera(o.email, oggetto, corpo);
     o.invitoInviato = new Date().toLocaleString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
     salvaStato();
     renderOspitiInvito();
     toast('✅ Invito inviato a ' + o.nome + '.');
   }catch(e){
     console.error('[Adunanza] Invito ospite fallito per', o.email, e);
-    toast('⚠️ Invio FALLITO per ' + o.email + '. Controlla la connessione o il limite mensile di EmailJS.');
+    toast('⚠️ Invio FALLITO per ' + o.email + ': ' + ((e && e.message) ? e.message : 'errore sconosciuto'));
   }
 }
 
@@ -7882,22 +7907,23 @@ async function salvaESpedisciAssemblea(){
   }
 
   toast(`Invio in corso di ${convocati.length} email...`);
-  let riusciti=0, falliti=[];
+  let riusciti=0, falliti=[], ultimoMotivo='';
   for(const c of convocati){
     const corpo = costruisciEmail(c, a, b);
     try{
-      await inviaEmailVeraTramiteEmailJS(c, a.oggetto, corpo);
+      await inviaEmailVera(c.email, a.oggetto, corpo);
       riusciti++;
     }catch(e){
       console.error('[Adunanza] Invio fallito per', c.email, e);
       falliti.push(c.email);
+      ultimoMotivo = (e && e.message) ? e.message : '';
     }
-    // Piccola pausa tra un invio e l'altro, per non sovraccaricare il servizio gratuito.
+    // Piccola pausa tra un invio e l'altro, per non mandare una raffica al servizio di posta.
     await new Promise(r=>setTimeout(r, 400));
   }
   toast(falliti.length===0
     ? `✅ ${riusciti} email inviate correttamente.`
-    : `⚠️ ${riusciti} email inviate, ${falliti.length} FALLITE (${falliti.join(', ')}). Controlla la connessione o il limite mensile di EmailJS.`);
+    : `⚠️ ${riusciti} email inviate, ${falliti.length} FALLITE (${falliti.join(', ')})${ultimoMotivo?'. Motivo: '+ultimoMotivo:''}`);
 }
 function eliminaAssembleaCorrente(){
   const a=workingAssembly;
