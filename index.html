@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-319 — creata il 18/10/2026 alle 14:55
+  Versione: LT-320 — creata il 18/10/2026 alle 20:14
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -874,7 +874,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 18/10/2026 alle 14:55">LT-319</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 18/10/2026 alle 20:14">LT-320</span>
   </div>
 
   <!-- MAIN -->
@@ -5366,29 +5366,38 @@ async function invaDelegaAdAmministratore(){
   }
   __delegaCatenaCvInSospeso = null;
   mostraEsitoDelegaCv(risultati, assembleeCoinvolte);
-  // Invio vero dell'email di delega, in parallelo (non blocca la schermata di esito già
-  // mostrata sopra, che riflette solo la registrazione avvenuta con successo in locale/sul
-  // database condiviso). Stesso testo all'amministratore e, se il delegato è un condòmino
-  // (non una persona esterna) con un indirizzo email in anagrafica, anche a lui/lei.
+  // LT-320 — L'email della delega la manda il SERVER (/api/email-delega). Prima partiva dalla
+  // pagina, che però non conosce l'indirizzo dell'amministratore né quello dei vicini, e il
+  // server delle email accettava solo gli amministratori: l'email non partiva mai, mentre la
+  // pagina diceva di averla mandata. Ora la pagina manda solo il codice del link e i numeri
+  // delle assemblee; destinatari e testo li ricava il server dal database.
   const assembleeRegistrateConEsito = assembleeCoinvolte.filter(ass=>risultati[ass.id] && risultati[ass.id].ok);
-  if(assembleeRegistrateConEsito.length>0){
-    const destinatari = [];
-    if(amministratore.emailContatto && amministratore.emailContatto.trim()) destinatari.push(amministratore.emailContatto.trim());
-    if(delegaScelta.tipo==='condomino'){
-      const condominoDelegato = b.condomini.find(x=>x.id===delegaScelta.id);
-      if(condominoDelegato && condominoDelegato.email && condominoDelegato.email.trim()) destinatari.push(condominoDelegato.email.trim());
+  if(assembleeRegistrateConEsito.length>0) inviaEmailDelegaDalServer(assembleeRegistrateConEsito.map(ass=>ass.id));
+}
+async function inviaEmailDelegaDalServer(idAssemblee){
+  const esitoEl = document.getElementById('delega-esito-email');
+  const scrivi = (testo, colore)=>{ if(esitoEl){ esitoEl.textContent = testo; esitoEl.style.color = colore || ''; } };
+  const codiceLink = __paramsIniziali.get('token') || '';
+  if(!codiceLink){ scrivi('Email di conferma non inviata: questa pagina non è stata aperta da un link personale.', 'var(--brick)'); return; }
+  scrivi('Invio dell\'email di conferma in corso…');
+  try{
+    const r = await fetch('/api/email-delega', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({codice: codiceLink, assemblee: idAssemblee})
+    });
+    const dati = await r.json().catch(()=>({}));
+    if(!r.ok || !dati.ok){
+      scrivi('La delega è registrata, ma l\'email di conferma non è partita' + (dati && dati.errore ? ' ('+dati.errore+')' : '') + '. Se vuoi, avvisa direttamente l\'amministratore.', 'var(--brick)');
+      return;
     }
-    const destinatariUnici = [...new Set(destinatari.map(e=>e.toLowerCase()))].map(eLower=>destinatari.find(e=>e.toLowerCase()===eLower));
-    if(destinatariUnici.length>0){
-      const oggettoEmailDelega = assembleeRegistrateConEsito.length===1
-        ? `Delega - ${assembleeRegistrateConEsito[0].oggetto || 'Assemblea'} - ${b.nome}`
-        : `Delega - ${b.nome}`;
-      const corpoEmailDelega = costruisciTestoDichiarazioneDelega(b, assembleeRegistrateConEsito);
-      inviaEmailVera(destinatariUnici, oggettoEmailDelega, corpoEmailDelega).catch(err=>{
-        console.warn('[Adunanza] Invio email di delega non riuscito:', err.message);
-        toast('Delega registrata, ma l\'invio dell\'email non è riuscito. Puoi contattare direttamente l\'amministratore.');
-      });
-    }
+    const ruoli = (dati.esiti||[]).filter(e=>e.ok).map(e=>e.ruolo);
+    const parti = [];
+    if(ruoli.includes('amministratore')) parti.push('all\'amministratore');
+    if(ruoli.includes('delegato')) parti.push('al condòmino che hai delegato');
+    if(ruoli.includes('delegante')) parti.push('a te, come copia');
+    scrivi('✉ Email di conferma inviata ' + (parti.length ? parti.join(', ') : '') + '.', '#2E6B44');
+  }catch(e){
+    scrivi('La delega è registrata, ma l\'email di conferma non è partita (connessione assente). Se vuoi, avvisa direttamente l\'amministratore.', 'var(--brick)');
   }
 }
 // Mostra l'esito finale al condòmino, dopo aver scritto (o rifiutato) la delega su una o più
@@ -5415,8 +5424,8 @@ function mostraEsitoDelegaCv(risultati, assembleeCoinvolte){
   fatto.style.borderColor = '#2E6B44';
   const elencoAssemblee = registrate.length>1 ? `<p class="muted" style="margin-bottom:8px;">Vale per: ${registrate.map(ass=>escapeHtml(ass.oggetto||'Assemblea')).join(', ')}.</p>` : '';
   const elencoRifiutate = rifiutate.length>0 ? `<p style="margin-bottom:8px;color:var(--brick);">⚠️ Non registrata per: ${rifiutate.map(ass=>escapeHtml(ass.oggetto||'Assemblea')).join(', ')} — ${escapeHtml(risultati[rifiutate[0].id].motivo)}</p>` : '';
-  fatto.innerHTML = `<h3 style="margin-bottom:6px;">✅ Delega registrata e inviata</h3>
-    <p class="muted" style="margin-bottom:12px;">Il messaggio è stato inviato via email all'amministratore e, se hai delegato un altro condòmino, anche a lui/lei, agli indirizzi che risultano in anagrafica.</p>
+  fatto.innerHTML = `<h3 style="margin-bottom:6px;">✅ Delega registrata</h3>
+    <p class="muted" id="delega-esito-email" style="margin-bottom:12px;">Invio dell'email di conferma in corso…</p>
     ${elencoAssemblee}${elencoRifiutate}
     ${decaduteTotali>0 ? `<p style="margin-bottom:12px;color:var(--brick);">⚠️ ${decaduteTotali===1?'La delega che avevi ricevuto è decaduta':'Le '+decaduteTotali+' deleghe che avevi ricevuto sono decadute'}, dato che ora hai delegato a tua volta: chi te l'aveva data dovrà eventualmente sceglierne un'altra.</p>` : ''}
     <button class="btn small secondary" onclick="cambiaSceltaDelega()">Cambia la mia scelta</button>`;
@@ -9553,6 +9562,16 @@ function ricalcolaLayoutOrizzontaleConDebounce(){
 window.addEventListener('resize', ricalcolaLayoutOrizzontaleConDebounce);
 window.addEventListener('orientationchange', ricalcolaLayoutOrizzontaleConDebounce);
 
+// LT-320: il condòmino (o una sua unità unita, o il proprietario principale a cui è unito) è
+// tra i convocati di questa assemblea? Senza un condòmino riconosciuto (anteprima
+// dell'amministratore) si risponde sì, per non cambiare il comportamento dell'anteprima.
+function condominoConvocatoAssemblea(a, c, b){
+  if(!a || !c) return true;
+  const sel = (a.convocati && a.convocati.selezionati) || [];
+  if(sel.includes(c.id)) return true;
+  if(c.unificatoCon!=null && sel.includes(c.unificatoCon)) return true;
+  return ((b && b.condomini) || []).some(x=>x.unificatoCon===c.id && sel.includes(x.id));
+}
 function renderVistaCondomino(){
   document.getElementById('cv-building-name').textContent = 'Condominio ' + getActiveBuilding().nome;
   document.getElementById('condomino-view-box').style.setProperty('--cv-scale', fontScale+'px');
@@ -9580,9 +9599,11 @@ function renderVistaCondomino(){
   // subito alla prossima... nella STESSA videochiamata, senza disconnettere nessuno") — quella
   // promessa vale anche per ogni singolo condòmino collegato con il link della prima, non solo
   // per l'amministratore stesso.
+  // LT-320: si passa alla successiva SOLO se questo condòmino è convocato anche lì. Altrimenti
+  // l'assemblea per lui è finita come una qualunque: schermata "terminata" e video chiuso.
   if(assembleaCorrente && assembleaCorrente.stato==='conclusa' && assembleaCorrente.assembleaSuccessivaId){
     const successiva = (b.assemblee||[]).find(a=>a.id===assembleaCorrente.assembleaSuccessivaId);
-    if(successiva){
+    if(successiva && condominoConvocatoAssemblea(successiva, currentCondomino, b)){
       contestoAssembleaIdCondomino = successiva.id;
       assembleaCorrente = successiva;
     }
@@ -9598,7 +9619,7 @@ function renderVistaCondomino(){
         : null);
   if(assembleaConclusa && assembleaConclusa.assembleaSuccessivaId){
     const successivaRiserva = (b.assemblee||[]).find(a=>a.id===assembleaConclusa.assembleaSuccessivaId);
-    if(successivaRiserva){
+    if(successivaRiserva && condominoConvocatoAssemblea(successivaRiserva, currentCondomino, b)){
       contestoAssembleaIdCondomino = successivaRiserva.id;
       __ultimaAssembleaIdCondomino = successivaRiserva.id;
       assembleaCorrente = successivaRiserva;
