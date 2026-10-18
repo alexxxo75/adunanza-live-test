@@ -24,6 +24,8 @@
 // Le stanze valide hanno sempre la forma "asm-<numero condominio>-<numero assemblea>": la
 // vecchia stanza di riserva condivisa ("demo-room") non viene più concessa a nessuno.
 
+// LT-320: in più, un condòmino entra solo nelle assemblee a cui è convocato.
+
 // ===================== DUE FORNITORI, UN INTERRUTTORE =====================
 // Da questa versione la funzione sa parlare con DUE fornitori di videochiamata, e sceglie
 // in base a una variabile d'ambiente su Vercel:
@@ -145,6 +147,21 @@ async function verificaPartecipante(codice, rif) {
     const assemblea = stabile && (D.assemblee || []).find(x => String(x.id_app) === rif.assemblea && x.stabile_id === stabile.id);
     if (!assemblea) return { errore: 'Il tuo link non dà accesso a questa videochiamata.', codice: 403 };
     if (assemblea.stato === 'conclusa') return { errore: 'Questa assemblea è già conclusa.', codice: 403 };
+    // LT-320: un condòmino entra solo nelle assemblee a cui è CONVOCATO (conta anche il
+    // proprietario principale a cui è unito, o una sua unità unita). Serve per le assemblee
+    // "speciali" (es. solo i box) e per quelle concatenate. L'ospite ha già il suo controllo:
+    // il suo codice vale per una sola assemblea.
+    const meta = D.meta || {};
+    if (meta.tipo === 'condomino') {
+      const condomini = D.condomini || [];
+      const io = condomini.find(x => String(x.id_app) === String(meta.condomino_id_app));
+      if (!io) return { errore: 'Il tuo link non dà accesso a questa videochiamata.', codice: 403 };
+      const miei = new Set([io.id]);
+      if (io.unificato_con) miei.add(io.unificato_con);
+      condomini.forEach(x => { if (x.unificato_con === io.id) miei.add(x.id); });
+      const convocato = (D.convocati_selezionati || []).some(cs => cs.assemblea_id === assemblea.id && miei.has(cs.condomino_id));
+      if (!convocato) return { errore: 'Non risulti convocato a questa assemblea.', codice: 403 };
+    }
     return { ok: true };
   } catch (e) {
     return { errore: 'Verifica dell\'accesso non riuscita: ' + riassunto(e && e.message ? e.message : e), codice: 502 };
