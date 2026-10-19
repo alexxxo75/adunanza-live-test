@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-330 — creata il 19/10/2026 alle 19:14
+  Versione: LT-331 — creata il 19/10/2026 alle 19:29
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -876,7 +876,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 19/10/2026 alle 19:14">LT-330</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 19/10/2026 alle 19:29">LT-331</span>
   </div>
 
   <!-- MAIN -->
@@ -1331,6 +1331,10 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
           <div id="ca-odg-list"></div>
           <button class="btn small secondary" id="ca-btn-add-odg-point" onclick="addOdgPoint()">+ Aggiungi punto all'ordine del giorno</button>
           <button class="btn small secondary" id="ca-btn-add-odg-varie" onclick="addOdgPointVarieEventuali()">+ Varie ed eventuali</button>
+          <button class="btn small secondary" id="ca-btn-add-odg-rendiconto" onclick="addOdgPointPronto('rendiconto')">+ Rendiconto</button>
+          <button class="btn small secondary" id="ca-btn-add-odg-preventivo" onclick="addOdgPointPronto('preventivo')">+ Preventivo</button>
+          <button class="btn small secondary" id="ca-btn-add-odg-amministratore" onclick="addOdgPointPronto('amministratore')">+ Amministratore</button>
+          <button class="btn small secondary" id="ca-btn-add-odg-consiglio" onclick="addOdgPointPronto('consiglio')">+ Consiglio di Condominio</button>
         </div>
         </div>
 
@@ -7142,6 +7146,23 @@ function addOdgPointVarieEventuali(){
   segnaOdgModificato();
   renderOdgList();
 }
+// LT-330: punti già scritti per gli argomenti più comuni (il testo resta modificabile).
+// Anni: rendiconto dell'anno scorso, preventivo dell'anno in corso.
+function addOdgPointPronto(tipo){
+  const anno = new Date().getFullYear();
+  const testi = {
+    rendiconto: 'Rendiconto consuntivo anno ' + (anno - 1),
+    preventivo: 'Preventivo di spesa esercizio ' + anno,
+    amministratore: 'Nomina/Conferma o revoca dell\'Amministratore e compenso',
+    consiglio: 'Nomina dei componenti del Consiglio di Condominio'
+  };
+  if(!testi[tipo]) return;
+  const b=getActiveBuilding();
+  const tabelleVoto = tabelleDisponibiliPerVoto(workingAssembly, b);
+  workingAssembly.odg.push({id:odgIdCounter++, testo:testi[tipo], domandaSondaggio:'', sondaggioAbilitato:false, opzioni:'Favorevole\nContrario\nAstenuto', tabella:tabelleVoto[0], storicoSondaggi:[]});
+  segnaOdgModificato();
+  renderOdgList();
+}
 function removeOdgPoint(id){
   workingAssembly.odg = workingAssembly.odg.filter(p=>p.id!==id);
   segnaOdgModificato();
@@ -7163,7 +7184,7 @@ function renderOdgList(){
   const puntiBloccati = !!(workingAssembly && (workingAssembly.stato==='in-corso' || workingAssembly.stato==='conclusa'));
   const avvisoOdg = document.getElementById('ca-odg-avviso-modifica');
   if(avvisoOdg) avvisoOdg.classList.toggle('hidden', !(workingAssembly && workingAssembly.invitiInviati && workingAssembly._odgModificatoDopoInvio));
-  ['ca-btn-add-odg-point','ca-btn-add-odg-varie'].forEach(id=>{
+  ['ca-btn-add-odg-point','ca-btn-add-odg-varie','ca-btn-add-odg-rendiconto','ca-btn-add-odg-preventivo','ca-btn-add-odg-amministratore','ca-btn-add-odg-consiglio'].forEach(id=>{
     const btn=document.getElementById(id);
     if(btn) btn.classList.toggle('hidden', puntiBloccati);
   });
@@ -7874,7 +7895,7 @@ function renderOspitiSala(){
       <div class="field" style="margin:0;min-width:160px;"><label>Nome e cognome</label><input type="text" id="sala-ospite-nome" placeholder="Es. Mario Rossi"></div>
       <div class="field" style="margin:0;min-width:140px;"><label>Ditta (facoltativa)</label><input type="text" id="sala-ospite-ditta" placeholder="Es. Rossi Impianti"></div>
       <div class="field" style="margin:0;min-width:180px;"><label>Email (facoltativa)</label><input type="email" id="sala-ospite-email" placeholder="per mandargli l'invito"></div>
-      <button class="btn small brass" style="flex:0;white-space:nowrap;" onclick="aggiungiOspiteSala()">+ Invita ospite</button>
+      <button class="btn small brass" style="flex:0 0 auto;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;text-align:center;padding-left:18px;padding-right:18px;" onclick="aggiungiOspiteSala()">+ Invita ospite</button>
     </div>`;
   }
   document.getElementById('sala-ospiti-elenco').innerHTML = righe || '<p class="muted" style="margin:0 0 4px;">Nessun ospite invitato</p>';
