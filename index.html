@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-321 — creata il 19/10/2026 alle 10:02
+  Versione: LT-322 — creata il 19/10/2026 alle 11:06
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -874,7 +874,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 19/10/2026 alle 10:02">LT-321</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 19/10/2026 alle 11:06">LT-322</span>
   </div>
 
   <!-- MAIN -->
@@ -1680,7 +1680,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
 
       <div class="card assemblea-row-card" style="margin-bottom:18px;">
         <h3 id="delega-data-assemblea" style="margin-bottom:6px;"></h3>
-        <p class="muted" id="delega-oggetto-assemblea"></p>
+        <p class="muted" id="delega-oggetto-assemblea" style="font-size:16px;"></p>
       </div>
 
       <div id="delega-stato-attuale" class="card hidden" style="margin-bottom:18px;border-color:var(--brass);"></div>
@@ -1705,6 +1705,8 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
       <div id="delega-form-esterno" class="card hidden" style="margin-bottom:18px;">
         <h3 style="margin-bottom:10px;">Dati della persona delegata</h3>
         <div class="field"><label>Nome e cognome</label><input type="text" id="delega-esterno-nome" placeholder="Es. Avv. Giulia Bianchi" oninput="segnaInterazioneDelega()"></div>
+        <div class="field"><label>Email della persona delegata</label><input type="email" id="delega-esterno-email" placeholder="Es. giulia.bianchi@esempio.it" autocomplete="off" oninput="segnaInterazioneDelega()"></div>
+        <p class="muted" style="margin:-4px 0 12px;font-size:13px;">Le invieremo la delega e un link personale per partecipare all'assemblea al posto tuo.</p>
         <button class="btn brass" style="display:block;width:100%;box-sizing:border-box;margin-bottom:10px;" onclick="confermaDelegaEsterno()">Continua</button>
         <button class="btn secondary" style="display:block;width:100%;box-sizing:border-box;" onclick="tornaSceltaInizialeDelega()">← Torna indietro</button>
       </div>
@@ -1713,9 +1715,9 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
 
       <div id="delega-conferma-email" class="card hidden" style="margin-bottom:18px;">
         <h3 style="margin-bottom:10px;">Conferma la delega</h3>
-        <p class="muted" style="margin-bottom:10px;">Verrà registrata subito ed inviata via email all'amministratore e, se hai delegato un altro condòmino, anche a lui/lei.</p>
+        <p class="muted" style="margin-bottom:10px;">Verrà registrata subito e inviata via email all'amministratore e alla persona che hai delegato; a te arriverà una copia.</p>
         <div class="email-preview" id="delega-testo-email" style="white-space:pre-wrap;font-size:13px;background:var(--paper);padding:14px 16px;border-radius:4px;margin-bottom:14px;"></div>
-        <button class="btn brass" style="display:block;width:100%;box-sizing:border-box;margin-bottom:10px;" onclick="invaDelegaAdAmministratore()">✉ Invia all'amministratore</button>
+        <button class="btn brass" style="display:block;width:100%;box-sizing:border-box;margin-bottom:10px;" onclick="invaDelegaAdAmministratore()">✉ Invia all'amministratore, al delegato e copia al delegante</button>
         <button class="btn secondary" style="display:block;width:100%;box-sizing:border-box;" onclick="tornaSceltaInizialeDelega()">← Annulla</button>
       </div>
 
@@ -1743,6 +1745,13 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
           <div id="cv-schermata-terminata" class="assist-panel hidden" style="text-align:center;padding:40px 20px;">
             <p style="font-size:19px;font-weight:700;">L'assemblea è terminata</p>
             <p class="muted" style="color:#A39C88;margin-top:10px;">Grazie per aver partecipato. Il verbale sarà reso disponibile dall'amministratore.</p>
+          </div>
+          <!-- LT-322: link del condòmino che ha delegato una persona esterna -->
+          <div id="cv-schermata-delega-esterna" class="assist-panel hidden" style="text-align:center;padding:34px 20px;"></div>
+          <!-- LT-322: link del delegato esterno non più valido (delega annullata o assemblea finita) -->
+          <div id="cv-schermata-link-esterno-spento" class="assist-panel hidden" style="text-align:center;padding:40px 20px;">
+            <p style="font-size:19px;font-weight:700;">Il tuo collegamento non è più attivo</p>
+            <p class="muted" style="color:#A39C88;margin-top:10px;">La delega che avevi ricevuto è stata annullata, oppure l'assemblea è terminata. Per informazioni contatta l'amministratore.</p>
           </div>
           <div id="cv-video-wrap">
             <div id="cv-pre-ingresso">
@@ -2683,6 +2692,13 @@ function mandaBattitoPing(){
   if(__condominoOriginaleIdPing == null) return;
   const bCorrente = getActiveBuilding();
   const condominoId = bCorrente ? risolviIdentificativoPing(bCorrente, __condominoOriginaleIdPing) : __condominoOriginaleIdPing;
+  if(condominoId==null && !linkDelegatoEsterno()){
+    // LT-322: è il link del condòmino che ha delegato una persona esterna: niente battiti,
+    // la pagina mostra l'avviso con la possibilità di annullare la delega ed entrare.
+    __condominoInAscoltoPing = null;
+    renderVistaCondomino();
+    return;
+  }
   if(condominoId==null){
     // Link disattivato: un altro delegante ha già attivato questa stessa persona esterna, che
     // risulta ancora online in questo momento — non mandiamo nessun battito sotto il suo id,
@@ -4592,6 +4608,51 @@ function segnaOnlineSeAssente(building, condominoId, assembleaForzata){
 // del condòmino stesso: non scrive nulla qui, si limita a capire QUALE nome usare — è poi
 // SOLO il ciclo di controllo di Adunanza (eseguiCicloPing) a decidere, guardando il battito
 // così identificato, chi risulta davvero online.
+// LT-322 — DELEGATO ESTERNO CON LINK PERSONALE
+// Il link del delegato esterno porta sulla stessa pagina del condòmino che lo ha delegato
+// (il database gli fa "fare le veci" di quel condòmino): da lì vota con i millesimi di tutti
+// quelli che lo hanno delegato, compare in video come "Nome (delega di …)".
+let __linkEsternoSpento = false;
+// Il condòmino che aveva delegato una persona esterna decide di entrare lui: la delega viene
+// annullata su questa assemblea e su quelle in coda dove aveva delegato la stessa persona.
+async function annullaDelegaEsternaEdEntra(){
+  const b = getActiveBuilding();
+  const a = b ? getAssembleaContestualizzataCondomino(b) : null;
+  const delegaEst = a ? delegaEsternaDelCondomino(a, currentCondomino) : null;
+  if(!a || !delegaEst) { renderVistaCondomino(); return; }
+  if(!confirm(`Vuoi annullare la delega a ${delegaEst.nome} ed entrare tu in assemblea?\n\n${delegaEst.nome} non potrà più partecipare con il suo link e riceverà un'email di avviso.`)) return;
+  const coinvolte = [a];
+  let x = a, giri = 0;
+  while(x && x.assembleaSuccessivaId!=null && giri<20){
+    x = (b.assemblee||[]).find(y=>y.id===x.assembleaSuccessivaId);
+    if(x && x.stato!=='conclusa'){
+      const d = delegaEsternaDelCondomino(x, currentCondomino);
+      if(d && d.id===delegaEst.id) coinvolte.push(x);
+    }
+    giri++;
+  }
+  const btn = document.getElementById('cv-btn-annulla-delega-entra');
+  if(btn){ btn.disabled = true; btn.textContent = 'Annullamento in corso...'; }
+  const ris = await vivoDelegaServer(b, coinvolte, {tipo:'revoca'});
+  if(!ris){ if(btn){ btn.disabled = false; btn.textContent = 'Annulla la delega ed entra'; } return; }
+  // avviso via email al delegato (e all'amministratore): il suo link non vale più
+  inviaEmailDelegaDalServer(coinvolte.map(y=>y.id), [delegaEst.id]);
+  toast('Delega annullata: ora puoi entrare in assemblea.');
+  renderVistaCondomino();
+}
+function linkDelegatoEsterno(){
+  return !!(window.__metaPartecipante && window.__metaPartecipante.tipo==='esterno');
+}
+// La delega a una persona esterna data da questo condòmino (o dal suo proprietario principale)
+// nell'assemblea indicata, oppure null.
+function delegaEsternaDelCondomino(a, c){
+  if(!a || !c || !a.appello || !a.appello.deleghe) return null;
+  const idPerDelega = c.unificatoCon ? c.unificatoCon : c.id;
+  const d = a.appello.deleghe[idPerDelega];
+  if(typeof d !== 'string' || !d.startsWith('ext-')) return null;
+  const est = (a.deleghiEsterni||[]).find(e=>e.id===d);
+  return {id:d, nome: est ? est.nome : 'la persona che hai delegato'};
+}
 function risolviIdentificativoPing(building, condominoId){
   const assemblea = getAssembleaContestualizzataCondomino(building);
   if(!assemblea) return condominoId;
@@ -4610,6 +4671,10 @@ function risolviIdentificativoPing(building, condominoId){
   // link del delegante è quasi certamente il delegante stesso (magari solo per controllare,
   // o per errore), non il delegato, che userebbe il proprio collegamento.
   if(typeof delegatoId !== 'string') return condominoId;
+  // LT-322: il delegato esterno ora ha un link TUTTO SUO. Sul link del condòmino che ha delegato
+  // non si "diventa" più il delegato: la pagina mostra l'avviso "se entri, la delega viene
+  // annullata" (vedi renderVistaCondomino). Solo dal link del delegato si agisce come lui.
+  if(!linkDelegatoEsterno()) return null;
   // Se PIÙ deleganti hanno dato la delega alla STESSA persona esterna, solo il primo il cui
   // link viene usato la "attiva": finché lei resta online, il link di ogni altro delegante
   // resta disattivato (non si collega affatto) — evita che risulti collegata "da più parti"
@@ -5237,12 +5302,18 @@ function mostraDelegaEsterno(){
   segnaInterazioneDelega();
   document.getElementById('delega-scelta-iniziale').classList.add('hidden');
   document.getElementById('delega-esterno-nome').value='';
+  const campoEmailEst = document.getElementById('delega-esterno-email');
+  if(campoEmailEst) campoEmailEst.value='';
   document.getElementById('delega-form-esterno').classList.remove('hidden');
 }
 function confermaDelegaEsterno(){
   const nome = document.getElementById('delega-esterno-nome').value.trim();
   if(!nome){ toast('Inserisci nome e cognome della persona delegata.'); return; }
-  delegaScelta = {tipo:'esterno', id:null, nomeVisualizzato: nome};
+  // LT-322: l'email serve per mandarle la delega e il suo link personale.
+  const campoEmail = document.getElementById('delega-esterno-email');
+  const email = campoEmail ? campoEmail.value.trim() : '';
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){ toast('Inserisci un indirizzo email valido della persona delegata.'); return; }
+  delegaScelta = {tipo:'esterno', id:null, nomeVisualizzato: nome, email};
   document.getElementById('delega-form-esterno').classList.add('hidden');
   mostraConfermaDelega();
 }
@@ -5251,7 +5322,7 @@ function mostraConfermaDelega(){
   const catena = trovaCatenaAssemblee(b, a);
   if(catena.length<=1){
     __delegaCatenaCvInSospeso = null;
-    document.getElementById('delega-testo-email').textContent = costruisciTestoDichiarazioneDelega(b, [a]);
+    document.getElementById('delega-testo-email').innerHTML = dichiarazioneDelegaInHtml(costruisciTestoDichiarazioneDelega(b, [a]));
     document.getElementById('delega-conferma-email').classList.remove('hidden');
     return;
   }
@@ -5288,7 +5359,7 @@ function procediDopoSceltaCatenaCv(){
   __delegaCatenaCvInSospeso.assembleeScelteIds = idsScelti;
   const assembleeScelte = catena.filter(ass=>idsScelti.includes(ass.id));
   document.getElementById('delega-catena-wrap').classList.add('hidden');
-  document.getElementById('delega-testo-email').textContent = costruisciTestoDichiarazioneDelega(b, assembleeScelte);
+  document.getElementById('delega-testo-email').innerHTML = dichiarazioneDelegaInHtml(costruisciTestoDichiarazioneDelega(b, assembleeScelte));
   document.getElementById('delega-conferma-email').classList.remove('hidden');
 }
 // Costruisce il testo della dichiarazione di delega. Con una sola assemblea, il testo formale
@@ -5296,6 +5367,13 @@ function procediDopoSceltaCatenaCv(){
 // testo che le elenca tutte chiaramente — restare ugualmente formali su ciascuna appesantirebbe
 // troppo la lettura, quindi qui indichiamo oggetto e data di ciascuna, in modo comunque chiaro
 // e verificabile.
+// LT-322: la dichiarazione con la firma in corsivo grassetto (il resto resta testo semplice).
+function dichiarazioneDelegaInHtml(testo){
+  const t = String(testo||'');
+  const i = t.lastIndexOf('\nFirma\n');
+  if(i<0) return escapeHtml(t);
+  return escapeHtml(t.slice(0, i+7)) + '<b><i>' + escapeHtml(t.slice(i+7)) + '</i></b>';
+}
 function costruisciTestoDichiarazioneDelega(b, assembleeCoinvolte){
   const etichetteModalita = {'in-presenza':'in presenza','mista':'mista (in presenza e online)','online':'online'};
   const nomeCompleto = `${currentCondomino.nome} ${currentCondomino.cognome||''}`;
@@ -5307,7 +5385,7 @@ function costruisciTestoDichiarazioneDelega(b, assembleeCoinvolte){
     const rigaLuoghi = a.modalita==='online'
       ? `in prima convocazione ed in seconda convocazione il giorno ${formattaData(a.dataSeconda)} alle ore ${a.oraSeconda||'da definire'}`
       : `in prima convocazione presso lo Studio dell'Amministratore sito in ${indirizzoStudioTxt} ed in seconda convocazione il giorno ${formattaData(a.dataSeconda)} alle ore ${a.oraSeconda||'da definire'} presso ${luogoTxt}`;
-    return `Io sottoscritto ${nomeCompleto} delego a rappresentarmi all'assemblea condominiale ${etichettaTipo} del condominio ${b.nome}, ${b.comune||''} che si terrà in modalità ${etichetteModalita[a.modalita]||'mista (in presenza e online)'} il giorno ${formattaData(a.dataPrima)} alle ore ${a.oraPrima||'da definire'} ${rigaLuoghi}, il Sig. ${delegaScelta.nomeVisualizzato}
+    return `Io sottoscritto/a ${nomeCompleto} delego a rappresentarmi all'assemblea condominiale ${etichettaTipo} del condominio ${b.nome}, ${b.comune||''} che si terrà in modalità ${etichetteModalita[a.modalita]||'mista (in presenza e online)'} il giorno ${formattaData(a.dataPrima)} alle ore ${a.oraPrima||'da definire'} ${rigaLuoghi}, il Sig. ${delegaScelta.nomeVisualizzato}
 
 Firma
 ${nomeCompleto}`;
@@ -5315,7 +5393,7 @@ ${nomeCompleto}`;
   const elencoAssemblee = assembleeCoinvolte.map(a=>
     `- ${a.oggetto||'Assemblea'} (${a.tipo==='straordinaria'?'straordinaria':'ordinaria'}), modalità ${etichetteModalita[a.modalita]||'mista'}, prima convocazione il ${formattaData(a.dataPrima)} alle ${a.oraPrima||'da definire'}, seconda convocazione il ${formattaData(a.dataSeconda)} alle ${a.oraSeconda||'da definire'}`
   ).join('\n');
-  return `Io sottoscritto ${nomeCompleto} delego a rappresentarmi il Sig. ${delegaScelta.nomeVisualizzato} per le seguenti assemblee condominiali del condominio ${b.nome}, ${b.comune||''}:
+  return `Io sottoscritto/a ${nomeCompleto} delego a rappresentarmi il Sig. ${delegaScelta.nomeVisualizzato} per le seguenti assemblee condominiali del condominio ${b.nome}, ${b.comune||''}:
 
 ${elencoAssemblee}
 
@@ -5357,6 +5435,12 @@ async function invaDelegaAdAmministratore(){
       return;
     }
   }
+  // LT-322: chi era il delegato esterno PRIMA di questa scelta: se cambia, gli arriva un'email
+  // che il suo link non vale più.
+  const idPerDelegaPrec = currentCondomino.unificatoCon ? currentCondomino.unificatoCon : currentCondomino.id;
+  const esterniPrecedenti = [...new Set(assembleeCoinvolte.map(ass=>ass.appello && ass.appello.deleghe ? ass.appello.deleghe[idPerDelegaPrec] : null)
+    .filter(x=>typeof x==='string' && x.startsWith('ext-')))];
+  __delegaEsterniPrecedenti = esterniPrecedenti;
   let risultati;
   if(__sbAn.partecipante){
     risultati = await vivoDelegaServer(b, assembleeCoinvolte, delegaScelta);
@@ -5372,9 +5456,10 @@ async function invaDelegaAdAmministratore(){
   // pagina diceva di averla mandata. Ora la pagina manda solo il codice del link e i numeri
   // delle assemblee; destinatari e testo li ricava il server dal database.
   const assembleeRegistrateConEsito = assembleeCoinvolte.filter(ass=>risultati[ass.id] && risultati[ass.id].ok);
-  if(assembleeRegistrateConEsito.length>0) inviaEmailDelegaDalServer(assembleeRegistrateConEsito.map(ass=>ass.id));
+  if(assembleeRegistrateConEsito.length>0) inviaEmailDelegaDalServer(assembleeRegistrateConEsito.map(ass=>ass.id), __delegaEsterniPrecedenti);
 }
-async function inviaEmailDelegaDalServer(idAssemblee){
+let __delegaEsterniPrecedenti = [];
+async function inviaEmailDelegaDalServer(idAssemblee, precedenti){
   const esitoEl = document.getElementById('delega-esito-email');
   const scrivi = (testo, colore)=>{ if(esitoEl){ esitoEl.textContent = testo; esitoEl.style.color = colore || ''; } };
   const codiceLink = __paramsIniziali.get('token') || '';
@@ -5383,7 +5468,7 @@ async function inviaEmailDelegaDalServer(idAssemblee){
   try{
     const r = await fetch('/api/email-delega', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({codice: codiceLink, assemblee: idAssemblee})
+      body: JSON.stringify({codice: codiceLink, assemblee: idAssemblee, precedenti: precedenti||[]})
     });
     const dati = await r.json().catch(()=>({}));
     if(!r.ok || !dati.ok){
@@ -5393,7 +5478,7 @@ async function inviaEmailDelegaDalServer(idAssemblee){
     const ruoli = (dati.esiti||[]).filter(e=>e.ok).map(e=>e.ruolo);
     const parti = [];
     if(ruoli.includes('amministratore')) parti.push('all\'amministratore');
-    if(ruoli.includes('delegato')) parti.push('al condòmino che hai delegato');
+    if(ruoli.includes('delegato')) parti.push('alla persona che hai delegato');
     if(ruoli.includes('delegante')) parti.push('a te, come copia');
     scrivi('✉ Email di conferma inviata ' + (parti.length ? parti.join(', ') : '') + '.', '#2E6B44');
   }catch(e){
@@ -9375,7 +9460,7 @@ function segnaSubitoOnline(building, idRisolto){
     if(!rec) aFresca.appello.online.push({condominoId: idRisolto, entrata: oraAdesso(), uscita: null});
     else registraRientroOnline(rec);
   });
-  if(__sbAn.partecipante && currentCondomino && idRisolto===currentCondomino.id) vivoAzione('online');
+  if(__sbAn.partecipante && currentCondomino && (idRisolto===currentCondomino.id || linkDelegatoEsterno())) vivoAzione('online');
 }
 function rientraInAssemblea(){
   if(!currentCondomino) return;
@@ -9578,7 +9663,9 @@ function renderVistaCondomino(){
   const welcomeEl = document.getElementById('cv-welcome');
   if(welcomeEl){
     welcomeEl.textContent = currentCondomino
-      ? `Accesso come ${nomeCompletoCondomino(currentCondomino)}`
+      ? (linkDelegatoEsterno()
+          ? `Accesso come ${(window.__metaPartecipante.esterno_nome||'delegato')} (delega di ${nomeCompletoCondomino(currentCondomino)})`
+          : `Accesso come ${nomeCompletoCondomino(currentCondomino)}`)
       : 'Nessun condòmino riconosciuto — apri questa vista dal link personale o dal selettore "Anteprima come..." nella Sala assemblea.';
   }
   const schermataRientro = document.getElementById('cv-schermata-rientro');
@@ -9633,6 +9720,34 @@ function renderVistaCondomino(){
     distruggiVideoCondomino();
     return;
   }
+  // LT-322: link del delegato esterno spento (delega annullata o assemblea finita).
+  const schermataLinkSpento = document.getElementById('cv-schermata-link-esterno-spento');
+  if(__linkEsternoSpento){
+    [schermataRientro, schermataTerminata].forEach(el=>{ if(el) el.classList.add('hidden'); });
+    restoContenuto.forEach(el=>{ if(el) el.classList.add('hidden'); });
+    if(schermataLinkSpento) schermataLinkSpento.classList.remove('hidden');
+    distruggiVideoCondomino();
+    return;
+  }
+  if(schermataLinkSpento) schermataLinkSpento.classList.add('hidden');
+  // LT-322: questo condòmino ha delegato una persona esterna. Il suo link serve solo a vedere
+  // la delega o ad annullarla: se vuole entrare lui, la delega viene annullata (e il delegato
+  // non potrà più usare il suo link).
+  const schermataDelegaEst = document.getElementById('cv-schermata-delega-esterna');
+  const delegaEst = (!linkDelegatoEsterno() && currentCondomino) ? delegaEsternaDelCondomino(assembleaCorrente, currentCondomino) : null;
+  if(delegaEst){
+    [schermataRientro, schermataTerminata].forEach(el=>{ if(el) el.classList.add('hidden'); });
+    restoContenuto.forEach(el=>{ if(el) el.classList.add('hidden'); });
+    distruggiVideoCondomino();
+    if(schermataDelegaEst){
+      schermataDelegaEst.innerHTML = `<p style="font-size:18px;font-weight:700;margin-bottom:10px;">Hai delegato ${escapeHtml(delegaEst.nome)}</p>
+        <p class="muted" style="color:#C4BCA5;margin-bottom:18px;line-height:1.5;">Per questa assemblea parteciperà e voterà al posto tuo, con il link personale che ha ricevuto via email.<br><br>Se entri tu, <b>la delega verrà annullata</b> e ${escapeHtml(delegaEst.nome)} non potrà più partecipare con il suo link.</p>
+        <button class="btn brass" id="cv-btn-annulla-delega-entra" onclick="annullaDelegaEsternaEdEntra()">Annulla la delega ed entra</button>`;
+      schermataDelegaEst.classList.remove('hidden');
+    }
+    return;
+  }
+  if(schermataDelegaEst) schermataDelegaEst.classList.add('hidden');
   if(schermataTerminata) schermataTerminata.classList.add('hidden');
   if(schermataRientro) schermataRientro.classList.add('hidden');
   restoContenuto.forEach(el=>{ if(el) el.classList.remove('hidden'); });
@@ -9703,6 +9818,9 @@ function nomeStanzaVideoAssemblea(b, a){
     visti.add(prec.id);
     testa = prec;
   }
+  // LT-322: l'ospite vede solo la sua assemblea; la prima della catena gliela dice il database.
+  const metaP = window.__metaPartecipante;
+  if(testa===a && metaP && metaP.tipo==='ospite' && metaP.testa_catena_id_app!=null) return 'asm-' + b.id + '-' + metaP.testa_catena_id_app;
   return 'asm-' + b.id + '-' + testa.id;
 }
 // La stanza dell'assemblea che l'AMMINISTRATORE ha aperto in questo momento.
@@ -10279,7 +10397,7 @@ function modificaSceltaVotoBloccoCv(){
     activePoll.voted.delete(votante.id);
     if(activePoll.votatoInBlocco) activePoll.votatoInBlocco.delete(votante.id);
   });
-  if(__sbAn.partecipante && votante.id===currentCondomino.id) vivoAzione('voto_annulla');
+  if(__sbAn.partecipante && (votante.id===currentCondomino.id || linkDelegatoEsterno())) vivoAzione('voto_annulla');
   sceltaVotoCorrente = null;
   renderCvPollArea();
 }
@@ -10663,7 +10781,9 @@ function confermaVotoCondomino(){
   try{
     const idCondominoVotante = votante0.id, opzioneScelta = sceltaVotoCorrente;
     eseguiConUnioneSuServer(()=>{ impostaVoto(idCondominoVotante, opzioneScelta, false); });
-    if(__sbAn.partecipante && idCondominoVotante===currentCondomino.id) vivoAzione('voto', {opt:opzioneScelta});
+    // LT-322: anche il delegato esterno (dal suo link) manda il voto al database — prima il voto
+    // dato dal telefono di un esterno restava solo sul suo telefono e andava perso.
+    if(__sbAn.partecipante && (idCondominoVotante===currentCondomino.id || linkDelegatoEsterno())) vivoAzione('voto', {opt:opzioneScelta});
     // Fondamentale: azzeriamo la selezione ORA, subito dopo che il voto è stato registrato —
     // altrimenti la protezione che evita di perdere una selezione in corso durante una
     // sincronizzazione (pensata per un altro scopo) impedirebbe per errore anche a QUESTO
@@ -11822,6 +11942,7 @@ async function sbCaricaPartecipante(token){
   const D = ris.data;
   if(!D || D.ok !== true) return {ok:false, motivo:(D&&D.motivo)||'token'};
   sbCostruisci(D);
+  window.__metaPartecipante = D.meta || {};   // LT-322: tipo di link (condomino / ospite / esterno)
   // "In corso" = avviata dall'amministratore e non ancora conclusa.
   buildings.forEach(b=>{
     const inCorso = (b.assemblee||[]).filter(a=>a.stato==='in-corso');
@@ -12333,6 +12454,14 @@ async function vivoPollPartecipante(){
       if(a.stato!=='in-corso' && !inCodaDaSeguire && !(__vivoPart.primoGiro && a.stato!=='conclusa')) continue;   // le altre si leggono una volta sola, all'apertura (servono per la pagina delega)
       const v = __vivoPart.versioni.get(b.id+':'+a.id) || 0;
       const r = await __vivoPart.sb.rpc('partecipa_vivo', {p_token:__vivoPart.token, p_assemblea:a.id, p_versione:v});
+      if(!r.error && r.data && r.data.ok!==true && r.data.motivo==='token' && linkDelegatoEsterno()){
+        // LT-322: delega annullata o assemblea finita: il link del delegato esterno non vale più
+        __linkEsternoSpento = true;
+        if(__vivoPart.poll){ clearInterval(__vivoPart.poll); __vivoPart.poll = null; }
+        try{ fermaRispostaPing(); }catch(_){}
+        renderVistaCondomino();
+        return;
+      }
       if(r.error || !r.data || r.data.ok!==true) continue;
       const d = r.data;
       if(d.stato && d.stato!==a.stato){ a.stato = d.stato; cambiato = true; }
@@ -12367,12 +12496,15 @@ async function vivoDelegaServer(b, assemblee, scelta){
   __vivoPart.azioni++;
   try{
     const r = await sb.rpc('partecipa_delega', {
-      p_token: __vivoPart.token, p_assemblee: assemblee.map(a=>a.id), p_tipo: scelta.tipo==='condomino' ? 'condomino' : 'esterno',
-      p_delegato: scelta.tipo==='condomino' ? scelta.id : null, p_nome: scelta.tipo==='condomino' ? null : (scelta.nomeVisualizzato||'')
+      p_token: __vivoPart.token, p_assemblee: assemblee.map(a=>a.id),
+      p_tipo: scelta.tipo==='condomino' ? 'condomino' : (scelta.tipo==='revoca' ? 'revoca' : 'esterno'),
+      p_delegato: scelta.tipo==='condomino' ? scelta.id : null,
+      p_nome: scelta.tipo==='esterno' ? (scelta.nomeVisualizzato||'') : null,
+      p_email: scelta.tipo==='esterno' ? (scelta.email||'') : null   // LT-322
     });
     const d = r.data;
     if(r.error || !d || d.ok!==true){
-      const MSG = {se_stesso:'Non puoi delegare te stesso.', delegato:'Il condòmino scelto non è valido.', nome:'Scrivi nome e cognome della persona delegata.', assemblea:'Assemblea non valida.'};
+      const MSG = {se_stesso:'Non puoi delegare te stesso.', delegato:'Il condòmino scelto non è valido.', nome:'Scrivi nome e cognome della persona delegata.', email:'Scrivi un indirizzo email valido della persona delegata.', assemblea:'Assemblea non valida.'};
       if(d && d.motivo==='chiusa'){ location.reload(); return null; }
       try{ toast((d && MSG[d.motivo]) || 'Non sono riuscito a registrare la delega. Controlla la connessione e riprova.'); }catch(_){}
       if(r.error) console.error('[Riunion] delega non riuscita:', r.error);
