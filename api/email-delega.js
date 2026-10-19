@@ -27,9 +27,16 @@
 //
 // Variabili d'ambiente: SUPABASE_URL, SUPABASE_SECRET_KEY (già usate da /api/amministratori),
 // BREVO_API_KEY, EMAIL_MITTENTE (già usate da /api/invia-email).
+//
+// LT-322 — DELEGATO ESTERNO: se la delega va a una persona esterna, la sua email e il suo link
+// personale sono nella tabella "delegati_esterni" (li crea il database quando il condòmino
+// concede la delega). Gli arrivano la delega, il link per partecipare, il link "solo voto",
+// data, ora e luogo. Se il condòmino cambia delegato o annulla la delega per entrare lui, la
+// pagina indica in "precedenti" chi era il delegato esterno di prima: se davvero non è più
+// delegato, a lui e all'amministratore arriva un avviso che il suo link non vale più.
 
 import { clienteServer } from '../lib/supabase.js';
-import { spedisci, indirizzoPlausibile } from '../lib/posta.js';
+import { spedisci, indirizzoPlausibile, testoInHtml, escHtml } from '../lib/posta.js';
 
 const MAX_AL_GIORNO = 10;
 const PAUSA_MINIMA_SEC = 30;
@@ -69,19 +76,45 @@ function dichiarazione({ nomeDelegante, nomeDelegato, stabile, assemblee, indiri
     const rigaLuoghi = a.modalita === 'online'
       ? `in prima convocazione ed in seconda convocazione il giorno ${dataIt(a.data_seconda)} alle ore ${oraIt(a.ora_seconda)}`
       : `in prima convocazione presso lo Studio dell'Amministratore sito in ${studio} ed in seconda convocazione il giorno ${dataIt(a.data_seconda)} alle ore ${oraIt(a.ora_seconda)} presso ${luogo}`;
-    return `Io sottoscritto ${nomeDelegante} delego a rappresentarmi all'assemblea condominiale ${tipo} del condominio ${stabile.nome}, ${stabile.comune || ''} che si terrà in modalità ${MODALITA[a.modalita] || MODALITA.mista} il giorno ${dataIt(a.data_prima)} alle ore ${oraIt(a.ora_prima)} ${rigaLuoghi}, il Sig. ${nomeDelegato}`;
+    return `Io sottoscritto/a ${nomeDelegante} delego a rappresentarmi all'assemblea condominiale ${tipo} del condominio ${stabile.nome}, ${stabile.comune || ''} che si terrà in modalità ${MODALITA[a.modalita] || MODALITA.mista} il giorno ${dataIt(a.data_prima)} alle ore ${oraIt(a.ora_prima)} ${rigaLuoghi}, il Sig. ${nomeDelegato}`;
   }
   const elenco = assemblee.map(a =>
     `- ${a.oggetto || 'Assemblea'} (${a.tipo === 'straordinaria' ? 'straordinaria' : 'ordinaria'}), modalità ${MODALITA[a.modalita] || 'mista'}, prima convocazione il ${dataIt(a.data_prima)} alle ${oraIt(a.ora_prima)}, seconda convocazione il ${dataIt(a.data_seconda)} alle ${oraIt(a.ora_seconda)}`
   ).join('\n');
-  return `Io sottoscritto ${nomeDelegante} delego a rappresentarmi il Sig. ${nomeDelegato} per le seguenti assemblee condominiali del condominio ${stabile.nome}, ${stabile.comune || ''}:\n\n${elenco}`;
+  return `Io sottoscritto/a ${nomeDelegante} delego a rappresentarmi il Sig. ${nomeDelegato} per le seguenti assemblee condominiali del condominio ${stabile.nome}, ${stabile.comune || ''}:\n\n${elenco}`;
+}
+
+// L'email in HTML con la firma in corsivo grassetto (LT-322); il resto è il testo normale.
+function htmlConFirma(testo, nomeFirma) {
+  const html = testoInHtml(testo);
+  const cerca = 'Firma<br>' + escHtml(nomeFirma);
+  return html.replace(cerca, 'Firma<br><b><i>' + escHtml(nomeFirma) + '</i></b>');
+}
+
+// Indirizzo del sito da cui è partita la richiesta (riunion.it o l'indirizzo di prova di Vercel).
+function indirizzoSito(req) {
+  const host = String((req.headers && (req.headers['x-forwarded-host'] || req.headers.host)) || '').split(',')[0].trim();
+  if (!/^[a-z0-9.-]+(:\d+)?$/i.test(host)) return 'https://riunion.it';
+  return 'https://' + host;
+}
+
+function quandoDove(a, indirizzoStudio) {
+  const righe = [];
+  righe.push(`Prima convocazione: ${dataIt(a.data_prima)} alle ore ${oraIt(a.ora_prima)}` +
+    (a.modalita === 'online' ? ' (online)' : `, presso lo Studio dell'Amministratore${String(indirizzoStudio || '').trim() ? ' in ' + String(indirizzoStudio).trim() : ''}`));
+  righe.push(`Seconda convocazione: ${dataIt(a.data_seconda)} alle ore ${oraIt(a.ora_seconda)}` +
+    (a.modalita === 'online' ? ' (online)' : `, presso ${String(a.luogo || '').trim() || '(luogo da definire)'}`) +
+    (a.modalita === 'mista' ? ', oppure online' : ''));
+  return righe.join('\n');
 }
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'POST') return rispondi(res, 405, { ok: false, errore: 'Metodo non consentito, usa POST.' });
 
-  const { codice, assemblee } = req.body || {};
+  const { codice, assemblee, precedenti } = req.body || {};
+  const esterniPrecedenti = (Array.isArray(precedenti) ? precedenti : [])
+    .map(x => String(x)).filter(x => /^ext-[0-9a-z-]{1,40}$/i.test(x)).slice(0, 5);
   if (typeof codice !== 'string' || codice.length < 6 || codice.length > 200) {
     return rispondi(res, 400, { ok: false, errore: 'Link non valido.' });
   }
@@ -136,21 +169,26 @@ export default async function handler(req, res) {
 
     // 3. le deleghe che esistono davvero, assemblea per assemblea
     const gruppi = new Map();   // delegato -> { delegato, assemblee: [] }
+    const assembleeValide = [];
     for (const n of numeri) {
       const { data: a } = await db.from('assemblee')
-        .select('id, oggetto, tipo, modalita, data_prima, ora_prima, data_seconda, ora_seconda, luogo, stato')
+        .select('id, id_app, oggetto, tipo, modalita, data_prima, ora_prima, data_seconda, ora_seconda, luogo, stato')
         .eq('id_app', n).eq('stabile_id', stabile.id).maybeSingle();
       if (!a || a.stato === 'conclusa') continue;
       const { data: sv } = await db.from('stato_vivo').select('dati').eq('assemblea_id', a.id).maybeSingle();
       const dati = (sv && sv.dati) || {};
       const deleghe = (dati.appello && dati.appello.deleghe) || {};
+      assembleeValide.push(a);
       if (!(deleganteIdApp in deleghe)) continue;
       const delegato = deleghe[deleganteIdApp];
       const chiave = String(delegato);
       if (!gruppi.has(chiave)) gruppi.set(chiave, { delegato, assemblee: [], esterni: dati.deleghiEsterni || [] });
       gruppi.get(chiave).assemblee.push(a);
     }
-    if (gruppi.size === 0) {
+    // delegati esterni di prima che ora NON sono più delegati da questo condòmino
+    const delegatiOra = new Set([...gruppi.keys()]);
+    const daAvvisare = esterniPrecedenti.filter(x => !delegatiOra.has(x));
+    if (gruppi.size === 0 && (daAvvisare.length === 0 || assembleeValide.length === 0)) {
       return rispondi(res, 404, { ok: false, errore: 'Non risulta nessuna delega registrata da questo link per le assemblee indicate.' });
     }
 
@@ -163,6 +201,7 @@ export default async function handler(req, res) {
     for (const g of gruppi.values()) {
       let nomeDelegato = 'persona delegata';
       let emailDelegato = null;
+      let esterno = null;          // LT-322: riga di delegati_esterni, se il delegato è esterno
       if (typeof g.delegato === 'number' || /^\d+$/.test(String(g.delegato))) {
         const { data: dc } = await db.from('condomini').select('nome, cognome, email')
           .eq('id_app', String(g.delegato)).eq('stabile_id', stabile.id).maybeSingle();
@@ -170,6 +209,13 @@ export default async function handler(req, res) {
       } else {
         const est = (g.esterni || []).find(e => e && e.id === g.delegato);
         if (est && est.nome) nomeDelegato = String(est.nome).trim();
+        const { data: de } = await db.from('delegati_esterni').select('nome, email, token')
+          .eq('stabile_id', stabile.id).eq('ext_id', String(g.delegato)).maybeSingle();
+        if (de) {
+          esterno = de;
+          if (de.nome) nomeDelegato = String(de.nome).trim();
+          emailDelegato = indirizzoPlausibile(de.email) ? de.email : null;
+        }
       }
 
       const testoDelega = dichiarazione({ nomeDelegante, nomeDelegato, stabile, assemblee: g.assemblee, indirizzoStudio: adm.indirizzo_studio });
@@ -181,17 +227,54 @@ export default async function handler(req, res) {
         apertura: `Il condòmino ${nomeDelegante} ha concesso la seguente delega:\n\n` });
       if (emailDelegante) invii.push({ ruolo: 'delegante', a: emailDelegante, rispondiA: emailAmm,
         apertura: `Questa è la copia della delega che hai appena concesso. Se non l'hai concessa tu, avvisa subito l'amministratore rispondendo a questa email.\n\n` });
-      if (emailDelegato) invii.push({ ruolo: 'delegato', a: emailDelegato, rispondiA: emailDelegante,
+      if (emailDelegato && !esterno) invii.push({ ruolo: 'delegato', a: emailDelegato, rispondiA: emailDelegante,
         apertura: `Sei stato indicato come delegato da ${nomeDelegante}. Per partecipare all'assemblea usa il tuo link personale, che hai già ricevuto con la convocazione: con quello voterai anche per conto di chi ti ha delegato.\n\n` });
+      if (emailDelegato && esterno && esterno.token) {
+        // LT-322: la persona esterna riceve il SUO link personale
+        const prima = g.assemblee.slice().sort((x, y) => Number(x.id_app) - Number(y.id_app))[0];
+        const base = indirizzoSito(req) + '/?token=' + encodeURIComponent(esterno.token) + '&assemblea=' + encodeURIComponent(String(prima.id_app));
+        const elencoQuando = g.assemblee.map(a => (g.assemblee.length > 1 ? `${a.oggetto || 'Assemblea'}\n` : '') + quandoDove(a, adm.indirizzo_studio)).join('\n\n');
+        const online = g.assemblee.some(a => a.modalita !== 'in-presenza');
+        invii.push({ ruolo: 'delegato', a: emailDelegato, rispondiA: emailAmm || emailDelegante,
+          apertura: `Gentile ${nomeDelegato},\n${nomeDelegante} ti ha delegato a rappresentarlo/a all'assemblea del condominio ${stabile.nome}${stabile.comune ? ', ' + stabile.comune : ''}.\n\n` +
+            `QUANDO E DOVE\n${elencoQuando}\n\n` +
+            (online
+              ? `PER PARTECIPARE ONLINE (video e voto)\n${base}\n\nSOLO PER VOTARE, senza video\n${base}&modo=voto\n\n` +
+                `Questi link sono personali: non inoltrarli. Valgono solo per questa assemblea e smettono di funzionare se la delega viene annullata o quando l'assemblea termina. Se ${nomeDelegante} decide di partecipare di persona, la delega si annulla e riceverai un avviso.\n\n`
+              : `L'assemblea si svolge in presenza: porta con te questa email come promemoria della delega.\n\n`) +
+            `PRIVACY\nI dati del delegato saranno trattati dal Condominio (Titolare) e dall'Amministratore (Responsabile) esclusivamente per le finalità legate alla verifica della regolare costituzione dell'assemblea e alla redazione del verbale, ai sensi dell'art. 6 par. 1 lett. c/f del GDPR.\n\n` +
+            `TESTO DELLA DELEGA\n` });
+      }
 
       const giaFatti = new Set();
       for (const inv of invii) {
         const k = inv.a.trim().toLowerCase();
         if (giaFatti.has(k)) continue;
         giaFatti.add(k);
-        const esito = await spedisci({ a: inv.a, oggetto, testo: inv.apertura + testoDelega + piede, nomeMittente, rispondiA: inv.rispondiA });
+        const testoCompleto = inv.apertura + testoDelega + piede;
+        const esito = await spedisci({ a: inv.a, oggetto, testo: testoCompleto, html: htmlConFirma(testoCompleto, nomeDelegante), nomeMittente, rispondiA: inv.rispondiA });
         esiti.push({ ruolo: inv.ruolo, ok: !!esito.ok, errore: esito.errore || null });
         if (esito.errore) console.error('Email delega non inviata a', inv.ruolo, esito.errore);
+      }
+    }
+
+    // LT-322: avviso ai delegati esterni di prima (delega cambiata o annullata)
+    for (const extId of daAvvisare) {
+      const { data: de } = await db.from('delegati_esterni').select('nome, email')
+        .eq('stabile_id', stabile.id).eq('ext_id', extId).maybeSingle();
+      if (!de) continue;
+      const nomeEst = String(de.nome || 'persona delegata').trim();
+      const elenco = assembleeValide.map(a => `- ${a.oggetto || 'Assemblea'} del ${dataIt(a.data_seconda)}`).join('\n');
+      const oggettoAvviso = 'Delega annullata - ' + stabile.nome;
+      const testoEst = `Gentile ${nomeEst},\n${nomeDelegante} ha annullato la delega che ti aveva dato per:\n${elenco}\n\nIl link personale che avevi ricevuto per queste assemblee non è più attivo.\n\nPer qualsiasi chiarimento puoi rispondere a questa email.`;
+      const testoAmm = `Il condòmino ${nomeDelegante} ha annullato la delega a ${nomeEst} (persona esterna) per:\n${elenco}\n\nIl link personale di ${nomeEst} non è più attivo.`;
+      const avvisi = [];
+      if (indirizzoPlausibile(de.email)) avvisi.push({ ruolo: 'avviso_delegato', a: de.email, testo: testoEst, rispondiA: emailDelegante || emailAmm });
+      if (emailAmm) avvisi.push({ ruolo: 'avviso_amministratore', a: emailAmm, testo: testoAmm, rispondiA: emailDelegante });
+      for (const av of avvisi) {
+        const esito = await spedisci({ a: av.a, oggetto: oggettoAvviso, testo: av.testo, nomeMittente, rispondiA: av.rispondiA });
+        esiti.push({ ruolo: av.ruolo, ok: !!esito.ok, errore: esito.errore || null });
+        if (esito.errore) console.error('Avviso delega annullata non inviato a', av.ruolo, esito.errore);
       }
     }
 

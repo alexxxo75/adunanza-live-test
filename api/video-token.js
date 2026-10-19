@@ -144,7 +144,13 @@ async function verificaPartecipante(codice, rif) {
     const D = await r.json();
     if (!D || D.ok !== true) return { errore: 'Questo link non è valido o non è più attivo.', codice: 403 };
     const stabile = (D.stabili || []).find(x => String(x.id_app) === rif.stabile);
-    const testa = stabile && (D.assemblee || []).find(x => String(x.id_app) === rif.assemblea && x.stabile_id === stabile.id);
+    let testa = stabile && (D.assemblee || []).find(x => String(x.id_app) === rif.assemblea && x.stabile_id === stabile.id);
+    // LT-322: l'ospite di un'assemblea in coda vede solo la sua assemblea, ma la stanza è quella
+    // della prima della catena: il database gliela indica in meta.testa_catena_id_app.
+    const metaO = D.meta || {};
+    if (!testa && stabile && metaO.tipo === 'ospite' && String(metaO.testa_catena_id_app) === rif.assemblea) {
+      testa = (D.assemblee || []).find(x => x.stabile_id === stabile.id) || null;
+    }
     if (!testa) return { errore: 'Il tuo link non dà accesso a questa videochiamata.', codice: 403 };
     // LT-321: le assemblee concatenate usano tutte la stanza della PRIMA della catena. Quando la
     // prima è conclusa, conta quella in coda: si segue la catena fino alla prima non conclusa,
