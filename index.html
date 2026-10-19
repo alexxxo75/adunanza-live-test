@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-320 — creata il 18/10/2026 alle 20:14
+  Versione: LT-321 — creata il 19/10/2026 alle 10:02
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -874,7 +874,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 18/10/2026 alle 20:14">LT-320</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 19/10/2026 alle 10:02">LT-321</span>
   </div>
 
   <!-- MAIN -->
@@ -9690,9 +9690,20 @@ function adjustFontScale(dir){
 // Le stanze nuove sono PRIVATE: senza un token generato dal server non ci si entra, nemmeno
 // conoscendo l'indirizzo (la vecchia demo-room era pubblica).
 const STANZA_VIDEO_DI_RISERVA = 'demo-room'; // solo se non si riesce a capire di quale assemblea si tratta
+// LT-321 — ASSEMBLEE CONCATENATE: tutta la catena usa la stanza della PRIMA assemblea. Prima
+// ogni assemblea aveva la sua stanza: alla chiusura della prima l'amministratore restava nella
+// videochiamata di partenza, mentre chi rientrava finiva nella stanza (vuota) della seconda.
 function nomeStanzaVideoAssemblea(b, a){
   if(!b || !a) return null;
-  return 'asm-' + b.id + '-' + a.id;
+  let testa = a;
+  const visti = new Set([a.id]);
+  while(testa.assembleaPrecedenteId!=null){
+    const prec = (b.assemblee||[]).find(x=>x.id===testa.assembleaPrecedenteId);
+    if(!prec || visti.has(prec.id)) break;
+    visti.add(prec.id);
+    testa = prec;
+  }
+  return 'asm-' + b.id + '-' + testa.id;
 }
 // La stanza dell'assemblea che l'AMMINISTRATORE ha aperto in questo momento.
 function nomeStanzaVideoAmministratore(){
@@ -12315,7 +12326,11 @@ async function vivoPollPartecipante(){
   try{
     let cambiato = false;
     for(const b of buildings){ for(const a of (b.assemblee||[])){
-      if(a.stato!=='in-corso' && !(__vivoPart.primoGiro && a.stato!=='conclusa')) continue;   // le altre si leggono una volta sola, all'apertura (servono per la pagina delega)
+      // LT-321: si segue anche l'assemblea in coda quando quella che la precede è in corso o appena
+      // conclusa, così il suo avvio si scopre subito, senza ricaricare la pagina.
+      const precA = a.assembleaPrecedenteId!=null ? (b.assemblee||[]).find(x=>x.id===a.assembleaPrecedenteId) : null;
+      const inCodaDaSeguire = a.stato!=='conclusa' && precA && (precA.stato==='in-corso' || precA.stato==='conclusa');
+      if(a.stato!=='in-corso' && !inCodaDaSeguire && !(__vivoPart.primoGiro && a.stato!=='conclusa')) continue;   // le altre si leggono una volta sola, all'apertura (servono per la pagina delega)
       const v = __vivoPart.versioni.get(b.id+':'+a.id) || 0;
       const r = await __vivoPart.sb.rpc('partecipa_vivo', {p_token:__vivoPart.token, p_assemblea:a.id, p_versione:v});
       if(r.error || !r.data || r.data.ok!==true) continue;
@@ -12328,7 +12343,17 @@ async function vivoPollPartecipante(){
       vivoDeriva();
     }}
     if(cambiato){
-      if(buildings.some(b=>(b.assemblee||[]).some(a=>a.stato==='conclusa' && __vivoPart.eraInCorso && __vivoPart.eraInCorso.has(b.id+':'+a.id)))){ location.reload(); return; }
+      // Un'assemblea appena conclusa: si ricarica la pagina, TRANNE se ha un'assemblea in coda a cui
+      // questo condòmino è convocato (LT-321). In quel caso si prosegue senza ricaricare: la
+      // videochiamata resta aperta (stessa stanza per tutta la catena) e la pagina passa da sola
+      // alla successiva. Ricaricando, il video si chiudeva e bisognava rientrare a mano.
+      const daRicaricare = buildings.some(b=>(b.assemblee||[]).some(a=>{
+        if(!(a.stato==='conclusa' && __vivoPart.eraInCorso && __vivoPart.eraInCorso.has(b.id+':'+a.id))) return false;
+        const succ = a.assembleaSuccessivaId!=null ? (b.assemblee||[]).find(x=>x.id===a.assembleaSuccessivaId) : null;
+        const segue = succ && succ.stato!=='conclusa' && currentCondomino && condominoConvocatoAssemblea(succ, currentCondomino, b);
+        return !segue;
+      }));
+      if(daRicaricare){ location.reload(); return; }
       rirenderizzaDopoSincronizzazione();
     }
     __vivoPart.eraInCorso = new Set(); buildings.forEach(b=>(b.assemblee||[]).forEach(a=>{ if(a.stato==='in-corso') __vivoPart.eraInCorso.add(b.id+':'+a.id); }));
