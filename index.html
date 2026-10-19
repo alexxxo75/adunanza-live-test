@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-329 — creata il 19/10/2026 alle 16:57
+  Versione: LT-330 — creata il 19/10/2026 alle 19:14
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -876,7 +876,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 19/10/2026 alle 16:57">LT-329</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 19/10/2026 alle 19:14">LT-330</span>
   </div>
 
   <!-- MAIN -->
@@ -1490,7 +1490,8 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
             </table>
           </div>
           <!-- LT-327: ospiti (senza diritto di voto) gestibili anche durante l'assemblea -->
-          <div id="sala-ospiti" style="margin:18px 0 6px;"></div>
+          <div class="appello-divider-strip" id="sala-ospiti-strip"></div>
+          <div class="card" id="sala-ospiti" style="margin-top:0;background:var(--paper);border:1px solid var(--line);"></div>
           <div class="appello-divider-strip"></div>
           <div class="card" id="appello-validazione" style="margin-top:0;background:var(--paper);border:1px solid var(--line);">
             <div class="section-title" style="font-size:19px;margin:0 0 8px;">✅ Validazione assemblea</div>
@@ -7845,7 +7846,9 @@ function renderOspitiSala(){
   if(!cont) return;
   const b = getActiveBuilding();
   const a = b ? getAssembleaInCorso(b) : null;
-  if(!a){ cont.innerHTML=''; return; }
+  const strip = document.getElementById('sala-ospiti-strip');
+  if(!a){ cont.innerHTML=''; cont.style.display='none'; if(strip) strip.style.display='none'; return; }
+  cont.style.display=''; if(strip) strip.style.display='';
   const elenco = ospitiAssemblea(a);
   const stato = o => {
     const ing = o.ingressi||[], usc = o.uscite||[];
@@ -7862,17 +7865,19 @@ function renderOspitiSala(){
   // Il modulo per aggiungere un ospite si crea UNA volta sola: l'appello si ridisegna spesso
   // (a ogni aggiornamento dei presenti) e cancellerebbe quello che si sta scrivendo.
   if(!document.getElementById('sala-ospiti-elenco')){
-    cont.innerHTML = `<div class="section-title" style="font-size:17px;margin:0 0 4px;">👤 Ospiti (senza diritto di voto)</div>
-    <p class="muted" style="font-size:12.5px;margin:0 0 10px;">Tecnici, consulenti, chi presenta un preventivo: entrano in videochiamata ma non contano per quorum e voti.</p>
+    cont.innerHTML = `<div class="section-title" style="font-size:19px;margin:0 0 4px;">👤 Ospiti (senza diritto di voto)</div>
+    <p class="muted" style="font-size:12.5px;margin:0 0 12px;">Tecnici, consulenti, chi presenta un preventivo: entrano in videochiamata ma non contano per quorum e voti.</p>
+    <div style="margin:0 0 6px;">Ospiti invitati attesi per questa assemblea:</div>
     <div id="sala-ospiti-elenco"></div>
-    <div class="row-inline" style="align-items:flex-end;gap:8px;margin-top:10px;flex-wrap:wrap;">
+    <div style="margin:16px 0 6px;">Invita ulteriori ospiti:</div>
+    <div class="row-inline" style="align-items:flex-end;gap:8px;flex-wrap:wrap;">
       <div class="field" style="margin:0;min-width:160px;"><label>Nome e cognome</label><input type="text" id="sala-ospite-nome" placeholder="Es. Mario Rossi"></div>
       <div class="field" style="margin:0;min-width:140px;"><label>Ditta (facoltativa)</label><input type="text" id="sala-ospite-ditta" placeholder="Es. Rossi Impianti"></div>
       <div class="field" style="margin:0;min-width:180px;"><label>Email (facoltativa)</label><input type="email" id="sala-ospite-email" placeholder="per mandargli l'invito"></div>
       <button class="btn small brass" style="flex:0;white-space:nowrap;" onclick="aggiungiOspiteSala()">+ Invita ospite</button>
     </div>`;
   }
-  document.getElementById('sala-ospiti-elenco').innerHTML = righe || '<p class="muted" style="margin:0 0 10px;">Nessun ospite invitato.</p>';
+  document.getElementById('sala-ospiti-elenco').innerHTML = righe || '<p class="muted" style="margin:0 0 4px;">Nessun ospite invitato</p>';
 }
 function aggiungiOspiteSala(){
   const b = getActiveBuilding();
@@ -10388,7 +10393,32 @@ function costruisciSezionePresenti(assemblea, b){
     <h3>👥 Partecipanti</h3>
     <div class="cv-presenti-conteggio"><b>${testePresenti}</b> teste / ${totaleTeste} convocati &nbsp;·&nbsp; <b>${millPresenti}</b> / ${totMillConvocati}\u2030 millesimi (tabella "${escapeHtml(tq)}")</div>
     <div class="cv-presenti-elenco">${righeHtml}${righeEsterniHtml}</div>
+    ${costruisciOspitiNonVotantiCondomino(assemblea, b)}
   </div>`;
+}
+// LT-330: in fondo al riquadro Partecipanti, gli ospiti (senza diritto di voto) con
+// nome, ditta e pallino verde (collegato adesso) o grigio (non collegato / uscito).
+function costruisciOspitiNonVotantiCondomino(assemblea, b){
+  const vivo = __ospitiVivoPerAss[b.id+':'+assemblea.id];
+  const nomi = (vivo && vivo.nomi) || {};
+  const pres = (vivo && vivo.presenze) || {};
+  const ids = Object.keys(nomi).filter(id=>nomi[id] && nomi[id].nome)
+    .sort((x,y)=>nomi[x].nome.localeCompare(nomi[y].nome,'it'));
+  if(!ids.length) return '';
+  const righe = ids.map(id=>{
+    const p = pres[id] || {};
+    const ing = p.ingressi||[], usc = p.uscite||[];
+    const dentro = ing.length > usc.length;
+    const pallino = dentro ? '🟢' : '⚪';
+    const info = dentro ? `Online dalle ${escapeHtml(ing[ing.length-1])}`
+               : (usc.length ? `Uscito alle ${escapeHtml(usc[usc.length-1])}` : 'Non ancora collegato');
+    return `<div class="cv-presente-riga">
+      <div class="cv-presente-riga-top"><span class="cv-presente-pallino" style="${dentro?'':'filter:grayscale(1);opacity:.75;'}">${pallino}</span><span class="cv-presente-nome">${escapeHtml(nomi[id].nome)}</span></div>
+      <div class="cv-presente-info">${nomi[id].ditta ? escapeHtml(nomi[id].ditta) + ' · ' : ''}${info}</div>
+    </div>`;
+  }).join('');
+  return `<h3 style="margin-top:18px;">👤 Ospiti non votanti</h3>
+    <div class="cv-presenti-elenco">${righe}</div>`;
 }
 // Nei primi 10 secondi dopo l'avvio dell'assemblea, mostriamo SOLO questa sezione a schermo
 // pieno (chi c'è, teste e millesimi) — poi si passa automaticamente alla vista con l'ordine
@@ -12484,10 +12514,16 @@ function vivoEstrai(b, a){
   const osp = {};
   (a.ospiti||[]).forEach(o=>{ const x = vivoParteViva(o, VIVO_ESCLUSE_OSP); if(!vivoVuoto(x)) osp[o.id] = x; });
   if(!vivoVuoto(osp)) d.__ospiti = osp;
+  // LT-330: nomi degli ospiti (solo nome e ditta: mai email né link) per la sezione
+  // "Ospiti non votanti" che i condòmini vedono sul telefono
+  const ospNomi = {};
+  (a.ospiti||[]).forEach(o=>{ ospNomi[o.id] = { nome: String(o.nome||'').trim(), ditta: String(o.ditta||'').trim() }; });
+  if(!vivoVuoto(ospNomi)) d.__ospitiNomi = ospNomi;
   if(b.assembleaInCorsoId===a.id && activePoll){ d.__activePoll = serializzaPoll(activePoll); d.__activePollOdgId = activePollOdgId; }
   return d;
 }
 // Rimette nell'assemblea (in memoria) il documento vivo ricevuto.
+const __ospitiVivoPerAss = {};   // LT-330: ospiti visti dal documento vivo (per la pagina del condòmino)
 function vivoApplica(b, a, d){
   d = d || {};
   // I tre campi di LT-312 non si cancellano mai quando mancano dal documento ricevuto: le righe
@@ -12505,6 +12541,7 @@ function vivoApplica(b, a, d){
     Object.keys(o).forEach(k=>{ if(!VIVO_ESCLUSE_OSP.has(k)) delete o[k]; });
     const x = d.__ospiti && d.__ospiti[o.id]; if(x) Object.assign(o, vivoClone(x));
   });
+  __ospitiVivoPerAss[b.id+':'+a.id] = { nomi: vivoClone(d.__ospitiNomi||{}), presenze: vivoClone(d.__ospiti||{}) };
   if(b.assembleaInCorsoId===a.id){
     activePoll = d.__activePoll ? deserializzaPoll(d.__activePoll) : null;
     activePollOdgId = d.__activePollOdgId || null;
