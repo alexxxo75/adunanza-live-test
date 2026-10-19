@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-322 — creata il 19/10/2026 alle 11:06
+  Versione: LT-323 — creata il 19/10/2026 alle 12:20
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -874,7 +874,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 19/10/2026 alle 11:06">LT-322</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 19/10/2026 alle 12:20">LT-323</span>
   </div>
 
   <!-- MAIN -->
@@ -13059,6 +13059,12 @@ function eseguiCicloPing(){
     // ciascuna persona esterna che compare tra le deleghe di questa assemblea.
     const idsDaControllare = new Set(a.convocati.selezionati||[]);
     Object.values(a.appello.deleghe||{}).forEach(delegatoId=>{ if(typeof delegatoId==='string') idsDaControllare.add(delegatoId); });
+    // LT-323: anche le persone esterne ancora segnate presenti ma non più delegate (delega
+    // annullata o cambiata): così smettono di risultare online quando i loro battiti cessano,
+    // invece di restare "presenti" per sempre nell'appello.
+    [...(a.appello.online||[]), ...(a.votoAutonomo||[])].forEach(r=>{
+      if(r && !r.uscita && typeof r.condominoId==='string' && r.condominoId.startsWith('ext-')) idsDaControllare.add(r.condominoId);
+    });
 
     idsDaControllare.forEach(id=>{
       const chiaveLocale = bb.id+':'+a.id+':'+id;
