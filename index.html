@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-326 — creata il 19/10/2026 alle 15:13
+  Versione: LT-327 — creata il 19/10/2026 alle 15:38
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -874,7 +874,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 19/10/2026 alle 15:13">LT-326</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 19/10/2026 alle 15:38">LT-327</span>
   </div>
 
   <!-- MAIN -->
@@ -1376,40 +1376,18 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
         </div>
 
         <div class="frame-dark" style="margin-bottom:18px;">
-        <div class="frame-dark-title">Invii programmati</div>
-        <div class="card frame-dark-hover">
-          <div class="row-inline">
-            <div class="field"><label>Data (GG/MM/AAAA)</label>
-              <div class="date-field-wrap">
-                <input type="text" id="ca-sched-data" placeholder="es. 05/03/2026" maxlength="10">
-                <span class="date-field-icon" onclick="apriCalendario('ca-sched-data-native')">📅</span>
-                <input type="date" id="ca-sched-data-native" class="date-field-native" onchange="applicaDataDaPicker(this,'ca-sched-data')" tabindex="-1" aria-hidden="true">
-              </div>
-            </div>
-            <div class="field"><label>Ora (24h)</label><input type="text" id="ca-sched-ora" placeholder="es. 09:00" maxlength="5"></div>
-          </div>
-          <div class="field">
-            <label>Tipo di invio</label>
-            <select id="ca-sched-tipo">
-              <option>Convocazione iniziale</option>
-              <option>Promemoria</option>
-            </select>
-          </div>
-          <button class="btn small secondary" onclick="addInvioProgrammato()">+ Programma invio</button>
-          <label style="display:flex;align-items:center;gap:12px;margin-top:18px;margin-bottom:4px;padding:14px 16px;background:var(--paper);border-radius:4px;font-weight:700;font-size:15px;">
-            <input type="checkbox" id="ca-remind-30min" onchange="toggleRemind30Min(this.checked)" style="width:20px;height:20px;flex-shrink:0;"> Invio programmato automatico 30 minuti prima dell'assemblea
-          </label>
-          <div id="ca-sched-list" style="margin-top:12px;"></div>
-          <div class="note">⚠️ Attenzione: questi invii PROGRAMMATI restano solo elencati qui, non partono davvero all'orario previsto (serve un servizio di invio schedulato o un job lato server, non presente in questa fase di test). L'invio VERO e IMMEDIATO è invece quello del pulsante "✉ Salva e invia le email" qui sopra.</div>
-        </div>
-        </div>
-
-        <div class="frame-dark" style="margin-bottom:18px;">
         <div class="card frame-dark-hover">
           <div class="row-inline">
             <button class="btn brass" onclick="salvaESpedisciAssemblea()">✉ Salva e invia le email</button>
             <button class="btn secondary" onclick="salvaSenzaInviare()">Salva senza inviare</button>
           </div>
+          <!-- LT-327: la sezione "Invii programmati" non c'è più; resta solo il promemoria automatico,
+               che ora parte davvero dal server (timer di Supabase + /api/promemoria). -->
+          <label style="display:flex;align-items:center;gap:12px;margin-top:16px;margin-bottom:4px;padding:14px 16px;background:var(--paper);border-radius:4px;font-weight:700;font-size:15px;">
+            <input type="checkbox" id="ca-remind-30min" onchange="toggleRemind30Min(this.checked)" style="width:20px;height:20px;flex-shrink:0;"> Promemoria automatico via email 30 minuti prima dell'assemblea
+          </label>
+          <p class="muted" style="font-size:12.5px;margin:4px 2px 0;">Parte da solo 30 minuti prima della seconda convocazione, anche se il tuo computer è spento: a tutti i convocati (tranne chi ha delegato), agli ospiti invitati e ai delegati esterni, ognuno con il proprio link.</p>
+          <div id="ca-sched-list" class="hidden"></div>
         </div>
         </div>
 
@@ -1508,6 +1486,8 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
               <tfoot><tr id="appello-tfoot"></tr></tfoot>
             </table>
           </div>
+          <!-- LT-327: ospiti (senza diritto di voto) gestibili anche durante l'assemblea -->
+          <div id="sala-ospiti" style="margin:18px 0 6px;"></div>
           <div class="appello-divider-strip"></div>
           <div class="card" id="appello-validazione" style="margin-top:0;background:var(--paper);border:1px solid var(--line);">
             <div class="section-title" style="font-size:19px;margin:0 0 8px;">✅ Validazione assemblea</div>
@@ -5785,6 +5765,7 @@ function programmaRitentoRenderAppello(){
   }, 2000);
 }
 function renderAppello(){
+  try{ renderOspitiSala(); }catch(e){ console.error('[Riunion] ospiti in sala:', e); }
   const b=getActiveBuilding();
   const assemblea=getAssembleaInCorso(b);
   const tbody=document.getElementById('appello-tbody');
@@ -5978,6 +5959,11 @@ function renderAppello(){
     tdNome.innerHTML=semaforoAppello(semEst)+`${est.nome} <span class="muted">${etichetta}</span>`;
     tr.appendChild(tdNome);
     const tdBustaEst=document.createElement('td'); tr.appendChild(tdBustaEst);
+    // LT-327: la busta per vedere, correggere l'indirizzo o reinviare l'invito al delegato esterno
+    if(typeof est.id==='string' && est.id.startsWith('ext-')){
+      tdBustaEst.style.textAlign='center';
+      tdBustaEst.innerHTML = `<span onclick="apriAnteprimaEmailEsterno('${escapeHtml(est.id)}')" title="Vedi, correggi l'indirizzo o reinvia l'invito a questa persona" style="cursor:pointer;font-size:15px;" role="button">✉️</span>`;
+    }
     const tdMillEst=document.createElement('td'); tdMillEst.innerHTML='<span class="muted">—</span>'; tr.appendChild(tdMillEst);
     const tdStato=document.createElement('td');
     if(attivoEst && attivoEst.tipo==='online') tdStato.innerHTML = `<span class="badge">🟢 Online (dalle ${attivoEst.rec.entrata})</span>`;
@@ -6644,9 +6630,12 @@ function aggiungiAssembleaInCoda(){
   // per i giorni di convocazione e l'orario di prima convocazione — solo l'orario di seconda
   // convocazione resta da impostare a mano, perché dipende da quanto dura questa assemblea.
   nuova.modalita = precedente.modalita;
-  nuova.dataPrima = precedente.dataPrima;
+  // LT-327: prima convocazione nello stesso giorno della precedente, UN'ORA DOPO; la seconda
+  // convocazione: stesso giorno, l'orario lo imposta l'amministratore.
+  const primaUnOraDopo = sottraiMinuti(precedente.dataPrima, precedente.oraPrima, -60);
+  nuova.dataPrima = primaUnOraDopo ? primaUnOraDopo.data : precedente.dataPrima;
   nuova.dataSeconda = precedente.dataSeconda;
-  nuova.oraPrima = precedente.oraPrima;
+  nuova.oraPrima = primaUnOraDopo ? primaUnOraDopo.ora : precedente.oraPrima;
   nuova.oraSeconda = '';
   b.assemblee.push(nuova);
   salvaStato();
@@ -6712,7 +6701,7 @@ function aprireModuloAssemblea(esistente){
   document.getElementById('ca-ospiti-testo').value = (a.testoOspiti && a.testoOspiti.trim()) ? a.testoOspiti : TESTO_INVITO_OSPITE;
   document.getElementById('ca-ospiti-anteprima').classList.add('hidden');
   renderOspitiInvito();
-  document.getElementById('ca-remind-30min').checked = !!a._remind30;
+  document.getElementById('ca-remind-30min').checked = !!a._remind30 || (a.programmati||[]).some(p=>p.tipo==='Promemoria 30 minuti prima');
   renderOdgList();
   renderSchedList();
   renderConvocatiControlli();
@@ -7220,6 +7209,7 @@ function toggleRemind30Min(checked){
 function renderSchedList(){
   const prog = workingAssembly.programmati;
   const el=document.getElementById('ca-sched-list');
+  if(!el) return;
   if(prog.length===0){ el.innerHTML='<div class="muted">Nessun invio programmato.</div>'; return; }
   el.innerHTML = prog.map((p,i)=>`<div class="list-row"><span><span class="badge pending">Programmato</span> ${p.data} ore ${p.ora} — ${p.tipo}</span><span class="tag-close" onclick="removeInvioProgrammato(${i})">Rimuovi</span></div>`).join('');
 }
@@ -7396,7 +7386,7 @@ function renderTabellaRiepilogoInvitati(a, b){
       // che sono comunque convocate, ma tramite l'unica email/link del primario.
       const secondarie = tuttiIConvocati.filter(x=>x.unificatoCon===c.id);
       const righeSecondarie = secondarie.map(s=>
-        `<tr style="background:#EDEAE2;color:#4b5563;"><td colspan="5" style="padding-left:34px;font-size:12.5px;">- ${escapeHtml(nomeCompletoCondomino(s))} (${escapeHtml(s.unita||s.interno||'altra unità')}) — stessa email/link del primario, nessuna email separata inviata</td></tr>`
+        `<tr style="background:#EDEAE2;color:#4b5563;"><td colspan="5" style="padding-left:34px;font-size:12.5px;">- ${escapeHtml(nomeCompletoCondomino(s))} — ${s.unita ? escapeHtml(s.unita) : (s.interno ? 'int. ' + escapeHtml(s.interno) : 'altra unità')} — stessa email/link del primario, nessuna email separata inviata</td></tr>`
       ).join('');
       return rigaPrincipale + righeSecondarie;
     }).join('');
@@ -7404,6 +7394,68 @@ function renderTabellaRiepilogoInvitati(a, b){
 // ---------- Anteprima e reinvio di una singola email di convocazione ----------
 let __anteprimaEmailCondominoId = null;
 let __anteprimaEmailAssembleaId = null;
+// ---- LT-327 — INVITO AL DELEGATO ESTERNO DALLA BUSTA DELL'APPELLO ----
+// Stessa finestra dell'email di convocazione: indirizzo modificabile, testo modificabile,
+// "Reinvia". Se l'indirizzo viene corretto, Riunion lo memorizza (le email successive, anche il
+// promemoria, andranno a quello nuovo). Il link personale resta lo stesso.
+let __anteprimaEsterno = null;   // {extId, emailPrima}
+async function apriAnteprimaEmailEsterno(extId){
+  const b = getActiveBuilding();
+  const a = getAssembleaInCorso(b) || workingAssembly;
+  const sb = window.__cancello && window.__cancello.sb;
+  if(!a || !b || !sb){ toast('Funzione disponibile solo con i dati in linea.'); return; }
+  const r = await sb.from('delegati_esterni').select('ext_id,nome,email,token').eq('ext_id', extId).maybeSingle();
+  if(r.error || !r.data){ toast('Questa persona è stata aggiunta a mano nell\'appello: non ha un link personale né un indirizzo email.'); return; }
+  const e = r.data;
+  const deleganti = Object.keys(a.appello.deleghe||{}).filter(k=>a.appello.deleghe[k]===extId)
+    .map(k=>b.condomini.find(c=>String(c.id)===String(k))).filter(Boolean).map(c=>escapeHtml(nomeCompletoCondomino(c)));
+  const baseUrl = window.location.origin + window.location.pathname;
+  const link = `${baseUrl}?token=${encodeURIComponent(e.token)}&assemblea=${a.id}`;
+  const quando = (a.dataSeconda ? `in seconda convocazione il giorno ${escapeHtml(a.dataSeconda)} alle ore ${escapeHtml(a.oraSeconda||'')}` : '') +
+    (a.modalita!=='online' && a.luogo ? ` presso ${escapeHtml(a.luogo)}` : '');
+  const corpo = `Gentile ${escapeHtml(e.nome||'')},<br><br>` +
+    `ti ricordiamo che ${deleganti.length ? deleganti.join(', ') : 'un condòmino'} ti ha delegato/a a rappresentarlo/a all'assemblea del condominio ${escapeHtml(b.nome||'')}${a.oggetto ? ' ("' + escapeHtml(a.oggetto) + '")' : ''}, ${quando}.<br><br>` +
+    (a.modalita!=='in-presenza'
+      ? `<a class="email-link-btn" href="${link}" target="_blank">Entra in assemblea →</a><div class="muted" style="margin-top:8px;font-family:var(--font-mono);">${link}</div><br>` +
+        `Solo per votare, senza video: <span style="font-family:var(--font-mono);">${link}&amp;modo=voto</span><br><br>` +
+        `Il link è personale: non inoltrarlo.<br><br>`
+      : '') +
+    `PRIVACY<br>I dati del delegato saranno trattati dal Condominio (Titolare) e dall'Amministratore (Responsabile) esclusivamente per le finalità legate alla verifica della regolare costituzione dell'assemblea e alla redazione del verbale, ai sensi dell'art. 6 par. 1 lett. c/f del GDPR.<br><br>` +
+    escapeHtml(firmaAmministratorePerEmail());
+  __anteprimaEsterno = {extId, emailPrima: e.email||''};
+  __anteprimaEmailCondominoId = null;
+  __anteprimaEmailAssembleaId = a.id;
+  document.getElementById('anteprima-email-indirizzo').value = e.email||'';
+  document.getElementById('anteprima-email-oggetto').textContent = 'Invito per la delega — ' + (a.oggetto||b.nome||'Assemblea');
+  const areaTesto = document.getElementById('anteprima-email-corpo');
+  areaTesto.value = corpo;
+  const render = document.getElementById('anteprima-email-render');
+  render.innerHTML = corpo;
+  areaTesto.oninput = () => { render.innerHTML = areaTesto.value; };
+  document.getElementById('modal-anteprima-email').classList.remove('hidden');
+  document.getElementById('anteprima-email-scroll-wrap').scrollTop = 0;
+  areaTesto.scrollTop = 0;
+}
+async function reinviaEmailEsterno(){
+  const est = __anteprimaEsterno; if(!est) return;
+  const indirizzo = document.getElementById('anteprima-email-indirizzo').value.trim().toLowerCase();
+  const corpo = document.getElementById('anteprima-email-corpo').value;
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(indirizzo)){ toast('Inserisci un indirizzo email valido.'); return; }
+  const sb = window.__cancello && window.__cancello.sb;
+  if(indirizzo !== String(est.emailPrima||'').toLowerCase()){
+    if(!confirm(`L'indirizzo cambia da ${est.emailPrima||'(vuoto)'} a ${indirizzo}.\n\nRiunion lo memorizzerà: anche le prossime email (promemoria compreso) andranno al nuovo indirizzo. Confermi?`)) return;
+    const u = await sb.from('delegati_esterni').update({email: indirizzo, aggiornato_il: new Date().toISOString()}).eq('ext_id', est.extId);
+    if(u.error){ toast('Non sono riuscito a salvare il nuovo indirizzo: ' + (u.error.message||'') + (String(u.error.message||'').includes('duplicate') ? ' (questa email è già usata da un altro delegato esterno)' : '')); return; }
+  }
+  const oggetto = document.getElementById('anteprima-email-oggetto').textContent;
+  try{
+    await inviaEmailVera(indirizzo, oggetto, corpo);
+    toast(`Invito reinviato a ${indirizzo}.`);
+    chiudiAnteprimaEmail();
+  }catch(err){
+    toast('Invio non riuscito: '+(err && err.message ? err.message : 'errore sconosciuto'));
+  }
+}
 function apriAnteprimaEmailSingola(condominoId){
   const b = getActiveBuilding();
   const a = workingAssembly || getAssembleaInCorso(b);
@@ -7434,8 +7486,10 @@ function apriAnteprimaEmailSingola(condominoId){
 function chiudiAnteprimaEmail(){
   document.getElementById('modal-anteprima-email').classList.add('hidden');
   __anteprimaEmailCondominoId = null;
+  __anteprimaEsterno = null;
 }
 async function reinviaEmailDaAnteprima(){
+  if(__anteprimaEsterno) return reinviaEmailEsterno();
   if(__anteprimaEmailCondominoId==null) return;
   const b = getActiveBuilding();
   const c = b.condomini.find(x=>x.id===__anteprimaEmailCondominoId);
@@ -7737,6 +7791,86 @@ async function inviaInvitoOspite(idOspite){
     console.error('[Adunanza] Invito ospite fallito per', o.email, e);
     toast('⚠️ Invio FALLITO per ' + o.email + ': ' + ((e && e.message) ? e.message : 'errore sconosciuto'));
   }
+}
+
+// ---- LT-327 — OSPITI DALLA PAGINA DELL'ASSEMBLEA IN CORSO ----
+// Stesso elenco degli ospiti di "Modifica assemblea" (a.ospiti), ma senza passare dal modulo:
+// si invita qualcuno al volo durante l'assemblea, con email o copiando il link (WhatsApp, SMS).
+// Gli ospiti restano fuori da appello, quorum e voti, come sempre.
+function renderOspitiSala(){
+  const cont = document.getElementById('sala-ospiti');
+  if(!cont) return;
+  const b = getActiveBuilding();
+  const a = b ? getAssembleaInCorso(b) : null;
+  if(!a){ cont.innerHTML=''; return; }
+  const elenco = ospitiAssemblea(a);
+  const stato = o => {
+    const ing = o.ingressi||[], usc = o.uscite||[];
+    if(ing.length && usc.length >= ing.length) return `🚪 uscito/a alle ${escapeHtml(usc[usc.length-1])}`;
+    if(ing.length) return `🟢 entrato/a alle ${escapeHtml(ing[ing.length-1])}`;
+    return o.invitoInviato ? '✉️ invito inviato, non ancora entrato/a' : '⚪ non ancora entrato/a';
+  };
+  const righe = elenco.map(o=>`
+    <div class="list-row" style="flex-wrap:wrap;gap:8px;align-items:center;">
+      <span style="flex:1;min-width:200px;"><b>${escapeHtml(o.nome||'(senza nome)')}</b>${o.ditta ? ' — ' + escapeHtml(o.ditta) : ''} <span class="muted" style="font-size:12.5px;">· ${stato(o)}</span></span>
+      ${o.email ? `<button class="btn small secondary" onclick="inviaInvitoOspiteSala('${o.id}')">✉ ${o.invitoInviato ? 'Reinvia' : 'Invia'} invito</button>` : ''}
+      <button class="btn small secondary" onclick="copiaLinkOspiteSala('${o.id}')">🔗 Copia link</button>
+    </div>`).join('');
+  // Il modulo per aggiungere un ospite si crea UNA volta sola: l'appello si ridisegna spesso
+  // (a ogni aggiornamento dei presenti) e cancellerebbe quello che si sta scrivendo.
+  if(!document.getElementById('sala-ospiti-elenco')){
+    cont.innerHTML = `<div class="section-title" style="font-size:17px;margin:0 0 4px;">👤 Ospiti (senza diritto di voto)</div>
+    <p class="muted" style="font-size:12.5px;margin:0 0 10px;">Tecnici, consulenti, chi presenta un preventivo: entrano in videochiamata ma non contano per quorum e voti.</p>
+    <div id="sala-ospiti-elenco"></div>
+    <div class="row-inline" style="align-items:flex-end;gap:8px;margin-top:10px;flex-wrap:wrap;">
+      <div class="field" style="margin:0;min-width:160px;"><label>Nome e cognome</label><input type="text" id="sala-ospite-nome" placeholder="Es. Mario Rossi"></div>
+      <div class="field" style="margin:0;min-width:140px;"><label>Ditta (facoltativa)</label><input type="text" id="sala-ospite-ditta" placeholder="Es. Rossi Impianti"></div>
+      <div class="field" style="margin:0;min-width:180px;"><label>Email (facoltativa)</label><input type="email" id="sala-ospite-email" placeholder="per mandargli l'invito"></div>
+      <button class="btn small brass" style="flex:0;white-space:nowrap;" onclick="aggiungiOspiteSala()">+ Invita ospite</button>
+    </div>`;
+  }
+  document.getElementById('sala-ospiti-elenco').innerHTML = righe || '<p class="muted" style="margin:0 0 10px;">Nessun ospite invitato.</p>';
+}
+function aggiungiOspiteSala(){
+  const b = getActiveBuilding();
+  const a = b ? getAssembleaInCorso(b) : null;
+  if(!a) return;
+  const nome = (document.getElementById('sala-ospite-nome').value||'').trim();
+  const ditta = (document.getElementById('sala-ospite-ditta').value||'').trim();
+  const email = (document.getElementById('sala-ospite-email').value||'').trim();
+  if(!nome){ toast('Scrivi nome e cognome dell\'ospite.'); return; }
+  if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){ toast('L\'indirizzo email non sembra valido.'); return; }
+  const o = { id: 'osp' + Date.now() + '-' + (__contatoreOspiti++), nome, ditta, email, token: generaTokenOspite(), invitoInviato:null, ingressi:[] };
+  ospitiAssemblea(a).push(o);
+  ['sala-ospite-nome','sala-ospite-ditta','sala-ospite-email'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  if(!salvaStato()){ toast('ATTENZIONE: il salvataggio non è riuscito. Riprova.'); return; }
+  renderOspitiSala();
+  toast(email ? `Ospite aggiunto: ora puoi inviargli l'invito o copiare il link.` : `Ospite aggiunto: copia il link e mandaglielo (WhatsApp, SMS...).`);
+}
+async function inviaInvitoOspiteSala(idOspite){
+  const b = getActiveBuilding();
+  const a = b ? getAssembleaInCorso(b) : null;
+  const o = a ? ospitiAssemblea(a).find(x=>x.id===idOspite) : null;
+  if(!o || !o.email) return;
+  if(!confirm('Stai per inviare una email VERA a:\n\n' + (o.nome||'') + ' <' + o.email + '>\n\nConfermi l\'invio?')) return;
+  try{
+    await inviaEmailVera(o.email, a.oggetto ? ('Invito come ospite — ' + a.oggetto) : ('Invito come ospite all\'assemblea del condominio ' + (b.nome||'')), costruisciEmailOspite(o, a, b));
+    o.invitoInviato = new Date().toLocaleString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    salvaStato();
+    renderOspitiSala();
+    toast('✅ Invito inviato a ' + o.nome + '.');
+  }catch(e){
+    toast('⚠️ Invio FALLITO per ' + o.email + ': ' + ((e && e.message) ? e.message : 'errore sconosciuto'));
+  }
+}
+async function copiaLinkOspiteSala(idOspite){
+  const b = getActiveBuilding();
+  const a = b ? getAssembleaInCorso(b) : null;
+  const o = a ? ospitiAssemblea(a).find(x=>x.id===idOspite) : null;
+  if(!o) return;
+  const link = linkOspite(a, o);
+  try{ await navigator.clipboard.writeText(link); toast('Link copiato: incollalo nel messaggio per ' + (o.nome||'l\'ospite') + '.'); }
+  catch(e){ prompt('Copia questo link e mandalo all\'ospite:', link); }
 }
 
 // ---- Pagina dell'ospite (link "?ospite=...") ----
