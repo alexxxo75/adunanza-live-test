@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-328 — creata il 19/10/2026 alle 15:50
+  Versione: LT-329 — creata il 19/10/2026 alle 16:57
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -876,7 +876,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 19/10/2026 alle 15:50">LT-328</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 19/10/2026 alle 16:57">LT-329</span>
   </div>
 
   <!-- MAIN -->
@@ -6220,7 +6220,8 @@ function renderAppello(){
         trUnita.style.background='#EDEAE2';
         const tdUnitaNome=document.createElement('td');
         tdUnitaNome.style.paddingLeft='34px';
-        tdUnitaNome.innerHTML = `- ${escapeHtml(nomeCompletoCondomino(u))} <span class="muted">(${escapeHtml(u.unita||u.interno||'unità')})</span>`;
+        // LT-329: "— int. 2" (o il nome dell'unità, es. "Box 3") al posto del solo numero tra parentesi
+        tdUnitaNome.innerHTML = `- ${escapeHtml(nomeCompletoCondomino(u))} <span class="muted">— ${u.unita ? escapeHtml(u.unita) : (u.interno ? 'int. ' + escapeHtml(u.interno) : 'altra unità')}</span>`;
         trUnita.appendChild(tdUnitaNome);
         // BUG CORRETTO: qui mancava la cella vuota corrispondente alla colonna delle icone
         // busta/voto (52px, seconda colonna dell'intestazione, sempre vuota per queste righe
@@ -6905,7 +6906,7 @@ function mostraPopupUnioneSpeciale(coppie){
   document.getElementById('popup-unione-speciale-testo').textContent =
     'Come da Dashboard, questi condòmini risultano lo stesso proprietario: per questa assemblea, verranno mostrati come un\'unica riga (con le singole unità rientrate sotto).';
   document.getElementById('popup-unione-speciale-corpo').innerHTML = coppie.map(cp=>
-    `<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px;">${escapeHtml(nomeCompletoCondomino(cp.secondario))} (${escapeHtml(cp.secondario.unita||cp.secondario.interno||'—')}) → unito a ${escapeHtml(nomeCompletoCondomino(cp.primario))}</div>`
+    `<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px;">${escapeHtml(nomeCompletoCondomino(cp.secondario))} — ${cp.secondario.unita ? escapeHtml(cp.secondario.unita) : (cp.secondario.interno ? 'int. ' + escapeHtml(cp.secondario.interno) : 'altra unità')} → unito a ${escapeHtml(nomeCompletoCondomino(cp.primario))}</div>`
   ).join('');
   window.__unioneSpecialeInSospeso = coppie;
   document.getElementById('modal-unione-speciale').classList.remove('hidden');
