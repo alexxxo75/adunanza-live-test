@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-323 — creata il 19/10/2026 alle 12:20
+  Versione: LT-324 — creata il 19/10/2026 alle 14:17
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -874,7 +874,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 19/10/2026 alle 12:20">LT-323</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 19/10/2026 alle 14:17">LT-324</span>
   </div>
 
   <!-- MAIN -->
@@ -4889,6 +4889,12 @@ function verificaLimiteQuintoDelega(building, assemblea, delegatoId, deleganteId
 // (inclusa), seguendo assembleaSuccessivaId finché ce n'è una. Una guardia contro eventuali
 // cicli (non dovrebbero mai capitare, ma preferiamo non restare bloccati in un ciclo infinito
 // se per errore due assemblee si puntassero a vicenda) interrompe comunque dopo 50 passi.
+// LT-324: la catena utile per una DELEGA: solo le assemblee a cui quel condòmino è convocato
+// (chi non è convocato a un'assemblea non può delegare nessuno per quell'assemblea).
+function catenaDelegaPerCondomino(building, assembleaIniziale, c){
+  return trovaCatenaAssemblee(building, assembleaIniziale)
+    .filter(ass=>ass.id===assembleaIniziale.id || !c || condominoConvocatoAssemblea(ass, c, building));
+}
 function trovaCatenaAssemblee(building, assembleaIniziale){
   const catena = [];
   const idsGiaVisti = new Set();
@@ -5005,7 +5011,7 @@ function avviaFlussoDelegaAmministratore(deleganteId, delegatoId){
   const b = getActiveBuilding();
   const assemblea = getAssembleaInCorso(b);
   if(!assemblea) return;
-  const catena = trovaCatenaAssemblee(b, assemblea);
+  const catena = catenaDelegaPerCondomino(b, assemblea, b.condomini.find(x=>x.id===deleganteId));
   if(catena.length<=1){
     // Nessuna catena: come sempre, se scatta l'avviso del limite del quinto chiediamo conferma
     // esplicita PRIMA di scrivere qualunque cosa (comportamento invariato rispetto a prima).
@@ -5184,7 +5190,7 @@ function renderPaginaDelegaCondomino(){
   document.getElementById('delega-data-assemblea').textContent = `Assemblea ${etichettaTipo} del ${a.dataPrima||'—'} prima convocazione - ${a.dataSeconda||'—'} seconda convocazione`;
   document.getElementById('delega-oggetto-assemblea').textContent = `OGGETTO: ${a.oggetto || '(oggetto non indicato)'}`;
 
-  const catenaStato = trovaCatenaAssemblee(b, a);
+  const catenaStato = catenaDelegaPerCondomino(b, a, currentCondomino);
   if(catenaStato.length<=1){
     // Nessuna catena: comportamento semplice di sempre, una sola assemblea da controllare.
     const delegatoIdAttuale = a.appello.deleghe[currentCondomino.id];
@@ -5319,7 +5325,7 @@ function confermaDelegaEsterno(){
 }
 function mostraConfermaDelega(){
   const {b,a} = trovaAssembleaDelegaCorrente();
-  const catena = trovaCatenaAssemblee(b, a);
+  const catena = catenaDelegaPerCondomino(b, a, currentCondomino);
   if(catena.length<=1){
     __delegaCatenaCvInSospeso = null;
     document.getElementById('delega-testo-email').innerHTML = dichiarazioneDelegaInHtml(costruisciTestoDichiarazioneDelega(b, [a]));
@@ -11529,8 +11535,15 @@ function terminaAssemblea(){
       // collegato viene portato con sé (stesso orario di ingresso), e verrà rivalutato sulla
       // lista dei convocati della nuova assemblea in renderAppello (semaforo rosso se non
       // convocato per questa specifica assemblea).
-      const attiviOnline = aReale.appello.online.filter(r=>!r.uscita);
-      const attiviPresenza = aReale.appello.presenzeFisiche.filter(r=>!r.uscita);
+      // LT-324: passano alla prossima SOLO i suoi convocati e chi vi rappresenta qualcuno con una
+      // delega (condòmino o persona esterna). Gli altri, per la prossima, non sono presenti:
+      // prima venivano copiati tutti e comparivano nell'appello come "non convocato", falsando
+      // presenti e millesimi.
+      const convocatiProssima = new Set(((prossimaReale.convocati && prossimaReale.convocati.selezionati) || []).map(String));
+      const delegatiProssima = new Set(Object.values((prossimaReale.appello && prossimaReale.appello.deleghe) || {}).map(String));
+      const passaAllaProssima = r => convocatiProssima.size===0 || convocatiProssima.has(String(r.condominoId)) || delegatiProssima.has(String(r.condominoId));
+      const attiviOnline = aReale.appello.online.filter(r=>!r.uscita && passaAllaProssima(r));
+      const attiviPresenza = aReale.appello.presenzeFisiche.filter(r=>!r.uscita && passaAllaProssima(r));
       prossimaReale.appello.online = attiviOnline.map(r=>({...r}));
       prossimaReale.appello.presenzeFisiche = attiviPresenza.map(r=>({...r}));
       prossimaReale.stato = 'in-corso';
@@ -12415,7 +12428,12 @@ function vivoAzione(azione, param){
   __vivoPart.coda = __vivoPart.coda.then(async ()=>{
     const b = getActiveBuilding() || buildings[0];
     let a = b ? getAssembleaContestualizzataCondomino(b) : null;
-    if(!a || a.stato!=='in-corso') a = b ? (b.assemblee||[]).find(x=>x.stato==='in-corso') : null;
+    if(!a || a.stato!=='in-corso'){
+      // LT-324: si ripiega su un'altra assemblea in corso SOLO se si è convocati anche lì
+      // (prima un condòmino non convocato finiva segnato presente nell'assemblea in coda).
+      const alternativa = b ? (b.assemblee||[]).find(x=>x.stato==='in-corso') : null;
+      a = (alternativa && (linkDelegatoEsterno() || !currentCondomino || condominoConvocatoAssemblea(alternativa, currentCondomino, b))) ? alternativa : null;
+    }
     if(!a) return;
     try{
       const eVoto = (azione==='voto' || azione==='voto_annulla');
@@ -12425,7 +12443,7 @@ function vivoAzione(azione, param){
       const d = r.data;
       if(r.error || !d || d.ok!==true){
         if(d && d.motivo==='chiusa'){ location.reload(); return; }
-        if(d && (d.motivo==='vuoto' || d.motivo==='azione')) return;
+        if(d && (d.motivo==='vuoto' || d.motivo==='azione' || d.motivo==='convocato')) return;
         const MSG = {gia:'Hai già votato.', presenza:'Non risulti online o presente in sala: non puoi votare.', delega:'Hai delegato il voto a un altro condòmino già presente.', sondaggio:'Il sondaggio non è più aperto.', opzione:'Scelta non valida.'};
         if(d && MSG[d.motivo]){ try{ toast(MSG[d.motivo]); }catch(_){} __vivoPart.versioni.delete(b.id+':'+a.id); return; }
         throw (r.error || new Error((d&&d.motivo)||'errore'));
