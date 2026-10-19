@@ -144,8 +144,19 @@ async function verificaPartecipante(codice, rif) {
     const D = await r.json();
     if (!D || D.ok !== true) return { errore: 'Questo link non è valido o non è più attivo.', codice: 403 };
     const stabile = (D.stabili || []).find(x => String(x.id_app) === rif.stabile);
-    const assemblea = stabile && (D.assemblee || []).find(x => String(x.id_app) === rif.assemblea && x.stabile_id === stabile.id);
-    if (!assemblea) return { errore: 'Il tuo link non dà accesso a questa videochiamata.', codice: 403 };
+    const testa = stabile && (D.assemblee || []).find(x => String(x.id_app) === rif.assemblea && x.stabile_id === stabile.id);
+    if (!testa) return { errore: 'Il tuo link non dà accesso a questa videochiamata.', codice: 403 };
+    // LT-321: le assemblee concatenate usano tutte la stanza della PRIMA della catena. Quando la
+    // prima è conclusa, conta quella in coda: si segue la catena fino alla prima non conclusa,
+    // ed è su quella che si controllano stato e convocazione.
+    let assemblea = testa;
+    const visti = new Set([testa.id]);
+    while (assemblea.stato === 'conclusa' && assemblea.assemblea_successiva_id) {
+      const succ = (D.assemblee || []).find(x => x.id === assemblea.assemblea_successiva_id);
+      if (!succ || visti.has(succ.id)) break;
+      visti.add(succ.id);
+      assemblea = succ;
+    }
     if (assemblea.stato === 'conclusa') return { errore: 'Questa assemblea è già conclusa.', codice: 403 };
     // LT-320: un condòmino entra solo nelle assemblee a cui è CONVOCATO (conta anche il
     // proprietario principale a cui è unito, o una sua unità unita). Serve per le assemblee
