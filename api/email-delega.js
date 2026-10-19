@@ -37,6 +37,7 @@
 
 import { clienteServer } from '../lib/supabase.js';
 import { spedisci, indirizzoPlausibile, testoInHtml, escHtml } from '../lib/posta.js';
+import { gestisciPromemoria } from '../lib/promemoria.js';
 
 const MAX_AL_GIORNO = 10;
 const PAUSA_MINIMA_SEC = 30;
@@ -110,6 +111,9 @@ function quandoDove(a, indirizzoStudio) {
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
+  // LT-328: il promemoria 30 minuti prima passa da qui (vedi lib/promemoria.js), per restare nel
+  // limite di 12 funzioni del piano gratuito di Vercel.
+  if (req.query && req.query.azione === 'promemoria') return gestisciPromemoria(req, res);
   if (req.method !== 'POST') return rispondi(res, 405, { ok: false, errore: 'Metodo non consentito, usa POST.' });
 
   const { codice, assemblee, precedenti } = req.body || {};
@@ -181,12 +185,14 @@ export default async function handler(req, res) {
       assembleeValide.push(a);
       if (!(deleganteIdApp in deleghe)) continue;
       const delegato = deleghe[deleganteIdApp];
-      const chiave = String(delegato);
+      // LT-325: una delega (e quindi un'email) per OGNI assemblea, anche nelle catene: ogni
+      // assemblea ha la sua delega, indipendente dalle altre.
+      const chiave = String(delegato) + '|' + String(a.id);
       if (!gruppi.has(chiave)) gruppi.set(chiave, { delegato, assemblee: [], esterni: dati.deleghiEsterni || [] });
       gruppi.get(chiave).assemblee.push(a);
     }
     // delegati esterni di prima che ora NON sono più delegati da questo condòmino
-    const delegatiOra = new Set([...gruppi.keys()]);
+    const delegatiOra = new Set([...gruppi.values()].map(g => String(g.delegato)));
     const daAvvisare = esterniPrecedenti.filter(x => !delegatiOra.has(x));
     if (gruppi.size === 0 && (daAvvisare.length === 0 || assembleeValide.length === 0)) {
       return rispondi(res, 404, { ok: false, errore: 'Non risulta nessuna delega registrata da questo link per le assemblee indicate.' });
