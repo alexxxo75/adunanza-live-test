@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-325 — creata il 19/10/2026 alle 14:31
+  Versione: LT-326 — creata il 19/10/2026 alle 15:13
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -874,7 +874,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 19/10/2026 alle 14:31">LT-325</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 19/10/2026 alle 15:13">LT-326</span>
   </div>
 
   <!-- MAIN -->
@@ -4613,6 +4613,7 @@ function segnaOnlineSeAssente(building, condominoId, assembleaForzata){
 // (il database gli fa "fare le veci" di quel condòmino): da lì vota con i millesimi di tutti
 // quelli che lo hanno delegato, compare in video come "Nome (delega di …)".
 let __linkEsternoSpento = false;
+let __linkEsternoFinito = false;   // LT-325: spento perché l'assemblea è terminata (non per una delega annullata)
 // Il condòmino che aveva delegato una persona esterna decide di entrare lui: la delega viene
 // annullata su questa assemblea e su quelle in coda dove aveva delegato la stessa persona.
 async function annullaDelegaEsternaEdEntra(){
@@ -6015,7 +6016,12 @@ function renderAppello(){
     // principale, entrato con l'altra unità: è così che la conta già il quorum, qui ora si vede.
     const attivo = recordAttivoConSecondarieSenzaVotoAutonomo(b, assemblea, c.id)
       || (c.unificatoCon!=null ? statoRealeSenzaVotoAutonomo(assemblea, c.unificatoCon) : null);
-    const delegatoId = assemblea.appello.deleghe[c.id];
+    // LT-325: la delega di un proprietario con più unità è registrata sull'unità PRINCIPALE. Se a
+    // questa assemblea è convocata solo un'altra sua unità (es. il box), la riga è quella dell'unità
+    // convocata: la delega va cercata anche sulla principale, altrimenti il delegato non compariva
+    // (mentre i millesimi venivano già contati, giustamente, come rappresentati).
+    const chiaveDelega = (assemblea.appello.deleghe[c.id]==null && c.unificatoCon!=null && assemblea.appello.deleghe[c.unificatoCon]!=null) ? c.unificatoCon : c.id;
+    const delegatoId = assemblea.appello.deleghe[chiaveDelega];
     const collegate = personeCollegate(b, c.id);
     const collegatoAttivo = !attivo && !delegatoId ? collegate.map(id=>statoRealeSenzaVotoAutonomo(assemblea,id)).find(Boolean) : null;
     const collegatoIdAttivo = collegatoAttivo ? collegate.find(id=>recordAttivo(assemblea,id)) : null;
@@ -6133,7 +6139,7 @@ function renderAppello(){
     let slot1=null, slot2=null, slot3=null;
     if(delegatoId!=null){
       slot3=document.createElement('button'); slot3.className='btn small secondary'; slot3.textContent='Annulla delega';
-      slot3.onclick=()=>annullaDelega(c.id);
+      slot3.onclick=()=>annullaDelega(chiaveDelega);
       // Se ha già delegato ma risulta ancora online/in presenza, resta comunque possibile
       // registrare l'orario preciso della sua uscita quando effettivamente lascia la riunione.
       if(attivo){
@@ -9740,7 +9746,8 @@ function renderVistaCondomino(){
   if(__linkEsternoSpento){
     [schermataRientro, schermataTerminata].forEach(el=>{ if(el) el.classList.add('hidden'); });
     restoContenuto.forEach(el=>{ if(el) el.classList.add('hidden'); });
-    if(schermataLinkSpento) schermataLinkSpento.classList.remove('hidden');
+    if(__linkEsternoFinito){ if(schermataTerminata) schermataTerminata.classList.remove('hidden'); }
+    else if(schermataLinkSpento) schermataLinkSpento.classList.remove('hidden');
     distruggiVideoCondomino();
     return;
   }
@@ -12489,7 +12496,9 @@ async function vivoPollPartecipante(){
       if(a.stato!=='in-corso' && !inCodaDaSeguire && !(__vivoPart.primoGiro && a.stato!=='conclusa')) continue;   // le altre si leggono una volta sola, all'apertura (servono per la pagina delega)
       const v = __vivoPart.versioni.get(b.id+':'+a.id) || 0;
       const r = await __vivoPart.sb.rpc('partecipa_vivo', {p_token:__vivoPart.token, p_assemblea:a.id, p_versione:v});
-      if(!r.error && r.data && r.data.ok!==true && r.data.motivo==='token' && linkDelegatoEsterno()){
+      if(!r.error && r.data && r.data.ok!==true && (r.data.motivo==='token' || r.data.motivo==='conclusa') && linkDelegatoEsterno()){
+        // LT-325: se è finita l'assemblea, il delegato vede "L'assemblea è terminata" come tutti
+        __linkEsternoFinito = (r.data.motivo==='conclusa');
         // LT-322: delega annullata o assemblea finita: il link del delegato esterno non vale più
         __linkEsternoSpento = true;
         if(__vivoPart.poll){ clearInterval(__vivoPart.poll); __vivoPart.poll = null; }
