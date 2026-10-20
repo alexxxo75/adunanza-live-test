@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-331 — creata il 19/10/2026 alle 19:29
+  Versione: LT-332 — creata il 20/10/2026 alle 11:10
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -876,7 +876,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 19/10/2026 alle 19:29">LT-331</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 20/10/2026 alle 11:10">LT-332</span>
   </div>
 
   <!-- MAIN -->
@@ -967,25 +967,30 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
       <p class="prof-legenda"><span class="req">*</span> campo obbligatorio</p>
       <div class="prof-colonne">
         <div class="card prof-card">
-          <h3>Dati personali</h3>
-          <p class="muted">Servono per gli obblighi di legge sull'attività di amministratore di condominio.</p>
+          <h3>Amministratore</h3>
           <div class="prof-campi">
             <div class="field"><label for="prof-nome">Nome<span class="req" title="Obbligatorio">*</span></label><input type="text" id="prof-nome" data-obbl="1"></div>
             <div class="field"><label for="prof-cognome">Cognome<span class="req" title="Obbligatorio">*</span></label><input type="text" id="prof-cognome" data-obbl="1"></div>
-            <div class="field"><label for="prof-codice-fiscale">Codice fiscale<span class="req" title="Obbligatorio">*</span></label><input type="text" id="prof-codice-fiscale" data-obbl="1"></div>
-            <div class="field"><label for="prof-email-contatto">Email di contatto<span class="req" title="Obbligatorio">*</span></label><input type="email" id="prof-email-contatto" data-obbl="1"></div>
-            <div class="field"><label for="prof-telefono">Telefono</label><input type="text" id="prof-telefono"></div>
+            <div class="field"><label for="prof-email-contatto">Email principale per eventuali risposte e contatto<span class="req" title="Obbligatorio">*</span></label><input type="email" id="prof-email-contatto" data-obbl="1" data-tipo="email"></div>
+            <div class="field"><label for="prof-email-deleghe">Email per ricezione deleghe (se vuota le deleghe arriveranno alla principale)</label><input type="email" id="prof-email-deleghe" data-tipo="email"></div>
+            <div class="field"><label for="prof-cellulare">Cellulare (solo per contatti dallo staff della piattaforma)<span class="req" title="Obbligatorio">*</span></label><input type="tel" id="prof-cellulare" data-obbl="1" data-tipo="telefono"></div>
+            <div class="field"><label for="prof-telefono">Telefono</label><input type="tel" id="prof-telefono"></div>
           </div>
         </div>
         <div class="card prof-card">
           <h3>Studio e fatturazione</h3>
-          <p class="muted">Servono per la fatturazione e per l'iscrizione al registro.</p>
           <div class="prof-campi">
-            <div class="field"><label for="prof-ragione-sociale">Nome Studio/Ragione sociale<span class="req" title="Obbligatorio">*</span></label><input type="text" id="prof-ragione-sociale" data-obbl="1" placeholder="Es. Studio Rossi Amministrazioni Srl"></div>
+            <div class="field"><label for="prof-ragione-sociale">Ragione sociale<span class="req" title="Obbligatorio">*</span></label><input type="text" id="prof-ragione-sociale" data-obbl="1" placeholder="Es. Rossi Amministrazioni Srl"></div>
+            <div class="field"><label for="prof-nome-studio">Nome Studio (se diverso dalla Ragione sociale)</label><input type="text" id="prof-nome-studio" placeholder="Es. Studio Rossi"></div>
             <div class="field"><label for="prof-partita-iva">Partita IVA</label><input type="text" id="prof-partita-iva"></div>
-            <div class="field"><label for="prof-indirizzo-studio">Indirizzo studio<span class="req" title="Obbligatorio">*</span></label><input type="text" id="prof-indirizzo-studio" data-obbl="1"></div>
-            <div class="field"><label for="prof-numero-registro">Numero iscrizione Registro Amministratori</label><input type="text" id="prof-numero-registro"></div>
-            <div class="field"><label for="prof-metodo-pagamento">Metodo di pagamento</label><input type="text" id="prof-metodo-pagamento" placeholder="Es. Carta che termina per 1234"></div>
+            <div class="field"><label for="prof-codice-fiscale">Codice Fiscale<span class="req" title="Obbligatorio">*</span></label><input type="text" id="prof-codice-fiscale" data-obbl="1" data-tipo="cf" style="text-transform:uppercase;"></div>
+            <div class="field"><label for="prof-sede-legale">Sede Legale<span class="req" title="Obbligatorio">*</span></label><input type="text" id="prof-sede-legale" data-obbl="1" placeholder="Via, numero civico, CAP, Comune (Provincia)"></div>
+            <div class="field"><label for="prof-indirizzo-studio">Indirizzo Studio (se diverso dalla Sede Legale)</label><input type="text" id="prof-indirizzo-studio"></div>
+            <div class="field"><label for="prof-indirizzo-assemblee">Indirizzo per assemblee in presenza (se disponibile)</label><input type="text" id="prof-indirizzo-assemblee"></div>
+            <div class="field"><label for="prof-codice-sdi">Codice Destinatario SDI (usare 0000000 se non disponibile)<span class="req" title="Obbligatorio">*</span></label><input type="text" id="prof-codice-sdi" data-obbl="1" data-tipo="sdi" maxlength="7" style="text-transform:uppercase;" placeholder="0000000"></div>
+            <div class="field"><label for="prof-pec">PEC (verrà utilizzata anche per le fatture elettroniche se non disponibile lo SDI)<span class="req" title="Obbligatorio">*</span></label><input type="email" id="prof-pec" data-obbl="1" data-tipo="email"></div>
+            <div class="field"><label for="prof-telefono-studio">Numero di telefono dello studio</label><input type="tel" id="prof-telefono-studio"></div>
+            <div class="field"><label for="prof-email-studio">Email dello studio (se diversa da email di contatto dell'amministratore)</label><input type="email" id="prof-email-studio" data-tipo="email"></div>
           </div>
         </div>
       </div>
@@ -1345,7 +1350,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
             <label>Luogo di svolgimento dell'assemblea in presenza (seconda convocazione)</label>
             <input type="text" id="ca-luogo" placeholder="Es. Sala condominiale, Via Roma 5, Milano">
             <label style="display:flex;align-items:center;gap:12px;margin-top:12px;margin-bottom:4px;padding:14px 16px;background:var(--paper);border-radius:4px;font-weight:700;font-size:15px;">
-              <input type="checkbox" id="ca-luogo-studio-flag" onchange="applicaLuogoStudioAmministratore()" style="width:20px;height:20px;flex-shrink:0;"> Presso lo studio dell'Amministratore (indirizzo preso dal tuo profilo)
+              <input type="checkbox" id="ca-luogo-studio-flag" onchange="applicaLuogoStudioAmministratore()" style="width:20px;height:20px;flex-shrink:0;"> Presso lo studio dell'Amministratore (indirizzo per le assemblee in presenza preso dal tuo profilo)
             </label>
             <p class="muted" style="margin-top:4px;">La prima convocazione si tiene sempre presso lo Studio dell'Amministratore (indirizzo preso dal tuo profilo); questo campo serve solo per la seconda convocazione, di solito in un locale più capiente.</p>
           </div>
@@ -2115,13 +2120,24 @@ function renderProfiloAmministratore(){
   document.getElementById('prof-nome').value = p.nome||'';
   document.getElementById('prof-cognome').value = p.cognome||'';
   document.getElementById('prof-ragione-sociale').value = p.ragioneSociale||'';
-  document.getElementById('prof-numero-registro').value = p.numeroRegistro||'';
+  document.getElementById('prof-nome-studio').value = p.nomeStudio||'';
   document.getElementById('prof-codice-fiscale').value = p.codiceFiscale||'';
   document.getElementById('prof-partita-iva').value = p.partitaIva||'';
-  document.getElementById('prof-indirizzo-studio').value = p.indirizzoStudio||'';
+  // LT-332: il vecchio "Indirizzo studio" diventa la Sede Legale, finché non è stata compilata
+  const sedeVuota = !(p.sedeLegale||'').trim();
+  document.getElementById('prof-sede-legale').value = sedeVuota ? (p.indirizzoStudio||'') : p.sedeLegale;
+  document.getElementById('prof-indirizzo-studio').value = sedeVuota ? '' : (p.indirizzoStudio||'');
+  document.getElementById('prof-indirizzo-assemblee').value = p.indirizzoAssemblee||'';
   document.getElementById('prof-email-contatto').value = p.emailContatto||'';
+  document.getElementById('prof-email-deleghe').value = p.emailDeleghe||'';
+  document.getElementById('prof-cellulare').value = p.cellulare||'';
   document.getElementById('prof-telefono').value = p.telefono||'';
-  document.getElementById('prof-metodo-pagamento').value = p.metodoPagamento||'';
+  document.getElementById('prof-codice-sdi').value = p.codiceSdi||'';
+  document.getElementById('prof-pec').value = p.pec||'';
+  document.getElementById('prof-telefono-studio').value = p.telefonoStudio||'';
+  document.getElementById('prof-email-studio').value = p.emailStudio||'';
+  document.querySelectorAll('#page-profilo .campo-errore').forEach(i=>i.classList.remove('campo-errore'));
+  const boxErr = document.getElementById('prof-errore'); if(boxErr) boxErr.classList.add('hidden');
   document.getElementById('prof-firma-email').value = p.firmaEmail||'';
   document.getElementById('prof-indirizzo-mittente').value = p.indirizzoMittente||'';
   document.getElementById('prof-modalita-default').value = p.modalitaDefault||'mista';
@@ -2215,14 +2231,16 @@ window.addEventListener('popstate', ()=>{
   const sez = sezioneDaIndirizzo();
   if(sez && sez!==currentPage){ __navDaIndirizzo = true; try{ goPage(sez); } finally { __navDaIndirizzo = false; } }
 });
+// LT-332: indirizzi e nome dello studio, con i ripieghi
+function indirizzoStudioAmm(){ return (amministratore.indirizzoStudio||'').trim() || (amministratore.sedeLegale||'').trim(); }
+function indirizzoAssembleeAmm(){ return (amministratore.indirizzoAssemblee||'').trim() || indirizzoStudioAmm(); }
+function nomeStudioAmm(){ return (amministratore.nomeStudio||'').trim() || (amministratore.ragioneSociale||'').trim(); }
 function aggiornaNomeStudioTopbar(){
   aggiornaMenuProfilo();
   const el = document.getElementById('topbar-nome-studio');
   if(!el) return;
   const p = amministratore;
-  const nomeStudio = (p.ragioneSociale && p.ragioneSociale.trim())
-    ? p.ragioneSociale.trim()
-    : ((p.nome||p.cognome) ? (p.nome+' '+p.cognome).trim() : '');
+  const nomeStudio = nomeStudioAmm() || ((p.nome||p.cognome) ? (p.nome+' '+p.cognome).trim() : '');
   el.textContent = nomeStudio;
 }
 document.addEventListener('input',e=>{ if(e.target.matches && e.target.matches('#page-profilo [data-obbl]') && e.target.value.trim()) e.target.classList.remove('campo-errore'); });
@@ -2235,6 +2253,28 @@ function profiloCampiMancanti(){
   });
   return mancanti;
 }
+// LT-332: controlli di forma sui campi compilati (email, codice fiscale, SDI, cellulare)
+function profiloCampiErrati(){
+  const errati=[];
+  const regole = {
+    email: v => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v),
+    cf: v => /^[A-Z0-9]{16}$/i.test(v) || /^\d{11}$/.test(v),
+    sdi: v => /^[A-Z0-9]{7}$/i.test(v),
+    telefono: v => (v.replace(/\D/g,'').length >= 8)
+  };
+  const spiega = { email:'indirizzo email non valido', cf:'16 caratteri (persona) oppure 11 cifre (società)', sdi:'7 caratteri', telefono:'numero troppo corto' };
+  document.querySelectorAll('#page-profilo [data-tipo]').forEach(i=>{
+    const v = i.value.trim();
+    if(!v) return;
+    const ok = regole[i.dataset.tipo] ? regole[i.dataset.tipo](v) : true;
+    if(!ok){
+      i.classList.add('campo-errore');
+      const l=i.closest('.field').querySelector('label');
+      errati.push({el:i, nome:l.childNodes[0].textContent.trim() + ' (' + spiega[i.dataset.tipo] + ')'});
+    }
+  });
+  return errati;
+}
 function salvaProfiloAmministratore(){
   // Dal Profilo i campi obbligatori devono essere compilati; dalle Preferenze si salva comunque.
   if(currentPage==='profilo'){
@@ -2246,19 +2286,33 @@ function salvaProfiloAmministratore(){
       mancanti[0].el.focus();
       return;
     }
+    const errati = profiloCampiErrati();
+    if(errati.length){
+      box.textContent = 'Controlla questi campi: ' + errati.map(m=>m.nome).join('; ') + '.';
+      box.classList.remove('hidden');
+      errati[0].el.focus();
+      return;
+    }
     box.classList.add('hidden');
   }
   const p = amministratore;
   p.nome = document.getElementById('prof-nome').value.trim();
   p.cognome = document.getElementById('prof-cognome').value.trim();
   p.ragioneSociale = document.getElementById('prof-ragione-sociale').value.trim();
-  p.numeroRegistro = document.getElementById('prof-numero-registro').value.trim();
-  p.codiceFiscale = document.getElementById('prof-codice-fiscale').value.trim();
+  p.nomeStudio = document.getElementById('prof-nome-studio').value.trim();
+  p.codiceFiscale = document.getElementById('prof-codice-fiscale').value.trim().toUpperCase();
   p.partitaIva = document.getElementById('prof-partita-iva').value.trim();
+  p.sedeLegale = document.getElementById('prof-sede-legale').value.trim();
   p.indirizzoStudio = document.getElementById('prof-indirizzo-studio').value.trim();
+  p.indirizzoAssemblee = document.getElementById('prof-indirizzo-assemblee').value.trim();
   p.emailContatto = document.getElementById('prof-email-contatto').value.trim();
+  p.emailDeleghe = document.getElementById('prof-email-deleghe').value.trim();
+  p.cellulare = document.getElementById('prof-cellulare').value.trim();
   p.telefono = document.getElementById('prof-telefono').value.trim();
-  p.metodoPagamento = document.getElementById('prof-metodo-pagamento').value.trim();
+  p.codiceSdi = document.getElementById('prof-codice-sdi').value.trim().toUpperCase();
+  p.pec = document.getElementById('prof-pec').value.trim();
+  p.telefonoStudio = document.getElementById('prof-telefono-studio').value.trim();
+  p.emailStudio = document.getElementById('prof-email-studio').value.trim();
   salvaTestoBaseProfiloCorrente();
   p.firmaEmail = document.getElementById('prof-firma-email').value;
   p.indirizzoMittente = document.getElementById('prof-indirizzo-mittente').value.trim();
@@ -2284,7 +2338,11 @@ const CAMPI_PROFILO_SUPABASE = {
   emailContatto:'email_contatto', telefono:'telefono', testoBasePresenza:'testo_base_presenza',
   testoBaseMista:'testo_base_mista', testoBaseOnline:'testo_base_online', firmaEmail:'firma_email',
   indirizzoMittente:'indirizzo_mittente', modalitaDefault:'modalita_default',
-  durataRegistrazioneGiorni:'durata_registrazione_giorni'
+  durataRegistrazioneGiorni:'durata_registrazione_giorni',
+  // LT-332: nuovi campi del profilo
+  nomeStudio:'nome_studio', sedeLegale:'sede_legale', indirizzoAssemblee:'indirizzo_assemblee',
+  emailDeleghe:'email_deleghe', cellulare:'cellulare', codiceSdi:'codice_sdi', pec:'pec',
+  telefonoStudio:'telefono_studio', emailStudio:'email_studio'
 };
 // Traduce la riga arrivata da Supabase nei nomi usati dall'app.
 function profiloDaRiga(riga){
@@ -2332,6 +2390,7 @@ function amministratoreVuoto(){
     // Anagrafica
     nome:'', cognome:'', ragioneSociale:'', codiceFiscale:'', partitaIva:'', numeroRegistro:'',
     indirizzoStudio:'', emailContatto:'', telefono:'', metodoPagamento:'',
+    nomeStudio:'', sedeLegale:'', indirizzoAssemblee:'', emailDeleghe:'', cellulare:'', codiceSdi:'', pec:'', telefonoStudio:'', emailStudio:'',
     // Personalizzazione comunicazioni
     logoDataUrl:'', testoBaseConvocazione:'', testoBasePresenza:'', testoBaseMista:'', testoBaseOnline:'', firmaEmail:'', indirizzoMittente:'',
     // Preferenze operative
@@ -5392,7 +5451,7 @@ function costruisciTestoDichiarazioneDelega(b, assembleeCoinvolte){
   if(assembleeCoinvolte.length===1){
     const a = assembleeCoinvolte[0];
     const etichettaTipo = a.tipo==='straordinaria' ? 'straordinaria' : 'ordinaria';
-    const indirizzoStudioTxt = (amministratore.indirizzoStudio && amministratore.indirizzoStudio.trim()) ? amministratore.indirizzoStudio.trim() : '(indirizzo studio non impostato)';
+    const indirizzoStudioTxt = indirizzoStudioAmm() || '(indirizzo studio non impostato)';
     const luogoTxt = a.luogo && a.luogo.trim() ? a.luogo.trim() : '(luogo da definire)';
     const rigaLuoghi = a.modalita==='online'
       ? `in prima convocazione ed in seconda convocazione il giorno ${formattaData(a.dataSeconda)} alle ore ${a.oraSeconda||'da definire'}`
@@ -6508,7 +6567,7 @@ let workingAssembly = null; // assemblea in modifica/creazione in questo momento
 function applicaLuogoStudioAmministratore(){
   const flag = document.getElementById('ca-luogo-studio-flag');
   if(flag && flag.checked){
-    document.getElementById('ca-luogo').value = (amministratore.indirizzoStudio||'').trim();
+    document.getElementById('ca-luogo').value = indirizzoAssembleeAmm();
     // BUG CORRETTO (LT-282): l'indirizzo veniva scritto solo nella casella a schermo, non nei
     // dati dell'assemblea. Uscendo dalla pagina senza toccare altro, il luogo tornava vuoto.
     salvaCampiAssemblea();
@@ -7354,8 +7413,8 @@ function costruisciEmail(c, a, b){
 
   const firmaAmministratore = (amministratore.firmaEmail && amministratore.firmaEmail.trim())
     ? amministratore.firmaEmail.trim()
-    : ((amministratore.ragioneSociale && amministratore.ragioneSociale.trim())
-        ? amministratore.ragioneSociale.trim()
+    : (nomeStudioAmm()
+        ? nomeStudioAmm()
         : ((amministratore.nome||amministratore.cognome) ? (amministratore.nome+' '+amministratore.cognome).trim() : 'L\'Amministratore'));
 
   return rigaOggetto + a.testo
@@ -7369,7 +7428,7 @@ function costruisciEmail(c, a, b){
     .replaceAll('{{data_seconda}}', formattaData(a.dataSeconda))
     .replaceAll('{{ora_seconda}}', a.oraSeconda||'da definire')
     .replaceAll('{{luogo}}', a.luogo && a.luogo.trim() ? a.luogo.trim() : '(luogo della seconda convocazione da definire)')
-    .replaceAll('{{indirizzostudio}}', (amministratore.indirizzoStudio && amministratore.indirizzoStudio.trim()) ? amministratore.indirizzoStudio.trim() : '(indirizzo studio non impostato — vai su "Il mio profilo")')
+    .replaceAll('{{indirizzostudio}}', indirizzoStudioAmm() || '(indirizzo studio non impostato — vai su "Il mio profilo")')
     .replaceAll('{{link_accesso}}', linkAccessoHtml)
     .replaceAll('{{link_delega}}', linkDelegaHtml)
     .replaceAll('{{link_solo_voto}}', linkSoloVotoHtml)
@@ -7627,7 +7686,7 @@ async function completaInvioEmailSingola(condominoId, indirizzo, corpo, salvaAna
 
 // Il nome che il destinatario legge come mittente: lo studio, se compilato nel profilo.
 function nomeMittenteEmail(){
-  const rs = (amministratore.ragioneSociale||'').trim();
+  const rs = nomeStudioAmm();
   if(rs) return rs;
   const nc = ((amministratore.nome||'') + ' ' + (amministratore.cognome||'')).trim();
   return nc || 'Riunion';
@@ -7718,7 +7777,7 @@ function ospitiAssemblea(a){
 // La firma dell'amministratore, con gli stessi ripieghi usati in costruisciEmail per i condòmini.
 function firmaAmministratorePerEmail(){
   if(amministratore.firmaEmail && amministratore.firmaEmail.trim()) return amministratore.firmaEmail.trim();
-  if(amministratore.ragioneSociale && amministratore.ragioneSociale.trim()) return amministratore.ragioneSociale.trim();
+  if(nomeStudioAmm()) return nomeStudioAmm();
   if(amministratore.nome || amministratore.cognome) return (amministratore.nome+' '+amministratore.cognome).trim();
   return 'L\'Amministratore';
 }
@@ -8484,6 +8543,11 @@ function renderCaricheAssemblea(){
       ).join('; ')
     : '';
 }
+const __dettagliVotoAperti = new Set();   // LT-332: sondaggi chiusi con i "Dettagli voto" aperti
+function toggleDettagliVoto(chiave){
+  if(__dettagliVotoAperti.has(chiave)) __dettagliVotoAperti.delete(chiave); else __dettagliVotoAperti.add(chiave);
+  renderOdgBlocks();
+}
 function renderOdgBlocks(){
   renderOdgPillsTopbar();
   const b=getActiveBuilding();
@@ -8562,12 +8626,23 @@ function renderOdgBlocks(){
         </div>`;
       });
       const btnRiapri = assemblea.stato==='in-corso' ? `<button class="btn small secondary" style="margin-top:8px;" onclick="riapriSondaggio(${p.id}, ${si})">🔓 Riapri sondaggio</button>` : '';
+      // LT-332: "Dettagli voto" — chi ha votato cosa, chiuso finché non lo si apre
+      const chiaveDett = p.id + ':' + (s.chiusoEpoch || si);
+      const dettAperti = __dettagliVotoAperti.has(chiaveDett);
+      let dettHtml = '';
+      if(dettAperti){
+        const votanti = costruisciElencoVotantiSondaggio(s, b);
+        dettHtml = votanti.length
+          ? `<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px;">${votanti.map(v=>`<div style="padding:4px 0;border-bottom:1px dashed var(--line);font-size:13.5px;">${escapeHtml(v.nome)} \u2014 <b>${escapeHtml(v.opzione)}</b> \u2014 ${v.millesimi}\u2030 / 1 testa</div>`).join('')}</div>`
+          : `<p class="muted" style="margin:10px 0 0;">Nessun voto individuale registrato per questo sondaggio.</p>`;
+      }
       card.innerHTML = `<div style="margin-bottom:10px;">
           <div><b>${s.question}</b> <span class="muted">(${s.tabella})</span></div>
           <div style="text-align:center;margin-top:6px;"><span class="badge" style="font-size:14px;padding:6px 16px;">Concluso</span></div>
         </div>${barsHtml}
+        <button class="btn small secondary" style="margin-top:8px;" onclick="toggleDettagliVoto('${chiaveDett}')">${dettAperti ? '▾' : '▸'} Dettagli voto</button>
         <button class="btn small secondary" style="margin-top:8px;" onclick="duplicaSondaggio(${p.id}, ${si})">⧉ Duplica sondaggio</button>
-        ${btnRiapri}`;
+        ${btnRiapri}${dettHtml}`;
       storicoEl.appendChild(card);
     });
     block.appendChild(storicoEl);
