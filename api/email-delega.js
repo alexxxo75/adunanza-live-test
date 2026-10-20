@@ -142,7 +142,7 @@ export default async function handler(req, res) {
     if (!stabile) return rispondi(res, 403, { ok: false, errore: 'Link non valido o non più attivo.' });
 
     const { data: adm } = await db.from('amministratori')
-      .select('attivo, email, email_contatto, ragione_sociale, nome, cognome, indirizzo_studio')
+      .select('*')   // LT-332: anche i nuovi campi del profilo, se già presenti
       .eq('id', stabile.amministratore_id).maybeSingle();
     if (!adm || !adm.attivo) return rispondi(res, 403, { ok: false, errore: 'Link non valido o non più attivo.' });
 
@@ -201,6 +201,10 @@ export default async function handler(req, res) {
     // 4. composizione e invio
     const quando = adessoIt();
     const emailAmm = indirizzoPlausibile(adm.email_contatto) ? adm.email_contatto : (indirizzoPlausibile(adm.email) ? adm.email : null);
+    // LT-332: le deleghe arrivano all'"Email per ricezione deleghe", se compilata; se no alla principale
+    const emailAmmDeleghe = indirizzoPlausibile(adm.email_deleghe) ? adm.email_deleghe : emailAmm;
+    // LT-332: indirizzo dello studio (se vuoto, la sede legale)
+    const studioAmm = String(adm.indirizzo_studio || '').trim() || String(adm.sede_legale || '').trim();
     const nomeMittente = nomeDelegante + ' (tramite Riunion)';
     const esiti = [];
 
@@ -224,12 +228,12 @@ export default async function handler(req, res) {
         }
       }
 
-      const testoDelega = dichiarazione({ nomeDelegante, nomeDelegato, stabile, assemblee: g.assemblee, indirizzoStudio: adm.indirizzo_studio });
+      const testoDelega = dichiarazione({ nomeDelegante, nomeDelegato, stabile, assemblee: g.assemblee, indirizzoStudio: studioAmm });
       const piede = `\n\nFirma\n${nomeDelegante}\n\n---\nDelega concessa tramite il link personale di ${nomeDelegante} sulla piattaforma Riunion il ${quando.data} alle ore ${quando.ora}.`;
       const oggetto = (g.assemblee.length === 1 ? `Delega - ${g.assemblee[0].oggetto || 'Assemblea'} - ` : 'Delega - ') + stabile.nome;
 
       const invii = [];
-      if (emailAmm) invii.push({ ruolo: 'amministratore', a: emailAmm, rispondiA: emailDelegante,
+      if (emailAmmDeleghe) invii.push({ ruolo: 'amministratore', a: emailAmmDeleghe, rispondiA: emailDelegante,
         apertura: `Il condòmino ${nomeDelegante} ha concesso la seguente delega:\n\n` });
       if (emailDelegante) invii.push({ ruolo: 'delegante', a: emailDelegante, rispondiA: emailAmm,
         apertura: `Questa è la copia della delega che hai appena concesso. Se non l'hai concessa tu, avvisa subito l'amministratore rispondendo a questa email.\n\n` });
@@ -239,7 +243,7 @@ export default async function handler(req, res) {
         // LT-322: la persona esterna riceve il SUO link personale
         const prima = g.assemblee.slice().sort((x, y) => Number(x.id_app) - Number(y.id_app))[0];
         const base = indirizzoSito(req) + '/?token=' + encodeURIComponent(esterno.token) + '&assemblea=' + encodeURIComponent(String(prima.id_app));
-        const elencoQuando = g.assemblee.map(a => (g.assemblee.length > 1 ? `${a.oggetto || 'Assemblea'}\n` : '') + quandoDove(a, adm.indirizzo_studio)).join('\n\n');
+        const elencoQuando = g.assemblee.map(a => (g.assemblee.length > 1 ? `${a.oggetto || 'Assemblea'}\n` : '') + quandoDove(a, studioAmm)).join('\n\n');
         const online = g.assemblee.some(a => a.modalita !== 'in-presenza');
         invii.push({ ruolo: 'delegato', a: emailDelegato, rispondiA: emailAmm || emailDelegante,
           apertura: `Gentile ${nomeDelegato},\n${nomeDelegante} ti ha delegato a rappresentarlo/a all'assemblea del condominio ${stabile.nome}${stabile.comune ? ', ' + stabile.comune : ''}.\n\n` +
@@ -276,7 +280,7 @@ export default async function handler(req, res) {
       const testoAmm = `Il condòmino ${nomeDelegante} ha annullato la delega a ${nomeEst} (persona esterna) per:\n${elenco}\n\nIl link personale di ${nomeEst} non è più attivo.`;
       const avvisi = [];
       if (indirizzoPlausibile(de.email)) avvisi.push({ ruolo: 'avviso_delegato', a: de.email, testo: testoEst, rispondiA: emailDelegante || emailAmm });
-      if (emailAmm) avvisi.push({ ruolo: 'avviso_amministratore', a: emailAmm, testo: testoAmm, rispondiA: emailDelegante });
+      if (emailAmmDeleghe) avvisi.push({ ruolo: 'avviso_amministratore', a: emailAmmDeleghe, testo: testoAmm, rispondiA: emailDelegante });
       for (const av of avvisi) {
         const esito = await spedisci({ a: av.a, oggetto: oggettoAvviso, testo: av.testo, nomeMittente, rispondiA: av.rispondiA });
         esiti.push({ ruolo: av.ruolo, ok: !!esito.ok, errore: esito.errore || null });
