@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-336 — creata il 22/10/2026 alle 10:11
+  Versione: LT-337 — creata il 22/10/2026 alle 11:57
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -876,7 +876,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 22/10/2026 alle 10:11">LT-336</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 22/10/2026 alle 11:57">LT-337</span>
   </div>
 
   <!-- MAIN -->
@@ -1095,6 +1095,11 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
         </div>
         <div class="row-inline">
           <div class="field"><label>Codice Fiscale del condominio</label><input id="dash-cf" placeholder="Es. 97123456789" oninput="aggiornaAnagrafica('cf', this.value)"></div>
+        </div>
+        <!-- LT-337: a chi vanno fatturate le assemblee (una scelta c'è sempre; di base il Condominio) -->
+        <div class="field" style="margin-top:4px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:normal;margin-bottom:6px;"><input type="radio" name="dash-fatturazione" id="dash-fatt-condominio" value="condominio" style="width:18px;height:18px;flex-shrink:0;" onchange="if(this.checked) aggiornaAnagrafica('fatturazione','condominio')"> Fatturazione delle assemblee al Condomìnio</label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:normal;"><input type="radio" name="dash-fatturazione" id="dash-fatt-amministratore" value="amministratore" style="width:18px;height:18px;flex-shrink:0;" onchange="if(this.checked) aggiornaAnagrafica('fatturazione','amministratore')"> Fatturazione delle assemblee all'Amministratore</label>
         </div>
       </div>
       </div>
@@ -3587,7 +3592,7 @@ function vaiArchivio(buildingId){
 
 // ---------- CONDOMINI: elenco, scheda, ciclo di vita ----------
 function iniziaCreazioneCondominio(){
-  draftBuilding = {id:null, nome:'', denominazione:'', via:'', cap:'', comune:'', provincia:'', cf:'', tabelleMillesimali:['Proprietà'], condomini:[], assemblee:[], assembleaInCorsoId:null, attivo:true};
+  draftBuilding = {id:null, nome:'', denominazione:'', via:'', cap:'', comune:'', provincia:'', cf:'', fatturazione:'condominio', tabelleMillesimali:['Proprietà'], condomini:[], assemblee:[], assembleaInCorsoId:null, attivo:true};
   goPage('dashboard');
 }
 function anagraficaCompleta(b){
@@ -3657,6 +3662,10 @@ function renderDashboard(){
   document.getElementById('dash-comune').value = b ? (b.comune||'') : '';
   document.getElementById('dash-provincia').value = b ? (b.provincia||'') : '';
   document.getElementById('dash-cf').value = b ? (b.cf||'') : '';
+  // LT-337: fatturazione delle assemblee (di base al Condominio)
+  const fatt = (b && b.fatturazione==='amministratore') ? 'amministratore' : 'condominio';
+  document.getElementById('dash-fatt-condominio').checked = (fatt==='condominio');
+  document.getElementById('dash-fatt-amministratore').checked = (fatt==='amministratore');
   renderCondomini();
   renderZonaPericolosa();
 }
@@ -12288,6 +12297,7 @@ function sbRigheDesiderate(){
     const sid = sbUuid(m.stabili, b.id);
     const extraS = {};
     if(Array.isArray(b.tabelleGiaControllatePerDuplicati) && b.tabelleGiaControllatePerDuplicati.length) extraS.tabelleGiaControllatePerDuplicati = b.tabelleGiaControllatePerDuplicati;
+    extraS.fatturazione = b.fatturazione==='amministratore' ? 'amministratore' : 'condominio';   // LT-337
     put('stabili', {id:sid, id_app:b.id, nome:String(b.nome||''), denominazione:String(b.denominazione||''), via:String(b.via||''),
       cap:String(b.cap||''), comune:String(b.comune||''), provincia:String(b.provincia||''), codice_fiscale:String(b.cf||''),
       attivo:b.attivo!==false, criterio_principale:b.criterioPrincipale||null, criterio_voto:b.criterioVoto||null, extra:extraS});
@@ -12449,6 +12459,7 @@ function sbCostruisci(D){
     if(s.criterio_principale) b.criterioPrincipale = s.criterio_principale;
     if(s.criterio_voto) b.criterioVoto = s.criterio_voto;
     if(s.extra && s.extra.tabelleGiaControllatePerDuplicati) b.tabelleGiaControllatePerDuplicati = s.extra.tabelleGiaControllatePerDuplicati;
+    b.fatturazione = (s.extra && s.extra.fatturazione==='amministratore') ? 'amministratore' : 'condominio';   // LT-337
     const v = vecchi.get(s.id_app);
     b.assembleaInCorsoId = v && v.assembleaInCorsoId!==undefined ? v.assembleaInCorsoId : null;
     const vAss = new Map(((v&&v.assemblee)||[]).map(x=>[x.id,x]));
