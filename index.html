@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-335 — creata il 20/10/2026 alle 15:54
+  Versione: LT-336 — creata il 22/10/2026 alle 10:11
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -876,7 +876,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 20/10/2026 alle 15:54">LT-335</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 22/10/2026 alle 10:11">LT-336</span>
   </div>
 
   <!-- MAIN -->
@@ -1741,6 +1741,8 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
           </div>
           <!-- LT-322: link del condòmino che ha delegato una persona esterna -->
           <div id="cv-schermata-delega-esterna" class="assist-panel hidden" style="text-align:center;padding:34px 20px;"></div>
+          <!-- LT-336: condòmino non convocato, presente solo grazie a una delega annullata -->
+          <div id="cv-schermata-delega-decaduta" class="assist-panel hidden" style="text-align:center;padding:40px 20px;"></div>
           <!-- LT-322: link del delegato esterno non più valido (delega annullata o assemblea finita) -->
           <div id="cv-schermata-link-esterno-spento" class="assist-panel hidden" style="text-align:center;padding:40px 20px;">
             <p style="font-size:19px;font-weight:700;">Il tuo collegamento non è più attivo</p>
@@ -2740,8 +2742,8 @@ function mandaBattitoPing(){
   const bCorrente = getActiveBuilding();
   const condominoId = bCorrente ? risolviIdentificativoPing(bCorrente, __condominoOriginaleIdPing) : __condominoOriginaleIdPing;
   if(condominoId==null && !linkDelegatoEsterno()){
-    // LT-322: è il link del condòmino che ha delegato una persona esterna: niente battiti,
-    // la pagina mostra l'avviso con la possibilità di annullare la delega ed entrare.
+    // LT-322/336: è il link del condòmino che ha concesso una delega: niente battiti, la pagina
+    // mostra l'avviso con la possibilità di annullare la delega ed entrare (o di non entrare).
     __condominoInAscoltoPing = null;
     renderVistaCondomino();
     return;
@@ -4677,33 +4679,89 @@ function segnaOnlineSeAssente(building, condominoId, assembleaForzata){
 // (il database gli fa "fare le veci" di quel condòmino): da lì vota con i millesimi di tutti
 // quelli che lo hanno delegato, compare in video come "Nome (delega di …)".
 let __linkEsternoSpento = false;
-let __linkEsternoFinito = false;   // LT-325: spento perché l'assemblea è terminata (non per una delega annullata)
+let __linkEsternoFinito = false;
+let __linkEsternoAnnullata = null;   // LT-336: {delegante, ingresso} quando la delega è stata annullata   // LT-325: spento perché l'assemblea è terminata (non per una delega annullata)
 // Il condòmino che aveva delegato una persona esterna decide di entrare lui: la delega viene
 // annullata su questa assemblea e su quelle in coda dove aveva delegato la stessa persona.
-async function annullaDelegaEsternaEdEntra(){
+// LT-336 — "ANNULLA LA DELEGA ED ENTRA": vale per la delega a un condòmino e a una persona esterna.
+// Decade SOLO la delega di questa assemblea (quella delle assemblee in coda decade da sola se il
+// delegante vi passa ed è presente). Al delegato arriva l'email "Delega annullata".
+async function annullaDelegaEdEntra(){
   const b = getActiveBuilding();
   const a = b ? getAssembleaContestualizzataCondomino(b) : null;
-  const delegaEst = a ? delegaEsternaDelCondomino(a, currentCondomino) : null;
-  if(!a || !delegaEst) { renderVistaCondomino(); return; }
-  if(!confirm(`Vuoi annullare la delega a ${delegaEst.nome} ed entrare tu in assemblea?\n\n${delegaEst.nome} non potrà più partecipare con il suo link e riceverà un'email di avviso.`)) return;
-  const coinvolte = [a];
-  let x = a, giri = 0;
-  while(x && x.assembleaSuccessivaId!=null && giri<20){
-    x = (b.assemblee||[]).find(y=>y.id===x.assembleaSuccessivaId);
-    if(x && x.stato!=='conclusa'){
-      const d = delegaEsternaDelCondomino(x, currentCondomino);
-      if(d && d.id===delegaEst.id) coinvolte.push(x);
-    }
-    giri++;
-  }
-  const btn = document.getElementById('cv-btn-annulla-delega-entra');
-  if(btn){ btn.disabled = true; btn.textContent = 'Annullamento in corso...'; }
-  const ris = await vivoDelegaServer(b, coinvolte, {tipo:'revoca'});
-  if(!ris){ if(btn){ btn.disabled = false; btn.textContent = 'Annulla la delega ed entra'; } return; }
-  // avviso via email al delegato (e all'amministratore): il suo link non vale più
-  inviaEmailDelegaDalServer(coinvolte.map(y=>y.id), [delegaEst.id]);
+  const dg = a ? delegaDataDalCondomino(b, a, currentCondomino) : null;
+  if(!a || !dg) { renderVistaCondomino(); return; }
+  const conseguenza = dg.tipo==='esterno'
+    ? `${dg.nome} non potrà più partecipare con il suo link e riceverà un'email di avviso.`
+    : (dg.convocato
+        ? `${dg.nome} resterà in assemblea, ma da quel momento voterà solo per sé. Riceverà un'email di avviso.`
+        : `${dg.nome} non potrà più partecipare a questa assemblea e riceverà un'email di avviso.`);
+  if(!confirm(`Vuoi annullare la delega a ${dg.nome} ed entrare tu in assemblea?\n\n${conseguenza}`)) return;
+  document.querySelectorAll('.cv-btn-annulla-delega').forEach(btn=>{ btn.disabled = true; btn.textContent = 'Annullamento in corso...'; });
+  const ris = await vivoDelegaServer(b, [a], {tipo:'revoca'});
+  if(!ris){ renderVistaCondomino(); return; }
+  __nonEntrare.delete(a.id);
+  // avviso via email al delegato (e all'amministratore)
+  inviaEmailDelegaDalServer([a.id], [String(dg.id)], {avviso:true});
   toast('Delega annullata: ora puoi entrare in assemblea.');
+  // presente da subito, e il battito riparte (prima era fermo perché avevi delegato)
+  try{ if(!cvModalitaSoloVoto && a.stato==='in-corso') segnaSubitoOnline(b, currentCondomino.id); }catch(_){}
+  try{ mandaBattitoPing(); }catch(_){}
   renderVistaCondomino();
+}
+async function annullaDelegaEsternaEdEntra(){ return annullaDelegaEdEntra(); }   // vecchio nome
+// LT-336 — "Non entrare": resta la delega; si vede solo l'andamento (niente video, voto, presenza)
+const __nonEntrare = new Set();
+function scegliNonEntrare(){
+  const b = getActiveBuilding();
+  const a = b ? getAssembleaContestualizzataCondomino(b) : null;
+  if(a) __nonEntrare.add(a.id);
+  renderVistaCondomino();
+  window.scrollTo(0, 0);
+}
+// LT-336 — la delega data da questo condòmino (o dal suo proprietario principale) in questa
+// assemblea, con il tipo di delegato: {id, nome, tipo:'esterno'|'condomino', convocato}
+function delegaDataDalCondomino(b, a, c){
+  if(!a || !c || !a.appello || !a.appello.deleghe) return null;
+  const idPerDelega = c.unificatoCon ? c.unificatoCon : c.id;
+  const d = a.appello.deleghe[idPerDelega];
+  if(d==null) return null;
+  if(typeof d==='string'){
+    const est = (a.deleghiEsterni||[]).find(e=>e.id===d);
+    return {id:d, nome: est ? est.nome : 'la persona che hai delegato', tipo:'esterno', convocato:false};
+  }
+  const dc = ((b && b.condomini)||[]).find(x=>x.id===d);
+  return {id:d, nome: dc ? nomeCompletoCondomino(dc) : 'il condòmino che hai delegato', tipo:'condomino',
+          convocato: dc ? condominoConvocatoAssemblea(a, dc, b) : true};
+}
+// LT-336 — questo condòmino (proprietario principale) rappresenta qualcuno con una delega qui?
+function condominoDelegatoIn(a, c){
+  if(!a || !c || !a.appello) return false;
+  const id = c.unificatoCon ? c.unificatoCon : c.id;
+  return Object.values(a.appello.deleghe||{}).some(v=>String(v)===String(id));
+}
+// LT-336 — può seguire questa assemblea (in coda): convocato, oppure delegato da qualcuno
+function condominoPuoSeguireAssemblea(a, c, b){
+  return condominoConvocatoAssemblea(a, c, b) || condominoDelegatoIn(a, c);
+}
+// LT-336 — l'ultima delega verso questa persona annullata perché il delegante è entrato
+function ultimaDelegaAnnullataVerso(a, idDelegato){
+  const ev = ((a && a.appello && a.appello.eventiDeleghe)||[])
+    .filter(e=>e && e.evento==='revoca' && String(e.delegato)===String(idDelegato));
+  return ev.length ? ev[ev.length-1] : null;
+}
+function nomeDeleganteDaId(b, id){
+  const c = ((b && b.condomini)||[]).find(x=>String(x.id)===String(id));
+  return c ? nomeCompletoCondomino(c) : 'il condòmino che ti aveva delegato';
+}
+// avvisi "la delega è decaduta" già letti (per non ripeterli)
+const __avvisiDelegaLetti = new Set();
+try{ JSON.parse(sessionStorage.getItem('riunion_avvisi_delega')||'[]').forEach(k=>__avvisiDelegaLetti.add(k)); }catch(_){}
+function chiudiAvvisoDelegaDecaduta(k){
+  __avvisiDelegaLetti.add(k);
+  try{ sessionStorage.setItem('riunion_avvisi_delega', JSON.stringify([...__avvisiDelegaLetti])); }catch(_){}
+  const box = document.getElementById('cv-avviso-delega-decaduta');
+  if(box) box.remove();
 }
 function linkDelegatoEsterno(){
   return !!(window.__metaPartecipante && window.__metaPartecipante.tipo==='esterno');
@@ -4735,6 +4793,9 @@ function risolviIdentificativoPing(building, condominoId){
   // CONDÒMINO (id numerico), lui ha il proprio link personale a disposizione — chi apre il
   // link del delegante è quasi certamente il delegante stesso (magari solo per controllare,
   // o per errore), non il delegato, che userebbe il proprio collegamento.
+  // LT-336: chi ha concesso una delega (a un condòmino o a una persona esterna) non risulta
+  // presente finché non la annulla con "Annulla la delega ed entra": niente battito.
+  if(!linkDelegatoEsterno()) return null;
   if(typeof delegatoId !== 'string') return condominoId;
   // LT-322: il delegato esterno ora ha un link TUTTO SUO. Sul link del condòmino che ha delegato
   // non si "diventa" più il delegato: la pagina mostra l'avviso "se entri, la delega viene
@@ -4841,6 +4902,54 @@ function toggleAppelloBody(){
 function unitaUnificateDi(building, condominoId){
   return building.condomini.filter(x=>x.unificatoCon===condominoId);
 }
+// LT-336 — IL DELEGANTE RISULTA PRESENTE (segnato in sala o online dall'amministratore, oppure
+// passato all'assemblea in coda): la delega che aveva concesso per QUESTA assemblea decade.
+// Va a verbale; il delegato esterno o il condòmino non convocato (presente solo grazie alla
+// delega) viene segnato uscito; il condòmino convocato resta e vota solo per sé.
+function decadiDelegaPerPresenza(b, assemblea, deleganteId){
+  const deleghe = (assemblea.appello && assemblea.appello.deleghe) || {};
+  const delegato = deleghe[deleganteId];
+  if(delegato==null) return null;
+  delete deleghe[deleganteId];
+  const ora = oraAdesso();
+  assemblea.appello.eventiDeleghe = assemblea.appello.eventiDeleghe || [];
+  assemblea.appello.eventiDeleghe.push({ora, delegante: deleganteId, delegato: String(delegato), evento:'revoca', motivo:'ingresso'});
+  chiudiPresenzaDelegatoAdmin(b, assemblea, delegato, ora);
+  return delegato;
+}
+function chiudiPresenzaDelegatoAdmin(b, assemblea, delegato, ora){
+  if(Object.values(assemblea.appello.deleghe||{}).some(v=>String(v)===String(delegato))) return;   // rappresenta ancora qualcuno
+  let ids;
+  if(typeof delegato==='string'){ ids = [delegato]; }
+  else{
+    const dc = (b.condomini||[]).find(x=>x.id===delegato);
+    if(!dc) return;
+    if(!((assemblea.convocati && assemblea.convocati.selezionati)||[]).length) return;
+    if(condominoConvocatoAssemblea(assemblea, dc, b)) return;   // convocato: resta
+    ids = [dc.id, ...unitaUnificateDi(b, dc.id).map(u=>u.id)];
+  }
+  const tocca = id => ids.some(i=>String(i)===String(id));
+  [assemblea.appello.online, assemblea.appello.presenzeFisiche, assemblea.votoAutonomo].forEach(arr=>{
+    (arr||[]).forEach(r=>{ if(tocca(r.condominoId) && !r.uscita) r.uscita = ora; });
+  });
+  if(Array.isArray(assemblea.handsRaised)) assemblea.handsRaised = assemblea.handsRaised.filter(h=>!tocca(h.condominoId));
+}
+// L'email "Delega annullata" parte dal server solo dopo che il cambio è salvato: si riprova
+// qualche volta, a distanza di qualche secondo.
+function avvisaDelegaDecadutaDaAdmin(b, assemblea, deleganteId, delegato){
+  const c = (b.condomini||[]).find(x=>x.id===deleganteId);
+  if(!c || !c.token) return;
+  let tentativi = 0;
+  const prova = async ()=>{
+    tentativi++;
+    try{
+      const r = await fetch('/api/email-delega', {method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({codice:c.token, assemblee:[assemblea.id], precedenti:[String(delegato)], avviso:true})});
+      if(r.status===404 && tentativi<4) setTimeout(prova, 5000);
+    }catch(e){ if(tentativi<4) setTimeout(prova, 5000); }
+  };
+  setTimeout(prova, 4000);
+}
 function segnaPresenteInAula(condominoId){
   // BUG REALE CORRETTO (segnalato con "uscita anticipata", ma il problema riguardava allo
   // stesso modo tutte le azioni qui sotto): scrivevano solo sulla copia locale
@@ -4851,6 +4960,8 @@ function segnaPresenteInAula(condominoId){
   // premere due volte. eseguiConUnioneSuServer() applica la modifica sui dati più recenti del
   // server (non sulla copia locale, che nel frattempo potrebbe essere invecchiata), come già
   // fatto correttamente altrove nel codice per lo stesso tipo di rischio.
+  const b0=getActiveBuilding(); const a0=b0 ? getAssembleaInCorso(b0) : null;
+  const delegatoPrima = a0 && a0.appello.deleghe ? a0.appello.deleghe[condominoId] : null;   // LT-336
   eseguiConUnioneSuServer(()=>{
     const b=getActiveBuilding();
     const assemblea=getAssembleaInCorso(b);
@@ -4860,11 +4971,11 @@ function segnaPresenteInAula(condominoId){
       if(!rec) assemblea.appello.presenzeFisiche.push({condominoId:id, entrata:oraAdesso(), uscita:null});
       else if(rec.uscita) rec.uscita=null;
       // Se questa persona aveva già dato una delega, essendo ora presente di persona la delega
-      // non ha più senso: la rimuoviamo, altrimenti resterebbe un riferimento "fantasma" — una
-      // delega che risulta ancora ricevuta da qualcuno, ma che in realtà nessuno sta più dando.
-      if(assemblea.appello.deleghe[id]!=null) delete assemblea.appello.deleghe[id];
+      // decade (LT-336: a verbale, delegato esterno o non convocato segnato uscito).
+      if(assemblea.appello.deleghe[id]!=null) decadiDelegaPerPresenza(b, assemblea, id);
     });
   });
+  if(delegatoPrima!=null && a0) avvisaDelegaDecadutaDaAdmin(b0, a0, condominoId, delegatoPrima);
   renderAppello();
 }
 // Per chi si collega online ma senza usare il proprio link personale (es. più condòmini
@@ -4873,6 +4984,8 @@ function segnaPresenteInAula(condominoId){
 // conto suo), ma viene mostrato con un colore diverso (rosa) per non confonderlo con chi è
 // online tramite il proprio link, né con chi è fisicamente in sala.
 function segnaOnlineAMano(condominoId){
+  const b0=getActiveBuilding(); const a0=b0 ? getAssembleaInCorso(b0) : null;
+  const delegatoPrima = a0 && a0.appello.deleghe ? a0.appello.deleghe[condominoId] : null;   // LT-336
   eseguiConUnioneSuServer(()=>{
     const b=getActiveBuilding();
     const assemblea=getAssembleaInCorso(b);
@@ -4881,9 +4994,10 @@ function segnaOnlineAMano(condominoId){
       const rec = assemblea.appello.presenzeFisiche.find(r=>r.condominoId===id);
       if(!rec) assemblea.appello.presenzeFisiche.push({condominoId:id, entrata:oraAdesso(), uscita:null, online:true});
       else{ rec.online=true; if(rec.uscita) rec.uscita=null; }
-      if(assemblea.appello.deleghe[id]!=null) delete assemblea.appello.deleghe[id];
+      if(assemblea.appello.deleghe[id]!=null) decadiDelegaPerPresenza(b, assemblea, id);
     });
   });
+  if(delegatoPrima!=null && a0) avvisaDelegaDecadutaDaAdmin(b0, a0, condominoId, delegatoPrima);
   renderAppello();
 }
 function rimuoviPresenzaInAula(condominoId){
@@ -5530,7 +5644,8 @@ async function invaDelegaAdAmministratore(){
   if(assembleeRegistrateConEsito.length>0) inviaEmailDelegaDalServer(assembleeRegistrateConEsito.map(ass=>ass.id), __delegaEsterniPrecedenti);
 }
 let __delegaEsterniPrecedenti = [];
-async function inviaEmailDelegaDalServer(idAssemblee, precedenti){
+async function inviaEmailDelegaDalServer(idAssemblee, precedenti, opzioni){
+  const soloAvviso = !!(opzioni && opzioni.avviso);   // LT-336: solo "Delega annullata"
   const esitoEl = document.getElementById('delega-esito-email');
   const scrivi = (testo, colore)=>{ if(esitoEl){ esitoEl.textContent = testo; esitoEl.style.color = colore || ''; } };
   const codiceLink = __paramsIniziali.get('token') || '';
@@ -5539,7 +5654,7 @@ async function inviaEmailDelegaDalServer(idAssemblee, precedenti){
   try{
     const r = await fetch('/api/email-delega', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({codice: codiceLink, assemblee: idAssemblee, precedenti: precedenti||[]})
+      body: JSON.stringify({codice: codiceLink, assemblee: idAssemblee, precedenti: precedenti||[], avviso: soloAvviso})
     });
     const dati = await r.json().catch(()=>({}));
     if(!r.ok || !dati.ok){
@@ -10004,7 +10119,7 @@ function renderVistaCondomino(){
   // l'assemblea per lui è finita come una qualunque: schermata "terminata" e video chiuso.
   if(assembleaCorrente && assembleaCorrente.stato==='conclusa' && assembleaCorrente.assembleaSuccessivaId){
     const successiva = (b.assemblee||[]).find(a=>a.id===assembleaCorrente.assembleaSuccessivaId);
-    if(successiva && condominoConvocatoAssemblea(successiva, currentCondomino, b)){
+    if(successiva && condominoPuoSeguireAssemblea(successiva, currentCondomino, b)){
       contestoAssembleaIdCondomino = successiva.id;
       assembleaCorrente = successiva;
     }
@@ -10020,7 +10135,7 @@ function renderVistaCondomino(){
         : null);
   if(assembleaConclusa && assembleaConclusa.assembleaSuccessivaId){
     const successivaRiserva = (b.assemblee||[]).find(a=>a.id===assembleaConclusa.assembleaSuccessivaId);
-    if(successivaRiserva && condominoConvocatoAssemblea(successivaRiserva, currentCondomino, b)){
+    if(successivaRiserva && condominoPuoSeguireAssemblea(successivaRiserva, currentCondomino, b)){
       contestoAssembleaIdCondomino = successivaRiserva.id;
       __ultimaAssembleaIdCondomino = successivaRiserva.id;
       assembleaCorrente = successivaRiserva;
@@ -10040,24 +10155,81 @@ function renderVistaCondomino(){
     [schermataRientro, schermataTerminata].forEach(el=>{ if(el) el.classList.add('hidden'); });
     restoContenuto.forEach(el=>{ if(el) el.classList.add('hidden'); });
     if(__linkEsternoFinito){ if(schermataTerminata) schermataTerminata.classList.remove('hidden'); }
-    else if(schermataLinkSpento) schermataLinkSpento.classList.remove('hidden');
+    else if(schermataLinkSpento){
+      // LT-336: se sappiamo chi ha annullato la delega (e perché), lo diciamo
+      if(__linkEsternoAnnullata && __linkEsternoAnnullata.delegante!=null){
+        const nomeDel = escapeHtml(nomeDeleganteDaId(b, __linkEsternoAnnullata.delegante));
+        schermataLinkSpento.innerHTML = `<p style="font-size:19px;font-weight:700;">Il tuo collegamento non è più attivo</p>
+          <p class="muted" style="color:#C4BCA5;margin-top:12px;line-height:1.5;">La delega che ti aveva concesso <b>${nomeDel}</b> è stata annullata${__linkEsternoAnnullata.ingresso ? ', in quanto è entrato/a personalmente in assemblea' : ''}.</p>
+          <p class="muted" style="color:#A39C88;margin-top:10px;">Per informazioni contatta l'amministratore.</p>`;
+      }
+      schermataLinkSpento.classList.remove('hidden');
+    }
     distruggiVideoCondomino();
     return;
   }
   if(schermataLinkSpento) schermataLinkSpento.classList.add('hidden');
-  // LT-322: questo condòmino ha delegato una persona esterna. Il suo link serve solo a vedere
-  // la delega o ad annullarla: se vuole entrare lui, la delega viene annullata (e il delegato
-  // non potrà più usare il suo link).
+  // LT-336 — CONDÒMINO PRESENTE SOLO GRAZIE A UNA DELEGA CHE NON C'È PIÙ: non convocato a questa
+  // assemblea e non più delegato da nessuno (il delegante è entrato): è fuori, con il motivo.
+  const schermataFuori = document.getElementById('cv-schermata-delega-decaduta');
+  const fuoriPerDelega = !!(!linkDelegatoEsterno() && currentCondomino && assembleaCorrente && assembleaCorrente.stato==='in-corso'
+    && ((assembleaCorrente.convocati && assembleaCorrente.convocati.selezionati)||[]).length
+    && !condominoConvocatoAssemblea(assembleaCorrente, currentCondomino, b)
+    && !condominoDelegatoIn(assembleaCorrente, currentCondomino));
+  if(fuoriPerDelega){
+    [schermataRientro, schermataTerminata].forEach(el=>{ if(el) el.classList.add('hidden'); });
+    restoContenuto.forEach(el=>{ if(el) el.classList.add('hidden'); });
+    const sd = document.getElementById('cv-schermata-delega-esterna'); if(sd) sd.classList.add('hidden');
+    distruggiVideoCondomino();
+    if(schermataFuori){
+      const mioId = currentCondomino.unificatoCon ? currentCondomino.unificatoCon : currentCondomino.id;
+      const ev = ultimaDelegaAnnullataVerso(assembleaCorrente, mioId);
+      schermataFuori.innerHTML = ev
+        ? `<p style="font-size:19px;font-weight:700;">Non partecipi più a questa assemblea</p>
+           <p class="muted" style="color:#C4BCA5;margin-top:12px;line-height:1.5;">La delega che ti aveva concesso <b>${escapeHtml(nomeDeleganteDaId(b, ev.delegante))}</b> è stata annullata, in quanto è entrato/a personalmente in assemblea.</p>
+           <p class="muted" style="color:#A39C88;margin-top:10px;line-height:1.5;">Non risultando convocato/a a questa assemblea, non puoi più parteciparvi. Per informazioni contatta l'amministratore.</p>`
+        : `<p style="font-size:19px;font-weight:700;">Non risulti convocato/a a questa assemblea</p>
+           <p class="muted" style="color:#A39C88;margin-top:10px;">Per informazioni contatta l'amministratore.</p>`;
+      schermataFuori.classList.remove('hidden');
+    }
+    return;
+  }
+  if(schermataFuori) schermataFuori.classList.add('hidden');
+  // LT-322/336 — CHI HA CONCESSO UNA DELEGA (a un condòmino o a una persona esterna). In qualsiasi
+  // momento vede l'avviso: se entra, la delega decade. Può anche scegliere "Non entrare" e
+  // seguire solo l'andamento (ordine del giorno, risultati, partecipanti), senza video né voto
+  // e senza risultare presente.
   const schermataDelegaEst = document.getElementById('cv-schermata-delega-esterna');
-  const delegaEst = (!linkDelegatoEsterno() && currentCondomino) ? delegaEsternaDelCondomino(assembleaCorrente, currentCondomino) : null;
-  if(delegaEst){
+  const delegaData = (!linkDelegatoEsterno() && currentCondomino && assembleaCorrente) ? delegaDataDalCondomino(b, assembleaCorrente, currentCondomino) : null;
+  if(delegaData){
     [schermataRientro, schermataTerminata].forEach(el=>{ if(el) el.classList.add('hidden'); });
     restoContenuto.forEach(el=>{ if(el) el.classList.add('hidden'); });
     distruggiVideoCondomino();
     if(schermataDelegaEst){
-      schermataDelegaEst.innerHTML = `<p style="font-size:18px;font-weight:700;margin-bottom:10px;">Hai delegato ${escapeHtml(delegaEst.nome)}</p>
-        <p class="muted" style="color:#C4BCA5;margin-bottom:18px;line-height:1.5;">Per questa assemblea parteciperà e voterà al posto tuo, con il link personale che ha ricevuto via email.<br><br>Se entri tu, <b>la delega verrà annullata</b> e ${escapeHtml(delegaEst.nome)} non potrà più partecipare con il suo link.</p>
-        <button class="btn brass" id="cv-btn-annulla-delega-entra" onclick="annullaDelegaEsternaEdEntra()">Annulla la delega ed entra</button>`;
+      const nome = escapeHtml(delegaData.nome);
+      if(__nonEntrare.has(assembleaCorrente.id)){
+        schermataDelegaEst.style.textAlign = 'left';
+        schermataDelegaEst.style.padding = '20px 16px';
+        schermataDelegaEst.innerHTML = `<div style="margin-bottom:16px;">
+            <p style="font-size:17px;font-weight:700;margin-bottom:6px;">Sei rappresentato/a da ${nome}</p>
+            <p class="muted" style="color:#C4BCA5;line-height:1.5;margin-bottom:12px;">Puoi seguire l'andamento dell'assemblea. Non risulti presente e non puoi votare: vota per te ${nome}.</p>
+            <button class="btn small secondary cv-btn-annulla-delega" onclick="annullaDelegaEdEntra()">Annulla la delega ed entra</button>
+          </div>` + costruisciOdgEChiCeCondomino(assembleaCorrente, b);
+      }else{
+        const conseguenza = delegaData.tipo==='esterno'
+          ? `Se entri tu, <b>la delega decade</b> e ${nome} non potrà più partecipare con il suo link.`
+          : (delegaData.convocato
+              ? `Se entri tu, <b>la delega decade</b>: ${nome} resterà in assemblea, ma da quel momento voterà solo per sé.`
+              : `Se entri tu, <b>la delega decade</b> e ${nome} non potrà più partecipare a questa assemblea.`);
+        schermataDelegaEst.style.textAlign = 'center';
+        schermataDelegaEst.style.padding = '34px 20px';
+        schermataDelegaEst.innerHTML = `<p style="font-size:18px;font-weight:700;margin-bottom:10px;">Hai concesso la delega a ${nome}</p>
+          <p class="muted" style="color:#C4BCA5;margin-bottom:18px;line-height:1.5;">Per questa assemblea ${nome} parteciperà e voterà al posto tuo${delegaData.tipo==='esterno' ? ', con il link personale che ha ricevuto via email' : ''}.<br><br>${conseguenza}</p>
+          <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+            <button class="btn brass cv-btn-annulla-delega" id="cv-btn-annulla-delega-entra" onclick="annullaDelegaEdEntra()">Annulla la delega ed entra</button>
+            <button class="btn secondary" id="cv-btn-non-entrare" onclick="scegliNonEntrare()">Non entrare</button>
+          </div>`;
+      }
       schermataDelegaEst.classList.remove('hidden');
     }
     return;
@@ -10095,6 +10267,25 @@ function renderVistaCondomino(){
     tipoAssembleaEl.textContent = `Assemblea ${tipoTesto} del ${dataTesto} — ${assembleaCorrente.oggetto||'(oggetto non indicato)'}`;
   }
   if(!cvModalitaSoloVoto && !linkDisattivatoPerDelega) renderChatCondomino();
+  // LT-336 — il delegato condòmino convocato resta, ma la delega che aveva è decaduta perché il
+  // delegante è entrato: glielo diciamo, una volta.
+  (function(){
+    const vecchio = document.getElementById('cv-avviso-delega-decaduta');
+    if(!currentCondomino || linkDelegatoEsterno() || !assembleaCorrente){ if(vecchio) vecchio.remove(); return; }
+    const mioId = currentCondomino.unificatoCon ? currentCondomino.unificatoCon : currentCondomino.id;
+    const ev = ultimaDelegaAnnullataVerso(assembleaCorrente, mioId);
+    const k = ev ? (assembleaCorrente.id + ':' + ev.ora + ':' + ev.delegante) : null;
+    if(!ev || __avvisiDelegaLetti.has(k)){ if(vecchio) vecchio.remove(); return; }
+    if(vecchio) return;
+    const box = document.createElement('div');
+    box.id = 'cv-avviso-delega-decaduta';
+    box.className = 'assist-panel';
+    box.style.cssText = 'border-left:4px solid var(--brass);margin-bottom:14px;';
+    box.innerHTML = `<p style="line-height:1.5;margin-bottom:10px;">La delega che ti aveva concesso <b>${escapeHtml(nomeDeleganteDaId(b, ev.delegante))}</b> è decaduta, in quanto è entrato/a personalmente in assemblea. Da adesso voti solo per te.</p>
+      <button class="btn small secondary" onclick="chiudiAvvisoDelegaDecaduta('${escapeHtml(k)}')">Ho capito</button>`;
+    const primo = document.getElementById('cv-video-wrap');
+    if(primo && primo.parentNode) primo.parentNode.insertBefore(box, primo);
+  })();
   renderCvPollArea();
   const btn=document.getElementById('cv-hand-btn');
   if(!cvModalitaSoloVoto && !linkDisattivatoPerDelega){
@@ -11893,6 +12084,21 @@ function terminaAssemblea(){
       // delega (condòmino o persona esterna). Gli altri, per la prossima, non sono presenti:
       // prima venivano copiati tutti e comparivano nell'appello come "non convocato", falsando
       // presenti e millesimi.
+      // LT-336: chi passa alla prossima ed è convocato anche lì vi risulta presente: la delega che
+      // aveva concesso per la prossima decade da sola (verbale + email al delegato). Il delegato
+      // esterno o il condòmino non convocato, così, non passa.
+      const avvisiPassaggio = [];
+      prossimaReale.appello = prossimaReale.appello || {online:[], presenzeFisiche:[], deleghe:{}};
+      prossimaReale.appello.deleghe = prossimaReale.appello.deleghe || {};
+      [...(aReale.appello.online||[]), ...(aReale.appello.presenzeFisiche||[])].filter(r=>!r.uscita).forEach(r=>{
+        const cc = bReale.condomini.find(x=>x.id===r.condominoId);
+        if(!cc) return;
+        const prim = cc.unificatoCon!=null ? cc.unificatoCon : cc.id;
+        if(prossimaReale.appello.deleghe[prim]==null) return;
+        if(!condominoConvocatoAssemblea(prossimaReale, cc, bReale)) return;
+        const dg = decadiDelegaPerPresenza(bReale, prossimaReale, prim);
+        if(dg!=null) avvisiPassaggio.push([prim, dg]);
+      });
       const convocatiProssima = new Set(((prossimaReale.convocati && prossimaReale.convocati.selezionati) || []).map(String));
       const delegatiProssima = new Set(Object.values((prossimaReale.appello && prossimaReale.appello.deleghe) || {}).map(String));
       const passaAllaProssima = r => {
@@ -11918,6 +12124,7 @@ function terminaAssemblea(){
       const outputVerbale=document.getElementById('verbale-output');
       if(outputVerbale) outputVerbale.innerHTML='';
       salvaStato();
+      avvisiPassaggio.forEach(([prim, dg])=>avvisaDelegaDecadutaDaAdmin(bReale, prossimaReale, prim, dg));
       toast(`"${aReale.oggetto||'Assemblea'}" conclusa (registrazione salvata). Si prosegue ora con "${prossimaReale.oggetto||'la prossima assemblea'}": nuova registrazione avviata automaticamente, stessa videochiamata.`);
       renderNavSubmenu();
       goPage('assemblea');
@@ -12841,6 +13048,7 @@ async function vivoPollPartecipante(){
       if(!r.error && r.data && r.data.ok!==true && (r.data.motivo==='token' || r.data.motivo==='conclusa') && linkDelegatoEsterno()){
         // LT-325: se è finita l'assemblea, il delegato vede "L'assemblea è terminata" come tutti
         __linkEsternoFinito = (r.data.motivo==='conclusa');
+        __linkEsternoAnnullata = r.data.annullata || null;   // LT-336
         // LT-322: delega annullata o assemblea finita: il link del delegato esterno non vale più
         __linkEsternoSpento = true;
         if(__vivoPart.poll){ clearInterval(__vivoPart.poll); __vivoPart.poll = null; }
@@ -12865,7 +13073,7 @@ async function vivoPollPartecipante(){
       const daRicaricare = buildings.some(b=>(b.assemblee||[]).some(a=>{
         if(!(a.stato==='conclusa' && __vivoPart.eraInCorso && __vivoPart.eraInCorso.has(b.id+':'+a.id))) return false;
         const succ = a.assembleaSuccessivaId!=null ? (b.assemblee||[]).find(x=>x.id===a.assembleaSuccessivaId) : null;
-        const segue = succ && succ.stato!=='conclusa' && currentCondomino && condominoConvocatoAssemblea(succ, currentCondomino, b);
+        const segue = succ && succ.stato!=='conclusa' && currentCondomino && condominoPuoSeguireAssemblea(succ, currentCondomino, b);
         return !segue;
       }));
       if(daRicaricare){ location.reload(); return; }
