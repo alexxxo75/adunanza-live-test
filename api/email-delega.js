@@ -116,7 +116,12 @@ export default async function handler(req, res) {
   if (req.query && req.query.azione === 'promemoria') return gestisciPromemoria(req, res);
   if (req.method !== 'POST') return rispondi(res, 405, { ok: false, errore: 'Metodo non consentito, usa POST.' });
 
-  const { codice, assemblee, precedenti } = req.body || {};
+  const { codice, assemblee, precedenti, avviso } = req.body || {};
+  // LT-336: in modalità "avviso" si manda solo l'avviso "Delega annullata" (il delegante è entrato
+  // personalmente in assemblea), al delegato condòmino o esterno e all'amministratore.
+  const soloAvviso = avviso === true;
+  const delegatiAvviso = (Array.isArray(precedenti) ? precedenti : [])
+    .map(x => String(x)).filter(x => /^(ext-[0-9a-z-]{1,40}|\d{1,20})$/i.test(x)).slice(0, 5);
   const esterniPrecedenti = (Array.isArray(precedenti) ? precedenti : [])
     .map(x => String(x)).filter(x => /^ext-[0-9a-z-]{1,40}$/i.test(x)).slice(0, 5);
   if (typeof codice !== 'string' || codice.length < 6 || codice.length > 200) {
@@ -167,8 +172,77 @@ export default async function handler(req, res) {
     if ((recenti || []).length >= MAX_AL_GIORNO) {
       return rispondi(res, 429, { ok: false, errore: 'Troppe email di delega oggi da questo link. La delega resta comunque registrata.' });
     }
-    if (recenti && recenti[0] && (Date.now() - new Date(recenti[0].inviata_il).getTime()) < PAUSA_MINIMA_SEC * 1000) {
+    if (!soloAvviso && recenti && recenti[0] && (Date.now() - new Date(recenti[0].inviata_il).getTime()) < PAUSA_MINIMA_SEC * 1000) {
       return rispondi(res, 429, { ok: false, errore: 'Email già inviata pochi secondi fa.' });
+    }
+
+    // LT-336 — solo avviso "Delega annullata": vale solo se nei dati dell'assemblea c'è davvero
+    // l'annullamento (evento "revoca") di questo delegante verso quel delegato, e la delega non è
+    // stata poi data di nuovo alla stessa persona.
+    if (soloAvviso) {
+      const emailAmmA = indirizzoPlausibile(adm.email_contatto) ? adm.email_contatto : (indirizzoPlausibile(adm.email) ? adm.email : null);
+      const emailAmmDelegheA = indirizzoPlausibile(adm.email_deleghe) ? adm.email_deleghe : emailAmmA;
+      const perDelegato = new Map();   // delegato -> [{a, convocato}]
+      for (const n of numeri) {
+        const { data: a } = await db.from('assemblee')
+          .select('id, id_app, oggetto, data_seconda, stato').eq('id_app', n).eq('stabile_id', stabile.id).maybeSingle();
+        if (!a) continue;
+        const { data: sv } = await db.from('stato_vivo').select('dati').eq('assemblea_id', a.id).maybeSingle();
+        const dati = (sv && sv.dati) || {};
+        const deleghe = (dati.appello && dati.appello.deleghe) || {};
+        const eventi = (dati.appello && Array.isArray(dati.appello.eventiDeleghe)) ? dati.appello.eventiDeleghe : [];
+        for (const dg of delegatiAvviso) {
+          const annullata = eventi.some(ev => ev && ev.evento === 'revoca' && String(ev.delegante) === deleganteIdApp && String(ev.delegato) === dg);
+          if (!annullata || String(deleghe[deleganteIdApp]) === dg) continue;
+          if (!perDelegato.has(dg)) perDelegato.set(dg, []);
+          perDelegato.get(dg).push(a);
+        }
+      }
+      if (perDelegato.size === 0) return rispondi(res, 404, { ok: false, errore: 'Nessuna delega annullata da comunicare.' });
+      const esitiA = [];
+      const nomeMittenteA = nomeDelegante + ' (tramite Riunion)';
+      const oggettoA = 'Delega annullata - ' + stabile.nome;
+      const fraseIngresso = `in quanto ${nomeDelegante} è entrato/a personalmente in assemblea`;
+      for (const [dg, lista] of perDelegato) {
+        const elenco = lista.map(a => `- ${a.oggetto || 'Assemblea'} del ${dataIt(a.data_seconda)}`).join('\n');
+        let nomeDg = 'persona delegata', emailDg = null, testoDg = null;
+        if (dg.startsWith('ext-')) {
+          const { data: de } = await db.from('delegati_esterni').select('nome, email').eq('stabile_id', stabile.id).eq('ext_id', dg).maybeSingle();
+          if (de) { nomeDg = String(de.nome || nomeDg).trim(); emailDg = de.email; }
+          testoDg = `Gentile ${nomeDg},\nla delega che ti aveva concesso ${nomeDelegante} per:\n${elenco}\nè stata annullata, ${fraseIngresso}.\n\nIl link personale che avevi ricevuto non è più attivo per ${lista.length > 1 ? 'queste assemblee' : 'questa assemblea'}.\n\nPer qualsiasi chiarimento puoi rispondere a questa email.`;
+        } else {
+          const { data: dc } = await db.from('condomini').select('id, nome, cognome, email, unificato_con').eq('id_app', dg).eq('stabile_id', stabile.id).maybeSingle();
+          if (dc) { nomeDg = nomeDi(dc); emailDg = dc.email; }
+          // convocato (lui, il suo proprietario principale o una sua unità unita) a queste assemblee?
+          let convocato = true;
+          if (dc) {
+            const { data: unite } = await db.from('condomini').select('id').eq('unificato_con', dc.id);
+            const miei = [dc.id, ...(dc.unificato_con ? [dc.unificato_con] : []), ...((unite || []).map(u => u.id))];
+            for (const a of lista) {
+              const { data: tutti } = await db.from('convocati_selezionati').select('condomino_id').eq('assemblea_id', a.id);
+              if ((tutti || []).length && !(tutti || []).some(r => miei.includes(r.condomino_id))) convocato = false;
+            }
+          }
+          testoDg = convocato
+            ? `Gentile ${nomeDg},\nla delega che ti aveva concesso ${nomeDelegante} per:\n${elenco}\nè decaduta, ${fraseIngresso}.\n\nDa adesso voti solo per te.\n\nPer qualsiasi chiarimento puoi rispondere a questa email.`
+            : `Gentile ${nomeDg},\nla delega che ti aveva concesso ${nomeDelegante} per:\n${elenco}\nè stata annullata, ${fraseIngresso}.\n\nNon risultando convocato/a, non puoi più partecipare a ${lista.length > 1 ? 'queste assemblee' : 'questa assemblea'}.\n\nPer qualsiasi chiarimento puoi rispondere a questa email.`;
+        }
+        const testoAmm = `${nomeDelegante} è entrato/a personalmente in assemblea: la delega a ${nomeDg} per:\n${elenco}\nè decaduta.`;
+        const avvisi = [];
+        if (indirizzoPlausibile(emailDg)) avvisi.push({ ruolo: 'avviso_delegato', a: emailDg, testo: testoDg, rispondiA: emailAmmA || emailDelegante });
+        if (emailAmmDelegheA) avvisi.push({ ruolo: 'avviso_amministratore', a: emailAmmDelegheA, testo: testoAmm, rispondiA: emailDelegante });
+        for (const av of avvisi) {
+          const esito = await spedisci({ a: av.a, oggetto: oggettoA, testo: av.testo, nomeMittente: nomeMittenteA, rispondiA: av.rispondiA });
+          esitiA.push({ ruolo: av.ruolo, ok: !!esito.ok, errore: esito.errore || null });
+          if (esito.errore) console.error('Avviso delega annullata non inviato a', av.ruolo, esito.errore);
+        }
+      }
+      const riuscitiA = esitiA.filter(e => e.ok).length;
+      if (riuscitiA > 0) {
+        const { error: errReg } = await db.from('email_delega_inviate').insert({ condomino_id: c.id, destinatari: riuscitiA });
+        if (errReg) console.error('Registro email delega non aggiornato:', errReg);
+      }
+      return rispondi(res, riuscitiA > 0 ? 200 : 502, { ok: riuscitiA > 0, esiti: esitiA.map(e => ({ ruolo: e.ruolo, ok: e.ok })) });
     }
 
     // 3. le deleghe che esistono davvero, assemblea per assemblea

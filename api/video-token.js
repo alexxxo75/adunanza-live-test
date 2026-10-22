@@ -177,7 +177,29 @@ async function verificaPartecipante(codice, rif) {
       if (io.unificato_con) miei.add(io.unificato_con);
       condomini.forEach(x => { if (x.unificato_con === io.id) miei.add(x.id); });
       const convocato = (D.convocati_selezionati || []).some(cs => cs.assemblea_id === assemblea.id && miei.has(cs.condomino_id));
-      if (!convocato) return { errore: 'Non risulti convocato a questa assemblea.', codice: 403 };
+      // LT-336: le deleghe di QUESTA assemblea, per due controlli:
+      //  - chi ha concesso una delega non entra finché non la annulla dalla sua pagina;
+      //  - chi non è convocato entra solo se vi rappresenta qualcuno con una delega (es. assemblea
+      //    in coda a cui non è convocato); se la delega viene annullata, non entra più.
+      const primario = io.unificato_con ? condomini.find(x => x.id === io.unificato_con) : io;
+      const mioId = String((primario || io).id_app);
+      let deleghe = {};
+      try {
+        const rv = await fetch(sb.url + '/rest/v1/rpc/partecipa_vivo', {
+          method: 'POST',
+          headers: { apikey: sb.chiave, Authorization: 'Bearer ' + sb.chiave, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ p_token: codice, p_assemblea: assemblea.id_app, p_versione: 0 })
+        });
+        const V = rv.ok ? await rv.json() : null;
+        deleghe = (V && V.ok && V.dati && V.dati.appello && V.dati.appello.deleghe) || {};
+      } catch (_) { deleghe = {}; }
+      if (Object.prototype.hasOwnProperty.call(deleghe, mioId)) {
+        return { errore: 'Hai concesso una delega per questa assemblea: per entrare, annullala dalla tua pagina con "Annulla la delega ed entra".', codice: 403 };
+      }
+      if (!convocato) {
+        const delegato = Object.values(deleghe).some(v => String(v) === mioId);
+        if (!delegato) return { errore: 'Non risulti convocato a questa assemblea.', codice: 403 };
+      }
     }
     return { ok: true };
   } catch (e) {
