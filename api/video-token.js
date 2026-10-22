@@ -334,12 +334,19 @@ async function ingressoDaily({ ruolo, nome, stanzaRichiesta }) {
   // confonderebbero e basta). Se Daily rifiutasse una di quelle impostazioni, si riprova
   // con la stanza essenziale: meglio una videochiamata con qualche pulsante di troppo che
   // nessuna videochiamata.
-  async function creaStanza(conImpostazioni) {
+  // LT-338: livello 2 = impostazioni complete + ottimizzazione per le chiamate grandi;
+  // livello 1 = impostazioni complete; livello 0 = stanza essenziale.
+  async function creaStanza(livello) {
+    const conImpostazioni = livello >= 1;
     const corpo = conImpostazioni
       ? {
           name: nomeStanza,
           privacy: 'private',
           properties: {
+            // LT-338: chiesta da Daily per le videochiamate con più di 50 persone (obbligatoria con
+            // Daily Prebuilt). Attiva per tutte le assemblee: si entra col microfono spento, si
+            // vedono al massimo 12 riquadri alla volta, chi non parla da un po' viene silenziato.
+            ...(livello >= 2 ? { experimental_optimize_large_calls: true } : {}),
             lang: 'it',
             enable_prejoin_ui: false,   // Riunion ha già la sua schermata "prima di entrare"
             enable_chat: false,         // Riunion ha la sua chat, e quella finisce nel verbale
@@ -365,23 +372,43 @@ async function ingressoDaily({ ruolo, nome, stanzaRichiesta }) {
   }
 
   let datiStanza = await cercaStanza();
+  const stanzaGiaEsistente = !!datiStanza;   // LT-338
 
   if (!datiStanza) {
-    let tentativo = await creaStanza(true);
+    let tentativo = await creaStanza(2);
     const motivi = [];
     if (!tentativo.dati) {
-      motivi.push('con impostazioni -> ' + tentativo.errore);
+      motivi.push('con ottimizzazione -> ' + tentativo.errore);
       // Due persone che aprono il video nello stesso istante: la stanza l'ha creata l'altra.
       datiStanza = await cercaStanza();
       if (!datiStanza) {
-        tentativo = await creaStanza(false);
-        if (!tentativo.dati) motivi.push('essenziale -> ' + tentativo.errore);
+        tentativo = await creaStanza(1);
+        if (!tentativo.dati) {
+          motivi.push('con impostazioni -> ' + tentativo.errore);
+          datiStanza = await cercaStanza();
+          if (!datiStanza) {
+            tentativo = await creaStanza(0);
+            if (!tentativo.dati) motivi.push('essenziale -> ' + tentativo.errore);
+          }
+        }
       }
     }
     if (!datiStanza && tentativo.dati) datiStanza = tentativo.dati;
     if (!datiStanza) {
       return { errore: 'Daily ha rifiutato la creazione della stanza "' + nomeStanza + '". ' + motivi.join(' | '), codice: 502 };
     }
+  }
+
+  // LT-338: le stanze create prima di questa versione non hanno l'ottimizzazione per le chiamate
+  // grandi: la si aggiunge. Se Daily non la accetta, la videochiamata parte comunque.
+  if (stanzaGiaEsistente && !(datiStanza.config && datiStanza.config.experimental_optimize_large_calls)) {
+    try {
+      await fetch(`https://api.daily.co/v1/rooms/${nomeStanza}`, {
+        method: 'POST',
+        headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ properties: { experimental_optimize_large_calls: true } })
+      });
+    } catch (_) { /* non blocca l'ingresso */ }
   }
 
   // Biglietto d'ingresso: porta con sé il nome della persona e, per l'amministratore, i poteri
