@@ -57,6 +57,45 @@
 // Il file HTML non sa né deve sapere chi sia il fornitore: riceve un indirizzo e lo mette nel
 // riquadro del video. È il motivo per cui questo cambio non tocca l'applicazione.
 
+import { createHash } from 'crypto';
+
+// ===================== LT-339 =====================
+// Tre novità, tutte solo per Daily:
+//  1. SCADENZA DELLA STANZA: ogni stanza scade alla fine del giorno DOPO l'ultimo ingresso
+//     (ora di Roma). Ogni volta che qualcuno entra, la scadenza si sposta in avanti se serve:
+//     un'assemblea che va oltre la mezzanotte non viene mai interrotta. Prima le stanze
+//     restavano per sempre.
+//  2. SERVER EUROPEI: le videochiamate passano dai server di Daily a Francoforte (eu-central-1).
+//  3. UN LINK, UN DISPOSITIVO: chi entra con un link personale (condòmino, delegato esterno,
+//     ospite) riceve un'identità legata al suo link (user_id = impronta del codice). La stanza
+//     ha "enforce_unique_user_ids": se lo stesso link entra da un secondo dispositivo, Daily
+//     toglie dal video il primo. L'amministratore non ha user_id: può avere il video aperto su
+//     più dispositivi, come prima. (Il messaggio "Rientra da questo dispositivo" lo mostra la
+//     pagina, con la funzione del database partecipa_dispositivo.)
+const DAILY_GEO = 'eu-central-1';
+
+// Fine del giorno dopo, ora di Roma, in secondi (come la vuole Daily).
+function scartoRomaMs(data) {
+  const p = {};
+  new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    .formatToParts(data).forEach(x => { p[x.type] = x.value; });
+  const comeUtc = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second);
+  return comeUtc - Math.floor(data.getTime() / 1000) * 1000;
+}
+function scadenzaStanza(adesso) {
+  const ora = adesso || new Date();
+  const oggi = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit' }).format(ora);
+  const [a, m, g] = oggi.split('-').map(Number);
+  const mezzanotte = Date.UTC(a, m - 1, g + 2, 0, 0, 0);          // dopodomani alle 00:00, "come se" fosse UTC
+  const istante = mezzanotte - scartoRomaMs(new Date(mezzanotte)); // corretto con l'ora di Roma (1 o 2 ore)
+  return Math.floor(istante / 1000) - 1;                            // domani alle 23:59:59
+}
+
+// Identità video legata al link personale: sempre la stessa per lo stesso link, mai il codice vero.
+function idUtenteDaCodice(codice) {
+  return 'L-' + createHash('sha256').update(String(codice)).digest('hex').slice(0, 32);
+}
+
 // Riassume una risposta di errore per mostrarla a schermo: niente a capo, lunghezza limitata.
 function riassunto(testo) {
   if (!testo) return 'nessun dettaglio';
@@ -305,7 +344,7 @@ async function ingressoDigitalSamba({ ruolo, nome, stanzaRichiesta }) {
 // ============================================================================
 // DAILY
 // ============================================================================
-async function ingressoDaily({ ruolo, nome, stanzaRichiesta }) {
+async function ingressoDaily({ ruolo, nome, stanzaRichiesta, idUtente }) {
   const API_KEY = process.env.DAILY_API_KEY;
   const DOMINIO = (process.env.DAILY_DOMAIN || '').trim().replace(/\.daily\.co$/i, '');
 
@@ -336,6 +375,8 @@ async function ingressoDaily({ ruolo, nome, stanzaRichiesta }) {
   // nessuna videochiamata.
   // LT-338: livello 2 = impostazioni complete + ottimizzazione per le chiamate grandi;
   // livello 1 = impostazioni complete; livello 0 = stanza essenziale.
+  // LT-339: livello 3 = livello 2 + server europei + un dispositivo per link. La scadenza c'è sempre.
+  const scadenza = scadenzaStanza();
   async function creaStanza(livello) {
     const conImpostazioni = livello >= 1;
     const corpo = conImpostazioni
@@ -347,6 +388,8 @@ async function ingressoDaily({ ruolo, nome, stanzaRichiesta }) {
             // Daily Prebuilt). Attiva per tutte le assemblee: si entra col microfono spento, si
             // vedono al massimo 12 riquadri alla volta, chi non parla da un po' viene silenziato.
             ...(livello >= 2 ? { experimental_optimize_large_calls: true } : {}),
+            ...(livello >= 3 ? { geo: DAILY_GEO, enforce_unique_user_ids: true } : {}),
+            exp: scadenza,
             lang: 'it',
             enable_prejoin_ui: false,   // Riunion ha già la sua schermata "prima di entrare"
             enable_chat: false,         // Riunion ha la sua chat, e quella finisce nel verbale
@@ -361,7 +404,7 @@ async function ingressoDaily({ ruolo, nome, stanzaRichiesta }) {
             enable_screenshare: true
           }
         }
-      : { name: nomeStanza, privacy: 'private' };
+      : { name: nomeStanza, privacy: 'private', properties: { exp: scadenza } };
     const risposta = await fetch('https://api.daily.co/v1/rooms', {
       method: 'POST',
       headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
@@ -375,9 +418,14 @@ async function ingressoDaily({ ruolo, nome, stanzaRichiesta }) {
   const stanzaGiaEsistente = !!datiStanza;   // LT-338
 
   if (!datiStanza) {
-    let tentativo = await creaStanza(2);
+    let tentativo = await creaStanza(3);
     const motivi = [];
     if (!tentativo.dati) {
+      motivi.push('completa -> ' + tentativo.errore);
+      datiStanza = await cercaStanza();
+      if (!datiStanza) tentativo = await creaStanza(2);
+    }
+    if (!datiStanza && !tentativo.dati) {
       motivi.push('con ottimizzazione -> ' + tentativo.errore);
       // Due persone che aprono il video nello stesso istante: la stanza l'ha creata l'altra.
       datiStanza = await cercaStanza();
@@ -399,16 +447,31 @@ async function ingressoDaily({ ruolo, nome, stanzaRichiesta }) {
     }
   }
 
-  // LT-338: le stanze create prima di questa versione non hanno l'ottimizzazione per le chiamate
-  // grandi: la si aggiunge. Se Daily non la accetta, la videochiamata parte comunque.
-  if (stanzaGiaEsistente && !(datiStanza.config && datiStanza.config.experimental_optimize_large_calls)) {
-    try {
-      await fetch(`https://api.daily.co/v1/rooms/${nomeStanza}`, {
-        method: 'POST',
-        headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ properties: { experimental_optimize_large_calls: true } })
-      });
-    } catch (_) { /* non blocca l'ingresso */ }
+  // LT-338/339: le stanze già esistenti ricevono le impostazioni che mancano (ottimizzazione per
+  // le chiamate grandi, server europei, un dispositivo per link) e la scadenza viene spostata in
+  // avanti se serve. Se Daily ne rifiuta una, si provano le altre una per una; in ogni caso la
+  // videochiamata parte lo stesso.
+  if (stanzaGiaEsistente) {
+    const cfg = datiStanza.config || {};
+    const daAggiornare = {};
+    if (!cfg.experimental_optimize_large_calls) daAggiornare.experimental_optimize_large_calls = true;
+    if (cfg.geo !== DAILY_GEO) daAggiornare.geo = DAILY_GEO;
+    if (!cfg.enforce_unique_user_ids) daAggiornare.enforce_unique_user_ids = true;
+    if (!cfg.exp || Number(cfg.exp) < scadenza - 3600) daAggiornare.exp = scadenza;
+    const aggiorna = async (properties) => {
+      try {
+        const r = await fetch(`https://api.daily.co/v1/rooms/${nomeStanza}`, {
+          method: 'POST',
+          headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ properties })
+        });
+        return r.ok;
+      } catch (_) { return false; }
+    };
+    const chiavi = Object.keys(daAggiornare);
+    if (chiavi.length && !(await aggiorna(daAggiornare)) && chiavi.length > 1) {
+      for (const k of chiavi) await aggiorna({ [k]: daAggiornare[k] });
+    }
   }
 
   // Biglietto d'ingresso: porta con sé il nome della persona e, per l'amministratore, i poteri
@@ -420,6 +483,7 @@ async function ingressoDaily({ ruolo, nome, stanzaRichiesta }) {
       properties: {
         room_name: nomeStanza,
         user_name: nome,
+        ...(idUtente ? { user_id: idUtente } : {}),   // LT-339: solo per chi entra con un link personale
         is_owner: ruolo === 'moderatore',
         exp: Math.floor(Date.now() / 1000) + 60 * 60 * 6
       }
@@ -483,7 +547,9 @@ export default async function handler(req, res) {
   try {
     let esito;
     if (fornitore === 'daily') {
-      esito = await ingressoDaily({ ruolo, nome: nomePersona, stanzaRichiesta: stanza });
+      // LT-339: l'identità legata al link vale solo per chi entra con un link (mai per l'amministratore).
+      const idUtente = (typeof codice === 'string' && codice && !(typeof token === 'string' && token)) ? idUtenteDaCodice(codice) : null;
+      esito = await ingressoDaily({ ruolo, nome: nomePersona, stanzaRichiesta: stanza, idUtente });
     } else if (fornitore === 'digitalsamba') {
       esito = await ingressoDigitalSamba({ ruolo, nome: nomePersona, stanzaRichiesta: stanza });
     } else {
