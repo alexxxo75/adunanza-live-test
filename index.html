@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-338 — creata il 22/10/2026 alle 13:47
+  Versione: LT-339 — creata il 22/10/2026 alle 14:08
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -876,7 +876,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 22/10/2026 alle 13:47">LT-338</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 22/10/2026 alle 14:08">LT-339</span>
   </div>
 
   <!-- MAIN -->
@@ -13003,11 +13003,14 @@ window.addEventListener('beforeunload', function(e){
 });
 // ---- partecipante (link con &sb=1): lettura periodica, sola lettura in questo passo
 const __vivoPart = {token:null, sb:null, versioni:new Map(), poll:null, inCorso:false, azioni:0, coda:Promise.resolve(), primoGiro:true};
+// LT-339: stato della regola "un link, un dispositivo" (vedi avviaControlloDispositivo)
+const __dispositivo = {attivo:false, sostituito:false, timer:null};
 // LT-287 (5.1): le azioni del partecipante (entrare, uscire, alzare la mano, scrivere in chat) vanno
 // al database con una funzione dedicata che controlla CHI è (dal token) e fa l'azione SOLO per lui.
 // Le azioni vengono messe in fila, così l'ordine (es. dei messaggi) resta quello in cui sono state fatte.
 function vivoAzione(azione, param){
   if(!__sbAn.partecipante || !__vivoPart.sb) return Promise.resolve();
+  if(__dispositivo.sostituito) return Promise.resolve();   // LT-339
   __vivoPart.azioni++;
   __vivoPart.coda = __vivoPart.coda.then(async ()=>{
     const b = getActiveBuilding() || buildings[0];
@@ -13097,6 +13100,7 @@ async function vivoPollPartecipante(){
 }
 // Delega dal link del condòmino: la registra il database (che sa chi sei dal token) su tutte le assemblee scelte.
 async function vivoDelegaServer(b, assemblee, scelta){
+  if(__dispositivo.sostituito) return null;   // LT-339
   const sb = __vivoPart.sb;
   __vivoPart.azioni++;
   try{
@@ -13131,6 +13135,9 @@ async function vivoDelegaServer(b, assemblee, scelta){
 // LT-328 — avviso "stesso link aperto su due dispositivi" (resta finché la situazione dura)
 let __doppioUltimo = 0;
 function mostraAvvisoDoppioDispositivo(doppio){
+  // LT-339: se il database sa già dire quale dispositivo ha il posto, l'avviso non serve più
+  // (il dispositivo vecchio viene scollegato). Resta solo come riserva, se lo script non c'è.
+  if(__dispositivo.attivo){ const b0 = document.getElementById('avviso-doppio-dispositivo'); if(b0) b0.remove(); return; }
   if(doppio) __doppioUltimo = Date.now();
   const attivo = Date.now() - __doppioUltimo < 45000;
   let box = document.getElementById('avviso-doppio-dispositivo');
@@ -13142,12 +13149,61 @@ function mostraAvvisoDoppioDispositivo(doppio){
   box.innerHTML = '⚠️ <b>Questo link risulta aperto anche su un altro dispositivo.</b> Il link è personale: se non sei stato tu, avvisa subito l\'amministratore. <button style="margin-left:8px;background:transparent;border:1px solid #fff;color:#fff;border-radius:4px;padding:2px 8px;cursor:pointer;" onclick="this.parentNode.remove()">Ho capito</button>';
   document.body.appendChild(box);
 }
+// LT-339 — "Un link, un dispositivo" (condòmini, delegati esterni, ospiti). La pagina aperta per
+// ultima con lo stesso link prende il posto; quella di prima viene scollegata e mostra un
+// messaggio con "Rientra da questo dispositivo". L'amministratore non entra con un link, quindi
+// non è toccato da questa regola.
+function avviaControlloDispositivo(sb, token, sessione){
+  const chiedi = (rivendica)=>{
+    if(__dispositivo.sostituito) return;
+    sb.rpc('partecipa_dispositivo', {p_token:token, p_sessione:sessione, p_rivendica:!!rivendica})
+      .then(r=>{
+        const d = r && r.data;
+        // Funzione assente (script del database non eseguito) o errore: resta l'avviso di prima.
+        if(r.error || !d || d.ok!==true) return;
+        __dispositivo.attivo = true;
+        mostraAvvisoDoppioDispositivo(false);
+        if(d.mio===false) dispositivoSostituito();
+      })
+      .catch(e=>console.warn('[Riunion] controllo dispositivo non riuscito:', e));
+  };
+  chiedi(true);   // pagina appena aperta: il posto è suo
+  __dispositivo.timer = setInterval(()=>chiedi(false), 6000);
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) chiedi(false); });
+}
+function dispositivoSostituito(){
+  if(__dispositivo.sostituito) return;
+  __dispositivo.sostituito = true;
+  if(__dispositivo.timer){ clearInterval(__dispositivo.timer); __dispositivo.timer = null; }
+  // Questa pagina si ferma: niente più battiti (la presenza la tiene il dispositivo nuovo),
+  // niente più aggiornamenti, niente voti. NON si manda nessuna "uscita": la persona è ancora
+  // in assemblea, solo da un altro dispositivo.
+  if(__vivoPart.poll){ clearInterval(__vivoPart.poll); __vivoPart.poll = null; }
+  window.__sbBattito = ()=>Promise.resolve();
+  try{ if(__timerBattitoPing){ clearInterval(__timerBattitoPing); __timerBattitoPing = null; } }catch(_){}
+  try{ if(__pingWorker) __pingWorker.postMessage({tipo:'ferma'}); }catch(_){}
+  // Il video si chiude togliendo il riquadro.
+  document.querySelectorAll('iframe').forEach(f=>{ try{ f.src = 'about:blank'; f.remove(); }catch(_){} });
+  const avv = document.getElementById('avviso-doppio-dispositivo'); if(avv) avv.remove();
+  let box = document.getElementById('overlay-dispositivo-sostituito');
+  if(!box){
+    box = document.createElement('div');
+    box.id = 'overlay-dispositivo-sostituito';
+    box.style.cssText = 'position:fixed;inset:0;background:#1b1b1c;color:#eee;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;z-index:100000;font-family:inherit;';
+    box.innerHTML = '<div style="max-width:360px;"><div style="font-size:34px;margin-bottom:12px;">📱</div>'
+      + '<div style="font-size:17px;font-weight:bold;margin-bottom:10px;">Sei entrato in assemblea da un altro dispositivo.</div>'
+      + '<div style="font-size:15px;line-height:1.45;margin-bottom:20px;">Qui il collegamento è stato chiuso.<br>Se non sei stato tu, avvisa subito l\'amministratore.</div>'
+      + '<button class="btn brass" style="font-size:16px;padding:12px 18px;" onclick="location.reload()">Rientra da questo dispositivo</button></div>';
+    document.body.appendChild(box);
+  }
+}
 function vivoAvviaPartecipante(sb, token){
   __vivoPart.sb = sb; __vivoPart.token = token;
   // Battito del condòmino (o della persona esterna delegata): il numero è l'ora esatta, così non può mai "tornare indietro"
   // LT-328: ogni pagina aperta ha una sua "sessione": se lo stesso link batte da due dispositivi
   // insieme, il database lo segnala e la pagina mostra un avviso.
   const sessione = (crypto.getRandomValues(new Uint32Array(2))).join('-');
+  avviaControlloDispositivo(sb, token, sessione);   // LT-339
   window.__sbBattito = (idStabile, idAssemblea, idPersona, _contatore, modalita)=>
     sb.rpc('partecipa_battito', {p_token:token, p_assemblea:idAssemblea, p_id:String(idPersona), p_valore:Date.now(), p_modalita:modalita||null, p_sessione:sessione})
       .then(r=>{
