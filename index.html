@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-339 — creata il 22/10/2026 alle 14:08
+  Versione: LT-340 — creata il 22/10/2026 alle 14:46
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -876,7 +876,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 22/10/2026 alle 14:08">LT-339</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 22/10/2026 alle 14:46">LT-340</span>
   </div>
 
   <!-- MAIN -->
@@ -1037,6 +1037,9 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
         </div>
       </div>
       </div>
+
+      <!-- LT-340: testi delle comunicazioni modificabili (un riquadro per testo) -->
+      <div id="pref-testi-comunicazioni"></div>
 
       <div class="frame-dark" style="margin-bottom:18px;">
       <div class="frame-dark-title">Preferenze operative</div>
@@ -2149,6 +2152,7 @@ function renderProfiloAmministratore(){
   document.getElementById('prof-indirizzo-mittente').value = p.indirizzoMittente||'';
   document.getElementById('prof-modalita-default').value = p.modalitaDefault||'mista';
   renderTestoBaseProfiloCorrente();
+  renderTestiComunicazioni();   // LT-340
   const logoImg = document.getElementById('prof-logo-anteprima');
   if(p.logoDataUrl){ logoImg.src = p.logoDataUrl; logoImg.classList.remove('hidden'); }
   else{ logoImg.classList.add('hidden'); }
@@ -2324,12 +2328,14 @@ function salvaProfiloAmministratore(){
   p.firmaEmail = document.getElementById('prof-firma-email').value;
   p.indirizzoMittente = document.getElementById('prof-indirizzo-mittente').value.trim();
   p.modalitaDefault = document.getElementById('prof-modalita-default').value;
+  if(currentPage==='preferenze') leggiTestiComunicazioniDalModulo();   // LT-340
   salvaStato();
   aggiornaNomeStudioTopbar();
   const etichetta = currentPage==='preferenze' ? 'Preferenze' : 'Profilo';
   // LT-283: la fonte vera del profilo è Supabase (tabella "amministratori"). Il toast di
   // conferma compare solo se il salvataggio lì è riuscito davvero.
   salvaProfiloSuSupabase().then(ok=>{
+    if(ok && window.__testiNonSalvati){ toast('Preferenze salvate, ma NON i testi delle comunicazioni: manca lo script "LT-340 Supabase.sql" su Supabase.'); return; }
     toast(ok ? etichetta+(etichetta==='Profilo'?' salvato.':' salvate.') : 'Non sono riuscito a salvare su Supabase: controlla la connessione e riprova.');
   });
 }
@@ -2349,8 +2355,13 @@ const CAMPI_PROFILO_SUPABASE = {
   // LT-332: nuovi campi del profilo
   nomeStudio:'nome_studio', sedeLegale:'sede_legale', indirizzoAssemblee:'indirizzo_assemblee',
   emailDeleghe:'email_deleghe', cellulare:'cellulare', codiceSdi:'codice_sdi', pec:'pec',
-  telefonoStudio:'telefono_studio', emailStudio:'email_studio'
+  telefonoStudio:'telefono_studio', emailStudio:'email_studio',
+  // LT-340: testi delle comunicazioni (script "LT-340 Supabase.sql")
+  testoInvitoOspite:'testo_invito_ospite', oggettoInvitoOspite:'oggetto_invito_ospite',
+  testoInvitoEsterno:'testo_invito_esterno', oggettoInvitoEsterno:'oggetto_invito_esterno',
+  testoAvvisoOdg:'testo_avviso_odg', oggettoAvvisoOdg:'oggetto_avviso_odg'
 };
+const COLONNE_TESTI_LT340 = ['testo_invito_ospite','oggetto_invito_ospite','testo_invito_esterno','oggetto_invito_esterno','testo_avviso_odg','oggetto_avviso_odg'];
 // Traduce la riga arrivata da Supabase nei nomi usati dall'app.
 function profiloDaRiga(riga){
   const out = {};
@@ -2383,7 +2394,15 @@ async function salvaProfiloSuSupabase(){
     riga[colonna] = v;
   }
   try{
-    const r = await c.sb.from('amministratori').update(riga).eq('id', c.utente.id).select('id').maybeSingle();
+    let r = await c.sb.from('amministratori').update(riga).eq('id', c.utente.id).select('id').maybeSingle();
+    // LT-340: se mancano le colonne dei testi (script del database non ancora eseguito), si salva
+    // tutto il resto e si avvisa, invece di non salvare niente.
+    window.__testiNonSalvati = false;
+    if(r.error && /column|PGRST204|testo_|oggetto_/i.test(String(r.error.message||'') + ' ' + String(r.error.code||''))){
+      const ridotta = Object.assign({}, riga); COLONNE_TESTI_LT340.forEach(k=>{ delete ridotta[k]; });
+      r = await c.sb.from('amministratori').update(ridotta).eq('id', c.utente.id).select('id').maybeSingle();
+      if(!r.error && r.data) window.__testiNonSalvati = true;
+    }
     if(r.error || !r.data){ console.error('[Riunion] salvataggio profilo su Supabase non riuscito:', r.error); return false; }
     c.profilo = profiloDaRiga(Object.assign({}, riga));
     return true;
@@ -2400,6 +2419,8 @@ function amministratoreVuoto(){
     nomeStudio:'', sedeLegale:'', indirizzoAssemblee:'', emailDeleghe:'', cellulare:'', codiceSdi:'', pec:'', telefonoStudio:'', emailStudio:'',
     // Personalizzazione comunicazioni
     logoDataUrl:'', testoBaseConvocazione:'', testoBasePresenza:'', testoBaseMista:'', testoBaseOnline:'', firmaEmail:'', indirizzoMittente:'',
+    // LT-340: testi delle comunicazioni (vuoto = testo di Riunion)
+    testoInvitoOspite:'', oggettoInvitoOspite:'', testoInvitoEsterno:'', oggettoInvitoEsterno:'', testoAvvisoOdg:'', oggettoAvvisoOdg:'',
     // Preferenze operative
     modalitaDefault:'mista', durataRegistrazioneGiorni:60,
     // LT-283: i campi demo "emailAccesso" e "password" sono stati tolti: l'accesso vero è
@@ -6907,7 +6928,7 @@ function aprireModuloAssemblea(esistente){
   document.getElementById('ca-allegati-descrizione').value = a.descrizioneAllegati||'';
   renderAllegatiConvocazione();
   aggiornaAvvisoTestoInvito();
-  document.getElementById('ca-ospiti-testo').value = (a.testoOspiti && a.testoOspiti.trim()) ? a.testoOspiti : TESTO_INVITO_OSPITE;
+  document.getElementById('ca-ospiti-testo').value = (a.testoOspiti && a.testoOspiti.trim()) ? a.testoOspiti : testoInvitoOspiteStandard();
   document.getElementById('ca-ospiti-anteprima').classList.add('hidden');
   renderOspitiInvito();
   document.getElementById('ca-remind-30min').checked = !!a._remind30 || (a.programmati||[]).some(p=>p.tipo==='Promemoria 30 minuti prima');
@@ -7037,7 +7058,9 @@ function salvaCampiAssemblea(){
   a.luogo = document.getElementById('ca-luogo').value.trim();
   a.descrizioneAllegati = document.getElementById('ca-allegati-descrizione').value.trim();
   const campoTestoOspiti = document.getElementById('ca-ospiti-testo');
-  if(campoTestoOspiti) a.testoOspiti = campoTestoOspiti.value;
+  // LT-340: se il testo è quello standard non lo si copia nell'assemblea, così un cambio fatto
+  // dopo nelle Preferenze vale anche qui.
+  if(campoTestoOspiti) a.testoOspiti = (campoTestoOspiti.value.trim() === testoInvitoOspiteStandard().trim()) ? '' : campoTestoOspiti.value;
 }
 
 // ---------- CONVOCATI (chi partecipa e tabella/e per il quorum — non per il voto) ----------
@@ -7659,22 +7682,17 @@ async function apriAnteprimaEmailEsterno(extId){
     .map(k=>b.condomini.find(c=>String(c.id)===String(k))).filter(Boolean).map(c=>escapeHtml(nomeCompletoCondomino(c)));
   const baseUrl = window.location.origin + window.location.pathname;
   const link = `${baseUrl}?token=${encodeURIComponent(e.token)}&assemblea=${a.id}`;
-  const quando = (a.dataSeconda ? `in seconda convocazione il giorno ${escapeHtml(a.dataSeconda)} alle ore ${escapeHtml(a.oraSeconda||'')}` : '') +
-    (a.modalita!=='online' && a.luogo ? ` presso ${escapeHtml(a.luogo)}` : '');
-  const corpo = `Gentile ${escapeHtml(e.nome||'')},<br><br>` +
-    `ti ricordiamo che ${deleganti.length ? deleganti.join(', ') : 'un condòmino'} ti ha delegato/a a rappresentarlo/a all'assemblea del condominio ${escapeHtml(b.nome||'')}${a.oggetto ? ' ("' + escapeHtml(a.oggetto) + '")' : ''}, ${quando}.<br><br>` +
-    (a.modalita!=='in-presenza'
-      ? `<a class="email-link-btn" href="${link}" target="_blank">Entra in assemblea →</a><div class="muted" style="margin-top:8px;font-family:var(--font-mono);">${link}</div><br>` +
-        `Solo per votare, senza video: <span style="font-family:var(--font-mono);">${link}&amp;modo=voto</span><br><br>` +
-        `Il link è personale: non inoltrarlo.<br><br>`
-      : '') +
-    `PRIVACY<br>I dati del delegato saranno trattati dal Condominio (Titolare) e dall'Amministratore (Responsabile) esclusivamente per le finalità legate alla verifica della regolare costituzione dell'assemblea e alla redazione del verbale, ai sensi dell'art. 6 par. 1 lett. c/f del GDPR.<br><br>` +
-    escapeHtml(firmaAmministratorePerEmail());
+  // LT-340: il testo viene dalle Preferenze (o è quello di Riunion); la privacy c'è sempre.
+  const corpo = corpoInvitoEsterno(amministratore.testoInvitoEsterno, {
+    nome: e.nome||'', deleganti: deleganti.length ? deleganti.join(', ') : 'un condòmino',
+    nomecondominio: escapeHtml(b.nome||''), oggetto: escapeHtml(a.oggetto||''),
+    quando: quandoInvitoEsterno(a), link, modalita: a.modalita
+  });
   __anteprimaEsterno = {extId, emailPrima: e.email||''};
   __anteprimaEmailCondominoId = null;
   __anteprimaEmailAssembleaId = a.id;
   document.getElementById('anteprima-email-indirizzo').value = e.email||'';
-  document.getElementById('anteprima-email-oggetto').textContent = 'Invito per la delega — ' + (a.oggetto||b.nome||'Assemblea');
+  document.getElementById('anteprima-email-oggetto').textContent = oggettoInvitoEsterno(a, b);   // LT-340
   const areaTesto = document.getElementById('anteprima-email-corpo');
   areaTesto.value = corpo;
   const render = document.getElementById('anteprima-email-render');
@@ -7881,6 +7899,204 @@ Distinti saluti
 
 {{firma_amministratore}}`;
 
+// =========================== LT-340 — TESTI DELLE COMUNICAZIONI ===========================
+// Tre testi che l'amministratore può scrivere a modo suo nelle Preferenze (un riquadro per
+// ciascuno): invito all'ospite, email al delegato esterno, avviso di ordine del giorno
+// modificato. Campo vuoto (o uguale al testo di Riunion) = si usa il testo di Riunion.
+function applicaSegnaposto(testo, mappa){
+  let t = String(testo||'');
+  for(const [k, v] of Object.entries(mappa)) t = t.split(k).join(v==null ? '' : String(v));
+  return t;
+}
+// --- Ospite ---
+const OGGETTO_INVITO_OSPITE = 'Invito come ospite — {{oggetto}}';
+function testoInvitoOspiteStandard(){
+  return (amministratore.testoInvitoOspite && amministratore.testoInvitoOspite.trim()) ? amministratore.testoInvitoOspite : TESTO_INVITO_OSPITE;
+}
+function oggettoInvitoOspite(a, b){
+  const modello = (amministratore.oggettoInvitoOspite||'').trim();
+  const classico = a.oggetto ? ('Invito come ospite — ' + a.oggetto) : ('Invito come ospite all\'assemblea del condominio ' + ((b && b.nome)||''));
+  if(!modello) return classico;
+  const t = applicaSegnaposto(modello, {'{{oggetto}}': a.oggetto||'', '{{nomecondominio}}': (b && b.nome)||''}).replace(/\s+/g,' ').trim();
+  return t || classico;
+}
+// --- Delegato esterno (busta ✉️ nell'appello) ---
+const TESTO_INVITO_ESTERNO = `Gentile {{nome}},
+
+ti ricordiamo che {{deleganti}} ti ha delegato/a a rappresentarlo/a all'assemblea del condominio {{nomecondominio}} ("{{oggetto}}"), {{quando}}.
+
+{{link_accesso}}
+
+{{link_solo_voto}}
+
+{{avviso_link}}
+
+{{privacy}}
+
+{{firma_amministratore}}`;
+const OGGETTO_INVITO_ESTERNO = 'Invito per la delega — {{oggetto}}';
+// Testo del legale: NON modificabile. Se l'amministratore toglie {{privacy}}, viene rimesso in fondo.
+const TESTO_PRIVACY_ESTERNO = 'PRIVACY\nI dati del delegato saranno trattati dal Condominio (Titolare) e dall\'Amministratore (Responsabile) esclusivamente per le finalità legate alla verifica della regolare costituzione dell\'assemblea e alla redazione del verbale, ai sensi dell\'art. 6 par. 1 lett. c/f del GDPR.';
+function quandoInvitoEsterno(a){
+  return (a.dataSeconda ? `in seconda convocazione il giorno ${escapeHtml(a.dataSeconda)} alle ore ${escapeHtml(a.oraSeconda||'')}` : '') +
+    (a.modalita!=='online' && a.luogo ? ` presso ${escapeHtml(a.luogo)}` : '');
+}
+// v: {nome (testo), deleganti (già in HTML), nomecondominio (HTML), oggetto (HTML), quando (HTML), link, modalita}
+function corpoInvitoEsterno(modello, v){
+  let t = escapeHtml((modello && modello.trim()) ? modello : TESTO_INVITO_ESTERNO);
+  if(!t.includes('{{privacy}}')) t += '\n\n{{privacy}}';
+  const online = v.modalita!=='in-presenza';
+  t = applicaSegnaposto(t, {
+    '{{nome}}': escapeHtml(v.nome||''),
+    '{{deleganti}}': v.deleganti||'',
+    '{{nomecondominio}}': v.nomecondominio||'',
+    '{{oggetto}}': v.oggetto||'',
+    '{{quando}}': v.quando||'',
+    '{{link_accesso}}': online ? `<a class="email-link-btn" href="${v.link}" target="_blank">Entra in assemblea →</a><div class="muted" style="margin-top:8px;font-family:var(--font-mono);">${v.link}</div>` : '',
+    '{{link_solo_voto}}': online ? `Solo per votare, senza video: <span style="font-family:var(--font-mono);">${v.link}&amp;modo=voto</span>` : '',
+    '{{avviso_link}}': online ? 'Il link è personale: non inoltrarlo.' : '',
+    '{{privacy}}': escapeHtml(TESTO_PRIVACY_ESTERNO),
+    '{{firma_amministratore}}': escapeHtml(firmaAmministratorePerEmail())
+  });
+  t = t.replace(/ \(&quot;&quot;\)/g, '').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  return t.replace(/\n/g, '<br>');
+}
+function oggettoInvitoEsterno(a, b){
+  const modello = (amministratore.oggettoInvitoEsterno||'').trim() || OGGETTO_INVITO_ESTERNO;
+  const t = applicaSegnaposto(modello, {'{{oggetto}}': a.oggetto||(b && b.nome)||'Assemblea', '{{nomecondominio}}': (b && b.nome)||''}).replace(/\s+/g,' ').trim();
+  return t || applicaSegnaposto(OGGETTO_INVITO_ESTERNO, {'{{oggetto}}': a.oggetto||(b && b.nome)||'Assemblea'});
+}
+// --- Avviso di ordine del giorno modificato (riquadro giallo in cima alla convocazione) ---
+const TESTO_AVVISO_ODG = 'COMUNICAZIONE AGGIORNATA: l\'ordine del giorno è stato modificato rispetto alla convocazione precedente. Le deleghe già concesse restano valide; se vuoi, puoi cambiarle dal tuo link.';
+const OGGETTO_AVVISO_ODG = '{{oggetto}}';
+function notaAvvisoOdg(modello, a, b){
+  const stile = 'border:1px solid #C9A227;background:#FFF8E1;padding:10px 12px;border-radius:4px;margin-bottom:14px;';
+  if(!(modello && modello.trim()) || modello.trim()===TESTO_AVVISO_ODG){
+    return `<div style="${stile}"><b>COMUNICAZIONE AGGIORNATA</b>: l'ordine del giorno è stato modificato rispetto alla convocazione precedente. Le deleghe già concesse restano valide; se vuoi, puoi cambiarle dal tuo link.</div>`;
+  }
+  const t = applicaSegnaposto(escapeHtml(modello.trim()), {'{{oggetto}}': escapeHtml(a.oggetto||''), '{{nomecondominio}}': escapeHtml((b && b.nome)||'')});
+  return `<div style="${stile}">${t.replace(/\n/g,'<br>')}</div>`;
+}
+function oggettoAvvisoOdg(a, b){
+  const modello = (amministratore.oggettoAvvisoOdg||'').trim();
+  if(!modello) return a.oggetto;
+  const t = applicaSegnaposto(modello, {'{{oggetto}}': a.oggetto||'', '{{nomecondominio}}': (b && b.nome)||''}).replace(/\s+/g,' ').trim();
+  return t || a.oggetto;
+}
+
+// --- I tre riquadri della pagina Preferenze ---
+const TESTI_COMUNICAZIONI = [
+  { k:'ospite', titolo:'Testo: invito all\'ospite',
+    spiega:'L\'email che invita un ospite (un tecnico, un consulente, chi presenta un preventivo) a entrare in videochiamata. Parte dal bottone "✉ Invia invito" in Modifica assemblea e dalla pagina dell\'assemblea in corso. È il testo di partenza: in ogni assemblea si può ancora cambiare.',
+    campoT:'testoInvitoOspite', campoO:'oggettoInvitoOspite', defT:()=>TESTO_INVITO_OSPITE, defO:OGGETTO_INVITO_OSPITE,
+    etichettaO:'Oggetto dell\'email',
+    seg:[['{{nome}}','nome e cognome dell\'ospite'],['{{ditta}}','ditta dell\'ospite'],['{{nomecondominio}}','nome del condominio'],['{{convocazione}}','"indetta in seconda convocazione per il giorno … alle ore …"'],['{{data_prima}}','data della prima convocazione'],['{{ora_prima}}','ora della prima convocazione'],['{{data_seconda}}','data della seconda convocazione'],['{{ora_seconda}}','ora della seconda convocazione'],['{{link_ospite}}','bottone e link per entrare'],['{{firma_amministratore}}','la tua firma (dal Profilo)']],
+    segO:[['{{oggetto}}','oggetto dell\'assemblea'],['{{nomecondominio}}','nome del condominio']] },
+  { k:'esterno', titolo:'Testo: email al delegato esterno',
+    spiega:'L\'email per chi è stato delegato ma non è un condòmino. È quella che si apre dalla busta ✉️ accanto al suo nome nell\'appello, da cui si può correggere l\'indirizzo e rimandarla. Il testo sulla privacy del legale si aggiunge sempre da solo e non si può cambiare: con {{privacy}} scegli dove metterlo.',
+    campoT:'testoInvitoEsterno', campoO:'oggettoInvitoEsterno', defT:()=>TESTO_INVITO_ESTERNO, defO:OGGETTO_INVITO_ESTERNO,
+    etichettaO:'Oggetto dell\'email',
+    seg:[['{{nome}}','nome del delegato'],['{{deleganti}}','chi gli ha dato la delega'],['{{nomecondominio}}','nome del condominio'],['{{oggetto}}','oggetto dell\'assemblea'],['{{quando}}','"in seconda convocazione il giorno … alle ore … presso …"'],['{{link_accesso}}','bottone e link per entrare'],['{{link_solo_voto}}','link per votare senza video'],['{{avviso_link}}','"Il link è personale: non inoltrarlo."'],['{{privacy}}','testo privacy del legale (obbligatorio)'],['{{firma_amministratore}}','la tua firma (dal Profilo)']],
+    segO:[['{{oggetto}}','oggetto dell\'assemblea'],['{{nomecondominio}}','nome del condominio']] },
+  { k:'odg', titolo:'Testo: avviso di ordine del giorno modificato',
+    spiega:'Quando modifichi l\'ordine del giorno dopo aver mandato la convocazione e la rimandi, in cima all\'email compare un riquadro giallo con questo avviso. Sotto segue la convocazione completa, con il nuovo ordine del giorno.',
+    campoT:'testoAvvisoOdg', campoO:'oggettoAvvisoOdg', defT:()=>TESTO_AVVISO_ODG, defO:OGGETTO_AVVISO_ODG,
+    etichettaO:'Oggetto dell\'email aggiornata',
+    seg:[['{{oggetto}}','oggetto dell\'assemblea'],['{{nomecondominio}}','nome del condominio']],
+    segO:[['{{oggetto}}','oggetto dell\'assemblea'],['{{nomecondominio}}','nome del condominio']] }
+];
+function renderTestiComunicazioni(){
+  const cont = document.getElementById('pref-testi-comunicazioni');
+  if(!cont) return;
+  const chip = (k, campo, s) => `<button type="button" class="btn small secondary" style="margin:0 6px 6px 0;font-family:var(--font-mono);font-size:12px;" title="${escapeHtml(s[1])}" onclick="inserisciSegnapostoComunicazione('${k}','${campo}','${s[0]}')">${escapeHtml(s[0])}</button>`;
+  const elenco = (lista) => '<ul class="muted" style="margin:6px 0 0 18px;padding:0;font-size:12.5px;line-height:1.6;">' + lista.map(s=>`<li><code>${escapeHtml(s[0])}</code> — ${escapeHtml(s[1])}</li>`).join('') + '</ul>';
+  cont.innerHTML = TESTI_COMUNICAZIONI.map(d=>`
+      <div class="frame-dark" style="margin-bottom:18px;">
+      <div class="frame-dark-title">${escapeHtml(d.titolo)}</div>
+      <div class="card frame-dark-hover">
+        <p class="muted" style="margin-bottom:14px;">${escapeHtml(d.spiega)}</p>
+        <div class="field">
+          <label>${escapeHtml(d.etichettaO)}</label>
+          <input type="text" id="pref-tc-${d.k}-oggetto">
+          <div style="margin-top:6px;">${d.segO.map(s=>chip(d.k,'oggetto',s)).join('')}</div>
+        </div>
+        <div class="field">
+          <label>Testo</label>
+          <textarea id="pref-tc-${d.k}-testo" rows="${d.k==='odg'?4:12}"></textarea>
+          <div style="margin-top:6px;">${d.seg.map(s=>chip(d.k,'testo',s)).join('')}</div>
+          <details style="margin-top:4px;"><summary class="muted" style="cursor:pointer;font-size:12.5px;">Cosa significano i segnaposto</summary>
+            <p class="muted" style="font-size:12.5px;margin:6px 0 0;">Al momento dell'invio ogni segnaposto viene sostituito con il dato vero. Premi un segnaposto qui sopra per inserirlo dove si trova il cursore.</p>${elenco(d.seg)}</details>
+        </div>
+        <div class="row-inline" style="gap:8px;flex-wrap:wrap;">
+          <button type="button" class="btn small secondary" style="flex:0 0 auto;" onclick="anteprimaTestoComunicazione('${d.k}')">Anteprima</button>
+          <button type="button" class="btn small secondary" style="flex:0 0 auto;" onclick="ripristinaTestoComunicazione('${d.k}')">Ripristina testo originale</button>
+        </div>
+        <div id="pref-tc-${d.k}-anteprima" class="hidden" style="margin-top:14px;"></div>
+      </div>
+      </div>`).join('');
+  TESTI_COMUNICAZIONI.forEach(d=>{
+    const t = amministratore[d.campoT], o = amministratore[d.campoO];
+    document.getElementById(`pref-tc-${d.k}-testo`).value = (t && t.trim()) ? t : d.defT();
+    document.getElementById(`pref-tc-${d.k}-oggetto`).value = (o && o.trim()) ? o : d.defO;
+  });
+}
+// Se il testo è uguale a quello di Riunion si salva vuoto: così, se un giorno Riunion migliora il
+// suo testo, chi non l'ha mai cambiato riceve la versione nuova.
+function leggiTestiComunicazioniDalModulo(){
+  TESTI_COMUNICAZIONI.forEach(d=>{
+    const ct = document.getElementById(`pref-tc-${d.k}-testo`), co = document.getElementById(`pref-tc-${d.k}-oggetto`);
+    if(!ct || !co) return;
+    const t = ct.value, o = co.value.trim();
+    amministratore[d.campoT] = (t.trim()==='' || t.trim()===d.defT().trim()) ? '' : t;
+    amministratore[d.campoO] = (o==='' || o===d.defO) ? '' : o;
+  });
+}
+function inserisciSegnapostoComunicazione(k, campo, seg){
+  const el = document.getElementById(`pref-tc-${k}-${campo}`);
+  if(!el) return;
+  const i = el.selectionStart!=null ? el.selectionStart : el.value.length, f = el.selectionEnd!=null ? el.selectionEnd : i;
+  el.value = el.value.slice(0, i) + seg + el.value.slice(f);
+  el.focus(); el.selectionStart = el.selectionEnd = i + seg.length;
+}
+function ripristinaTestoComunicazione(k){
+  const d = TESTI_COMUNICAZIONI.find(x=>x.k===k); if(!d) return;
+  if(!confirm('Vuoi rimettere il testo e l\'oggetto originali di Riunion?\n\nIl cambiamento diventa definitivo quando premi "Salva preferenze".')) return;
+  document.getElementById(`pref-tc-${k}-testo`).value = d.defT();
+  document.getElementById(`pref-tc-${k}-oggetto`).value = d.defO;
+  const box = document.getElementById(`pref-tc-${k}-anteprima`); if(box) box.classList.add('hidden');
+}
+// Anteprima con dati di esempio, usando le stesse funzioni che preparano le email vere.
+function anteprimaTestoComunicazione(k){
+  const d = TESTI_COMUNICAZIONI.find(x=>x.k===k); if(!d) return;
+  const testo = document.getElementById(`pref-tc-${k}-testo`).value;
+  const oggettoModello = document.getElementById(`pref-tc-${k}-oggetto`).value;
+  const b = {nome:'Condominio Via Verdi 12'};
+  const a = {oggetto:'Rifacimento della facciata', tipo:'ordinaria', modalita:'mista', dataPrima:'19/11/2026', oraPrima:'08:00', dataSeconda:'20/11/2026', oraSeconda:'18:30', luogo:'Sala riunioni, Via Verdi 12'};
+  const salvati = {t: amministratore[d.campoT], o: amministratore[d.campoO]};
+  amministratore[d.campoO] = oggettoModello;
+  let oggetto = '', corpo = '';
+  try{
+    if(k==='ospite'){
+      a.testoOspiti = testo;
+      oggetto = oggettoInvitoOspite(a, b);
+      corpo = costruisciEmailOspite({nome:'Mario Bianchi', ditta:'Bianchi Impianti srl', token:'esempio'}, a, b).replace(/\n/g,'<br>');
+    }else if(k==='esterno'){
+      oggetto = oggettoInvitoEsterno(a, b);
+      corpo = corpoInvitoEsterno(testo, {nome:'Laura Neri', deleganti:'Rossi Giovanni', nomecondominio:escapeHtml(b.nome), oggetto:escapeHtml(a.oggetto), quando:quandoInvitoEsterno(a), link: window.location.origin + window.location.pathname + '?token=esempio&assemblea=1', modalita:a.modalita});
+    }else{
+      oggetto = oggettoAvvisoOdg(a, b);
+      corpo = notaAvvisoOdg(testo, a, b) + '<div class="muted" style="font-style:italic;">(qui sotto segue la convocazione completa, con il nuovo ordine del giorno)</div>';
+    }
+  }finally{
+    amministratore[d.campoT] = salvati.t; amministratore[d.campoO] = salvati.o;
+  }
+  const box = document.getElementById(`pref-tc-${k}-anteprima`);
+  box.innerHTML = `<div class="frame-dark-title" style="margin-top:0;">Anteprima con dati di esempio</div>
+    <div class="card" style="margin:0;"><div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#555;margin-bottom:10px;"><b>Oggetto:</b> ${escapeHtml(oggetto||'')}</div>
+    <div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#2B2E33;">${corpo}</div></div>`;
+  box.classList.remove('hidden');
+}
+
 let __contatoreOspiti = 1;
 // LT-307 — Token dei link personali: 30 caratteri casuali (circa 155 bit) presi dal generatore
 // sicuro del browser, al posto di Math.random (prevedibile e di soli 8 caratteri).
@@ -7986,7 +8202,7 @@ function costruisciEmailOspite(o, a, b){
   b = b || getActiveBuilding();
   const link = linkOspite(a, o);
   const linkHtml = `<a class="email-link-btn" href="${link}" target="_blank">Entra in videochiamata →</a><div class="muted" style="margin-top:8px;font-family:var(--font-mono);">${link}</div>`;
-  const testo = (a.testoOspiti && a.testoOspiti.trim()) ? a.testoOspiti : TESTO_INVITO_OSPITE;
+  const testo = (a.testoOspiti && a.testoOspiti.trim()) ? a.testoOspiti : testoInvitoOspiteStandard();
   return testo
     .replaceAll('{{nome}}', o.nome||'')
     .replaceAll('{{ditta}}', o.ditta||'')
@@ -8025,8 +8241,7 @@ async function inviaInvitoOspite(idOspite){
   // giorno, così invitare un tecnico tre giorni dopo non tocca nulla di quanto già fatto.
   salvaAssembleaInElenco();
   if(!salvaStato()){ toast('ATTENZIONE: il salvataggio non è riuscito — invito NON inviato. Riprova.'); return; }
-  const oggetto = a.oggetto ? ('Invito come ospite — ' + a.oggetto)
-                            : ('Invito come ospite all\'assemblea del condominio ' + (b.nome||''));
+  const oggetto = oggettoInvitoOspite(a, b);   // LT-340
   const corpo = costruisciEmailOspite(o, a, b);
   if(!confirm('Stai per inviare una email VERA a:\n\n' + (o.nome||'') + ' <' + o.email + '>\n\nConfermi l\'invio?')) return;
   try{
@@ -8106,7 +8321,7 @@ async function inviaInvitoOspiteSala(idOspite){
   if(!o || !o.email) return;
   if(!confirm('Stai per inviare una email VERA a:\n\n' + (o.nome||'') + ' <' + o.email + '>\n\nConfermi l\'invio?')) return;
   try{
-    await inviaEmailVera(o.email, a.oggetto ? ('Invito come ospite — ' + a.oggetto) : ('Invito come ospite all\'assemblea del condominio ' + (b.nome||'')), costruisciEmailOspite(o, a, b));
+    await inviaEmailVera(o.email, oggettoInvitoOspite(a, b), costruisciEmailOspite(o, a, b));
     o.invitoInviato = new Date().toLocaleString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
     salvaStato();
     renderOspitiSala();
@@ -8420,13 +8635,12 @@ async function salvaESpedisciAssemblea(){
 
   toast(`Invio in corso di ${convocati.length} email...`);
   let riusciti=0, falliti=[], ultimoMotivo='';
-  const notaReinvio = odgCambiato
-    ? `<div style="border:1px solid #C9A227;background:#FFF8E1;padding:10px 12px;border-radius:4px;margin-bottom:14px;"><b>COMUNICAZIONE AGGIORNATA</b>: l'ordine del giorno è stato modificato rispetto alla convocazione precedente. Le deleghe già concesse restano valide; se vuoi, puoi cambiarle dal tuo link.</div>`
-    : '';
+  const notaReinvio = odgCambiato ? notaAvvisoOdg(amministratore.testoAvvisoOdg, a, b) : '';   // LT-340
+  const oggettoInvio = odgCambiato ? oggettoAvvisoOdg(a, b) : a.oggetto;
   for(const c of convocati){
     const corpo = notaReinvio + costruisciEmail(c, a, b);
     try{
-      await inviaEmailVera(c.email, a.oggetto, corpo);
+      await inviaEmailVera(c.email, oggettoInvio, corpo);
       riusciti++;
     }catch(e){
       console.error('[Adunanza] Invio fallito per', c.email, e);
