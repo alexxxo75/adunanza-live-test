@@ -1,8 +1,10 @@
 // POST /api/amministratori/statistiche   (nessun corpo)
+// Con corpo { cosa: '2fa' } risponde invece con l'elenco degli account che hanno il 2FA attivo
+// (serve all'icona "azzera 2FA" di /gestione): sta qui per tenere il numero di funzioni sotto il limite di Vercel.
 // Solo un ADMINISTRATOR. Per ogni amministratore di condominio: quanti e quali condomini gestisce,
 // quante unità sono registrate in ciascuno, quante assemblee ha concluse / in corso / pianificate e,
 // per le concluse, durata e partecipanti. Restituisce SOLO numeri: mai i nomi dei condòmini.
-import { errore, richiediAdministrator, rispondiErrore } from '../../lib/supabase.js';
+import { errore, leggiCorpo, richiediAdministrator, rispondiErrore } from '../../lib/supabase.js';
 
 // Supabase restituisce al massimo 1000 righe per richiesta: si legge a pagine.
 async function leggiTutto(costruisci) {
@@ -21,6 +23,18 @@ export default async function handler(req, res) {
   try {
     if (req.method !== 'POST') throw errore(405, 'Metodo non consentito.');
     const { db } = await richiediAdministrator(req);
+
+    if (leggiCorpo(req).cosa === '2fa') {
+      const { data: righe2, error: err2 } = await db.from('amministratori').select('id');
+      if (err2) throw errore(500, 'Impossibile leggere l\'elenco degli amministratori.');
+      const attivi = [];
+      await Promise.all((righe2 || []).map(async (r) => {
+        const { data, error } = await db.auth.admin.mfa.listFactors({ userId: r.id });
+        if (error) return;   // in dubbio: non lo segno come attivo
+        if (((data && data.factors) || []).some((f) => f.status === 'verified')) attivi.push(r.id);
+      }));
+      return res.status(200).json({ ok: true, con_2fa: attivi });
+    }
 
     const [amm, stabili, unita, assemblee, vivi] = await Promise.all([
       leggiTutto(() => db.from('amministratori').select('id, nome, cognome, email, attivo, ruolo').eq('ruolo', 'amministratore').order('id')),
