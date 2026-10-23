@@ -202,23 +202,34 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
         <input id="f-cerca" type="search" placeholder="Cerca per nome o email" autocomplete="off" aria-label="Cerca per nome o email">
       </div>
-      <div class="multi" id="f-tipo" data-titolo="Tipo"></div>
       <div class="multi" id="f-stato" data-titolo="Stato"></div>
       <button id="f-azzera" class="btn btn-piccolo" type="button" hidden>Azzera filtri</button>
       <span id="f-conta" class="piccolo"></span>
     </div>
 
-    <section class="carta">
-      <div class="carta-testa"><h2>Elenco utenti</h2></div>
+    <section class="carta" id="sez-administrator">
+      <div class="carta-testa"><h2>ADMINISTRATOR (gestione della piattaforma) <span class="piccolo" id="conta-administrator"></span></h2></div>
       <div class="tabella-scorri">
         <table>
-          <thead><tr><th>Nome</th><th>Email</th><th>Tipo</th><th>Stato</th><th>Creato il</th><th></th></tr></thead>
-          <tbody id="elenco"></tbody>
+          <thead><tr><th>Nome</th><th>Email</th><th>Stato</th><th>Creato il</th><th></th></tr></thead>
+          <tbody id="elenco-administrator"></tbody>
         </table>
       </div>
-      <p id="elenco-vuoto" class="vuoto" hidden>Nessun utente.</p>
-      <div id="elenco-msg" class="msg" hidden></div>
+      <p id="vuoto-administrator" class="vuoto" hidden>Nessun utente.</p>
     </section>
+
+    <section class="carta" id="sez-amministratore">
+      <div class="carta-testa"><h2>Amministratori di condominio <span class="piccolo" id="conta-amministratore"></span></h2></div>
+      <div class="tabella-scorri">
+        <table>
+          <thead><tr><th>Nome</th><th>Email</th><th>Stato</th><th>Creato il</th><th></th></tr></thead>
+          <tbody id="elenco-amministratore"></tbody>
+        </table>
+      </div>
+      <p id="vuoto-amministratore" class="vuoto" hidden>Nessun utente.</p>
+    </section>
+
+    <div id="elenco-msg" class="msg" hidden></div>
   </main>
 
   <dialog id="dlg-profilo" class="dialogo" aria-labelledby="dlg-titolo">
@@ -442,7 +453,7 @@
 
   var elencoDati = [];
   var con2fa = null;   // { idUtente: true } per chi ha il 2FA attivo; null = non so (icona attiva per tutti)
-  var filtro = { testo: '', tipo: {}, stato: {} };
+  var filtro = { testo: '', stato: {} };
   function statoDi(u) { return !u.attivo ? 'disattivo' : (u.invito_accettato === false ? 'invitato' : 'attivo'); }
   function passaFiltri(u) {
     var t = filtro.testo;
@@ -450,8 +461,7 @@
       var pagliaio = ((u.nome || '') + ' ' + (u.cognome || '') + ' ' + (u.email || '')).toLowerCase();
       if (pagliaio.indexOf(t) === -1) return false;
     }
-    var tipi = Object.keys(filtro.tipo), stati = Object.keys(filtro.stato);
-    if (tipi.length && tipi.indexOf(u.ruolo) === -1) return false;
+    var stati = Object.keys(filtro.stato);
     if (stati.length && stati.indexOf(statoDi(u)) === -1) return false;
     return true;
   }
@@ -496,19 +506,18 @@
     cont.aggiorna = aggiorna; aggiorna();
   }
   function iniziaFiltri() {
-    creaMulti('f-tipo', [['amministratore', 'Amministratore'], ['administrator', 'ADMINISTRATOR']], 'tipo');
     creaMulti('f-stato', [['attivo', 'Attivo'], ['invitato', 'Invitato - in attesa'], ['disattivo', 'Disattivo']], 'stato');
     $('f-cerca').addEventListener('input', function () { filtro.testo = this.value.trim().toLowerCase(); disegnaElenco(); });
     $('f-azzera').addEventListener('click', function () {
-      filtro = { testo: '', tipo: {}, stato: {} }; $('f-cerca').value = '';
-      $('f-tipo').aggiorna(); $('f-stato').aggiorna(); disegnaElenco();
+      filtro = { testo: '', stato: {} }; $('f-cerca').value = '';
+      $('f-stato').aggiorna(); disegnaElenco();
     });
   }
 
   async function caricaElenco() {
     messaggio('elenco-msg', '');
     var r = await sb.rpc('elenco_amministratori');
-    if (r.error) { $('elenco').textContent = ''; messaggio('elenco-msg', 'Impossibile caricare l\'elenco: ' + r.error.message, 'err'); return; }
+    if (r.error) { TIPI.forEach(function (t) { $('elenco-' + t).textContent = ''; }); messaggio('elenco-msg', 'Impossibile caricare l\'elenco: ' + r.error.message, 'err'); return; }
     elencoDati = r.data || [];
     disegnaElenco();
     // Quali account hanno davvero il 2FA attivo? Se la richiesta fallisce, l'icona resta attiva per tutti (come prima).
@@ -520,23 +529,28 @@
     } catch (e) { con2fa = null; }
   }
 
+  // Due tabelle separate, una per tipo di utente. Le colonne sono definite qui, tabella per tabella.
+  var TIPI = ['administrator', 'amministratore'];
   function disegnaElenco() {
-    var corpo = $('elenco');
-    corpo.textContent = '';
-    var righe = elencoDati.filter(passaFiltri);
-    var filtrato = !!(filtro.testo || Object.keys(filtro.tipo).length || Object.keys(filtro.stato).length);
-    $('elenco-vuoto').hidden = righe.length > 0;
-    $('elenco-vuoto').textContent = elencoDati.length ? 'Nessun utente corrisponde ai filtri.' : 'Nessun utente.';
+    var filtrato = !!(filtro.testo || Object.keys(filtro.stato).length);
     $('f-azzera').hidden = !filtrato;
-    $('f-conta').textContent = elencoDati.length ? (filtrato ? righe.length + ' di ' + elencoDati.length + ' utenti' : elencoDati.length + ' utenti') : '';
-    righe.forEach(function (u) {
+    $('f-conta').textContent = elencoDati.length ? (filtrato ? elencoDati.filter(passaFiltri).length + ' di ' + elencoDati.length + ' utenti' : elencoDati.length + ' utenti') : '';
+    TIPI.forEach(function (tipo) {
+      var corpo = $('elenco-' + tipo);
+      corpo.textContent = '';
+      var tutti = elencoDati.filter(function (u) { return u.ruolo === tipo; });
+      var righe = tutti.filter(passaFiltri);
+      $('conta-' + tipo).textContent = tutti.length ? '(' + (filtrato ? righe.length + ' di ' + tutti.length : tutti.length) + ')' : '';
+      $('vuoto-' + tipo).hidden = righe.length > 0;
+      $('vuoto-' + tipo).textContent = tutti.length ? 'Nessun utente corrisponde ai filtri.' : 'Nessun utente.';
+      righe.forEach(function (u) { corpo.appendChild(rigaUtente(u)); });
+    });
+  }
+  function rigaUtente(u) {
       var tr = document.createElement('tr');
       var nomeCompleto = ((u.nome || '') + ' ' + (u.cognome || '')).trim() || '—';
       tr.appendChild(cella(nomeCompleto, 'nome'));
       tr.appendChild(cella(u.email, 'piccolo'));
-      tr.appendChild(u.ruolo === 'administrator'
-        ? badge('ADMINISTRATOR', 'badge-review')
-        : badge('Amministratore', 'badge-working'));
       tr.appendChild(!u.attivo ? pallino('D', 'stato-d', 'DISATTIVO')
         : (u.invito_accettato === false ? pallino('I', 'stato-i', 'INVITATO - IN ATTESA DI ACCETTAZIONE') : pallino('A', 'stato-a', 'ATTIVO')));
       tr.appendChild(cella(dataBreve(u.creato_il), 'piccolo'));
@@ -565,8 +579,7 @@
         tdAz.textContent = '(tu)';
       }
       tr.appendChild(tdAz);
-      corpo.appendChild(tr);
-    });
+      return tr;
   }
 
   async function reinvia(utente, modo, bottone) {
