@@ -50,6 +50,32 @@
 .multi-voce input:checked + .multi-casella{background:var(--accent);border-color:var(--accent)}
 .multi-voce input:checked + .multi-casella svg{opacity:1}
 .multi-voce input:focus-visible + .multi-casella{outline:2px solid var(--accent);outline-offset:2px}
+.st-riquadri{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin:0 0 18px}
+.st-riq{border:1px solid var(--border);border-radius:12px;padding:16px 18px;background:var(--surface,transparent)}
+.st-riq .et{font-size:13px;font-weight:500;color:var(--text-muted)}
+.st-riq .val{font-size:30px;font-weight:700;margin-top:2px;line-height:1.15}
+.st-riq .nota{font-size:13px;color:var(--text-muted);margin-top:2px}
+.st-freccia{display:inline-flex;width:20px;height:20px;align-items:center;justify-content:center;transition:transform .15s}
+.st-freccia svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+tr.st-adm{cursor:pointer}
+tr.st-adm:hover td{background:var(--border-soft)}
+tr.st-adm.aperta .st-freccia{transform:rotate(90deg)}
+tr.st-sotto > td{padding:0 0 0 44px;background:var(--border-soft)}
+.st-interna{width:100%;margin:6px 0 14px;background:var(--surface,var(--bg,#fff));border:1px solid var(--border);border-radius:10px}
+.st-interna th,.st-interna td{padding:10px 14px}
+.st-link{background:none;border:0;padding:0;font:inherit;font-weight:600;color:var(--accent);cursor:pointer;text-align:left}
+.st-link:hover{text-decoration:underline}
+.st-live{display:inline-flex;align-items:center;gap:6px;background:#dcfce7;color:#166534;font-weight:600;font-size:12px;padding:2px 10px;border-radius:999px}
+.st-live::before{content:"";width:7px;height:7px;border-radius:50%;background:#16a34a}
+.st-pian{background:#dbeafe;color:#1e40af}
+.st-barre{display:flex;align-items:flex-end;gap:22px;height:190px;padding:0 8px;border-bottom:1px solid var(--border)}
+.st-barre > div{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px}
+.st-barre .b{width:100%;max-width:72px;background:var(--accent);border-radius:6px 6px 0 0}
+.st-barre strong{font-size:14px}
+.st-date{display:flex;gap:22px;padding:8px 8px 0}
+.st-date span{flex:1 1 0;min-width:0;text-align:center;color:var(--text-muted);font-size:13px}
+.st-indietro{display:inline-flex;align-items:center;gap:6px;background:none;border:0;padding:0;font:inherit;font-size:14px;font-weight:500;color:var(--accent);cursor:pointer;margin-bottom:6px}
+.st-indietro svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 </style>
 </head>
 <body>
@@ -93,9 +119,13 @@
   <header class="topbar">
     <a class="marchio" href="/gestione/" aria-label="Riunion"><span class="marchio-icona">R</span><span class="marchio-testo">Riunion</span></a>
     <nav class="menu" aria-label="Menu principale">
-      <a href="/gestione/" aria-current="page">
+      <a href="#/utenti" id="nav-utenti" aria-current="page">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         Utenti
+      </a>
+      <a href="#/statistiche" id="nav-statistiche">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+        Statistiche
       </a>
     </nav>
     <div class="profilo">
@@ -129,6 +159,7 @@
   </header>
 
   <main class="contenuto animate-fadeIn">
+    <div id="sez-utenti">
     <div class="testata testata-riga">
       <div>
         <h1>Utenti</h1>
@@ -230,6 +261,32 @@
     </section>
 
     <div id="elenco-msg" class="msg" hidden></div>
+      </div>
+
+    <div id="sez-statistiche" hidden>
+      <div id="st-elenco-vista">
+        <div class="testata"><h1>Statistiche</h1><p>Quanti condomini gestisce ciascun amministratore e come vanno le sue assemblee. Si mostrano solo numeri, mai i nomi dei condòmini.</p></div>
+        <div class="st-riquadri" id="st-riquadri"></div>
+        <div class="filtri">
+          <div class="filtro-cerca">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input id="st-cerca" type="search" placeholder="Cerca per nome o email" autocomplete="off" aria-label="Cerca per nome o email">
+          </div>
+          <span id="st-conta" class="piccolo"></span>
+        </div>
+        <section class="carta">
+          <div class="tabella-scorri">
+            <table>
+              <thead><tr><th></th><th>Amministratore</th><th>Condomini</th><th>Unità totali</th><th>Concluse</th><th>In corso</th><th>Pianificate</th></tr></thead>
+              <tbody id="st-corpo"></tbody>
+            </table>
+          </div>
+          <p id="st-vuoto" class="vuoto" hidden>Nessun amministratore.</p>
+        </section>
+      </div>
+      <div id="st-dettaglio-vista" hidden></div>
+      <div id="st-msg" class="msg" hidden></div>
+    </div>
   </main>
 
   <dialog id="dlg-profilo" class="dialogo" aria-labelledby="dlg-titolo">
@@ -402,6 +459,7 @@
     aggiornaIntestazione();
     apriMenu(false);
     mostra('v-pannello');
+    instrada();
     await caricaElenco();
   }
   async function rifiuta(testo) {
@@ -580,6 +638,195 @@
       }
       tr.appendChild(tdAz);
       return tr;
+  }
+
+
+  // ---------- Statistiche (solo ADMINISTRATOR) ----------
+  var stDati = null, stAperti = {}, stSel = null, stCerca = '';
+  function stNum(n) { return n === null || n === undefined ? '—' : String(n); }
+  function stDurata(min) {
+    if (min === null || min === undefined) return '—';
+    var h = Math.floor(min / 60), m = min % 60;
+    return h ? h + ' h ' + (m < 10 ? '0' : '') + m + ' min' : m + ' min';
+  }
+  function stData(iso) {
+    if (!iso) return '—';
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso));
+    return m ? m[3] + '/' + m[2] + '/' + m[1] : String(iso);
+  }
+  function stEl(tag, testo, classe) {
+    var e = document.createElement(tag);
+    if (testo !== undefined && testo !== null) e.textContent = testo;
+    if (classe) e.className = classe;
+    return e;
+  }
+  function stTd(contenuto, classe) {
+    var td = document.createElement('td');
+    if (classe) td.className = classe;
+    if (contenuto && contenuto.nodeType) td.appendChild(contenuto); else td.textContent = contenuto === undefined || contenuto === null ? '' : contenuto;
+    return td;
+  }
+  function stLive(testo, pian) { return stEl('span', testo, 'st-live' + (pian ? ' st-pian' : '')); }
+  function stRiquadri(box, elenco) {
+    box.textContent = '';
+    elenco.forEach(function (r) {
+      var d = stEl('div', null, 'st-riq');
+      d.appendChild(stEl('div', r[0], 'et')); d.appendChild(stEl('div', r[1], 'val'));
+      if (r[2]) d.appendChild(stEl('div', r[2], 'nota'));
+      box.appendChild(d);
+    });
+  }
+  function stSomme(a) {
+    var t = { condomini: a.condomini.length, unita: 0, concluse: 0, in_corso: 0, pianificate: 0 };
+    a.condomini.forEach(function (c) { t.unita += c.unita; t.concluse += c.concluse; t.in_corso += c.in_corso; t.pianificate += c.pianificate; });
+    return t;
+  }
+  async function caricaStatistiche() {
+    messaggio('st-msg', '');
+    try {
+      var j = await chiamaApi('/api/amministratori/statistiche', {});
+      stDati = j;
+      disegnaStatistiche();
+    } catch (e) {
+      messaggio('st-msg', 'Impossibile caricare le statistiche: ' + e.message, 'err');
+    }
+  }
+  function disegnaStatistiche() {
+    if (!stDati) return;
+    if (stSel) { disegnaDettaglio(); return; }
+    $('st-elenco-vista').hidden = false; $('st-dettaglio-vista').hidden = true;
+    var tutti = stDati.amministratori, tot = { cond: 0, conc: 0, live: 0 };
+    tutti.forEach(function (a) { var t = stSomme(a); tot.cond += t.condomini; tot.conc += t.concluse; tot.live += t.in_corso; });
+    stRiquadri($('st-riquadri'), [
+      ['Amministratori', String(tutti.length), null],
+      ['Condomini gestiti', String(tot.cond), null],
+      ['Assemblee concluse', String(tot.conc), null],
+      ['In corso adesso', String(tot.live), null]
+    ]);
+    var q = stCerca;
+    var righe = tutti.filter(function (a) { return !q || ((a.nome + ' ' + a.cognome + ' ' + a.email).toLowerCase().indexOf(q) !== -1); });
+    $('st-conta').textContent = tutti.length ? (q ? righe.length + ' di ' + tutti.length + ' amministratori' : tutti.length + ' amministratori') : '';
+    $('st-vuoto').hidden = righe.length > 0;
+    $('st-vuoto').textContent = tutti.length ? 'Nessun amministratore corrisponde alla ricerca.' : 'Nessun amministratore.';
+    var corpo = $('st-corpo'); corpo.textContent = '';
+    righe.forEach(function (a) {
+      var t = stSomme(a), aperto = !!stAperti[a.id];
+      var tr = stEl('tr', null, 'st-adm' + (aperto ? ' aperta' : ''));
+      tr.tabIndex = 0; tr.setAttribute('aria-expanded', aperto ? 'true' : 'false');
+      var fr = stEl('span', null, 'st-freccia'); fr.innerHTML = '<svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>';
+      tr.appendChild(stTd(fr));
+      var chi = document.createElement('div');
+      chi.appendChild(stEl('div', ((a.nome || '') + ' ' + (a.cognome || '')).trim() || a.email, 'nome'));
+      if (a.nome || a.cognome) chi.appendChild(stEl('div', a.email, 'piccolo'));
+      if (!a.attivo) chi.appendChild(badge('Disattivo', 'badge-off'));
+      tr.appendChild(stTd(chi));
+      tr.appendChild(stTd(t.condomini)); tr.appendChild(stTd(t.unita)); tr.appendChild(stTd(t.concluse));
+      tr.appendChild(stTd(t.in_corso ? stLive(t.in_corso + ' live') : '—'));
+      tr.appendChild(stTd(t.pianificate));
+      var apriChiudi = function () { stAperti[a.id] = !stAperti[a.id]; disegnaStatistiche(); };
+      tr.addEventListener('click', apriChiudi);
+      tr.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); apriChiudi(); } });
+      corpo.appendChild(tr);
+      if (aperto) {
+        var sotto = stEl('tr', null, 'st-sotto'), td = document.createElement('td'); td.colSpan = 7;
+        if (!a.condomini.length) {
+          td.appendChild(stEl('p', 'Nessun condominio registrato.', 'vuoto'));
+        } else {
+          var tab = stEl('table', null, 'st-interna');
+          var th = document.createElement('thead'); th.innerHTML = '<tr><th>Condominio</th><th>Unità registrate</th><th>Concluse</th><th>In corso</th><th>Pianificate</th></tr>';
+          tab.appendChild(th);
+          var tb = document.createElement('tbody');
+          a.condomini.forEach(function (c) {
+            var r = document.createElement('tr');
+            var bt = stEl('button', c.nome, 'st-link'); bt.type = 'button';
+            bt.addEventListener('click', function () { stSel = { adm: a.id, cond: c.id }; disegnaStatistiche(); window.scrollTo(0, 0); });
+            r.appendChild(stTd(bt)); r.appendChild(stTd(c.unita)); r.appendChild(stTd(c.concluse));
+            r.appendChild(stTd(c.in_corso ? stLive('live') : '—')); r.appendChild(stTd(c.pianificate));
+            tb.appendChild(r);
+          });
+          tab.appendChild(tb); td.appendChild(tab);
+        }
+        sotto.appendChild(td); corpo.appendChild(sotto);
+      }
+    });
+  }
+  function disegnaDettaglio() {
+    var a = stDati.amministratori.filter(function (x) { return x.id === stSel.adm; })[0];
+    var c = a && a.condomini.filter(function (x) { return x.id === stSel.cond; })[0];
+    if (!c) { stSel = null; disegnaStatistiche(); return; }
+    $('st-elenco-vista').hidden = true;
+    var v = $('st-dettaglio-vista'); v.hidden = false; v.textContent = '';
+    var ind = stEl('button', null, 'st-indietro'); ind.type = 'button';
+    ind.innerHTML = '<svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg>';
+    ind.appendChild(document.createTextNode('Statistiche / ' + (((a.nome || '') + ' ' + (a.cognome || '')).trim() || a.email)));
+    ind.addEventListener('click', function () { stSel = null; disegnaStatistiche(); });
+    v.appendChild(ind);
+    var testa = stEl('div', null, 'testata');
+    testa.appendChild(stEl('h1', c.nome));
+    testa.appendChild(stEl('p', 'Amministratore: ' + (((a.nome || '') + ' ' + (a.cognome || '')).trim() || a.email) + ' · ' + c.unita + ' unità registrate'));
+    v.appendChild(testa);
+    var concl = c.assemblee.filter(function (x) { return x.stato === 'conclusa'; });
+    var conDurata = concl.filter(function (x) { return x.durata_min !== null; });
+    var mediaDur = conDurata.length ? Math.round(conDurata.reduce(function (s, x) { return s + x.durata_min; }, 0) / conDurata.length) : null;
+    var mediaRem = concl.length ? Math.round(concl.reduce(function (s, x) { return s + (x.remoto || 0); }, 0) / concl.length) : null;
+    var rq = stEl('div', null, 'st-riquadri');
+    stRiquadri(rq, [
+      ['Unità registrate', String(c.unita), 'sotto questo condominio'],
+      ['Assemblee concluse', String(c.concluse), c.in_corso + ' in corso, ' + c.pianificate + ' pianificate'],
+      ['Durata media', stDurata(mediaDur), conDurata.length ? 'su ' + conDurata.length + ' assemblee' : 'non ancora disponibile'],
+      ['Da remoto, in media', mediaRem === null ? '—' : String(mediaRem), 'partecipanti per assemblea']
+    ]);
+    v.appendChild(rq);
+    // grafico: partecipanti da remoto, dalla più vecchia alla più recente
+    if (concl.length) {
+      var cart = stEl('section', null, 'carta');
+      var ct = stEl('div', null, 'carta-testa'); ct.appendChild(stEl('h2', 'Partecipanti da remoto per assemblea'));
+      ct.appendChild(stEl('p', 'Assemblee concluse, dalla più vecchia alla più recente'));
+      cart.appendChild(ct);
+      var ordine = concl.slice().sort(function (x, y) { return String(x.data || '').localeCompare(String(y.data || '')); }).slice(-12);
+      var max = Math.max.apply(null, ordine.map(function (x) { return x.remoto || 0; }).concat([1]));
+      var barre = stEl('div', null, 'st-barre'), date = stEl('div', null, 'st-date');
+      ordine.forEach(function (x) {
+        var col = document.createElement('div');
+        col.appendChild(stEl('strong', String(x.remoto || 0)));
+        var b = stEl('div', null, 'b'); b.style.height = Math.max(3, Math.round((x.remoto || 0) / max * 140)) + 'px';
+        col.appendChild(b); barre.appendChild(col);
+        date.appendChild(stEl('span', stData(x.data)));
+      });
+      cart.appendChild(barre); cart.appendChild(date); v.appendChild(cart);
+    }
+    var carta = stEl('section', null, 'carta'); carta.style.marginTop = '18px';
+    var ct2 = stEl('div', null, 'carta-testa'); ct2.appendChild(stEl('h2', 'Assemblee')); carta.appendChild(ct2);
+    if (!c.assemblee.length) {
+      carta.appendChild(stEl('p', 'Nessuna assemblea ancora.', 'vuoto'));
+    } else {
+      var scorri = stEl('div', null, 'tabella-scorri'), tab = document.createElement('table');
+      tab.innerHTML = '<thead><tr><th>Data</th><th>Oggetto</th><th>Tipo</th><th>Stato</th><th>Durata</th><th>Da remoto</th><th>In presenza</th></tr></thead>';
+      var tb = document.createElement('tbody');
+      c.assemblee.forEach(function (x) {
+        var r = document.createElement('tr');
+        r.appendChild(stTd(stData(x.data), 'nome'));
+        r.appendChild(stTd(x.oggetto || '—', 'piccolo'));
+        r.appendChild(stTd(x.tipo === 'straordinaria' ? 'Straordinaria' : 'Ordinaria'));
+        r.appendChild(stTd(x.stato === 'in-corso' ? stLive('In corso') : (x.stato === 'pianificata' ? stLive('Pianificata', true) : badge('Conclusa', 'badge-off'))));
+        r.appendChild(stTd(x.stato === 'conclusa' ? stDurata(x.durata_min) : '—'));
+        r.appendChild(stTd(x.stato === 'pianificata' ? '—' : stNum(x.remoto) + (x.stato === 'in-corso' ? ' collegati' : '')));
+        r.appendChild(stTd(x.stato === 'pianificata' ? '—' : stNum(x.presenza)));
+        tb.appendChild(r);
+      });
+      tab.appendChild(tb); scorri.appendChild(tab); carta.appendChild(scorri);
+    }
+    v.appendChild(carta);
+    if (!conDurata.length && concl.length) v.appendChild(stEl('p', 'La durata compare solo per le assemblee terminate dopo l\'aggiornamento che ne registra l\'orario di fine.', 'piccolo'));
+  }
+
+  // ---------- Schede: Utenti / Statistiche ----------
+  function instrada() {
+    var stat = /^#\/statistiche/.test(window.location.hash || '');
+    $('sez-utenti').hidden = stat; $('sez-statistiche').hidden = !stat;
+    if (stat) $('nav-statistiche').setAttribute('aria-current', 'page'); else $('nav-statistiche').removeAttribute('aria-current');
+    if (stat) $('nav-utenti').removeAttribute('aria-current'); else $('nav-utenti').setAttribute('aria-current', 'page');
+    if (stat) { stSel = null; caricaStatistiche(); }
   }
 
   async function reinvia(utente, modo, bottone) {
@@ -763,6 +1010,8 @@
     $('login-password').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') accedi(); });
     $('btn-dimenticata').addEventListener('click', passwordDimenticata);
     $('btn-invita').addEventListener('click', invita);
+    window.addEventListener('hashchange', function () { if (io) instrada(); });
+    $('st-cerca').addEventListener('input', function () { stCerca = this.value.trim().toLowerCase(); disegnaStatistiche(); });
     $('btn-salva-modifica').addEventListener('click', salvaModifica);
     $('btn-chiudi-modifica').addEventListener('click', chiudiModifica);
     $('modale-modifica').querySelector('.modale-sfondo').addEventListener('click', chiudiModifica);
