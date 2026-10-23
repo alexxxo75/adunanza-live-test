@@ -580,7 +580,7 @@ tr.st-sotto > td{padding:0 0 0 44px;background:var(--border-soft)}
     disegnaElenco();
     // Quali account hanno davvero il 2FA attivo? Se la richiesta fallisce, l'icona resta attiva per tutti (come prima).
     try {
-      var s2 = await chiamaApi('/api/amministratori/stato-2fa', {});
+      var s2 = await chiamaApi('/api/amministratori/statistiche', { cosa: '2fa' });
       con2fa = {};
       (s2.con_2fa || []).forEach(function (id) { con2fa[id] = true; });
       disegnaElenco();
