@@ -12289,6 +12289,7 @@ function terminaAssemblea(){
 
     // 4) questa assemblea è comunque conclusa, con il proprio verbale distinto
     aReale.stato = 'conclusa';
+    if(!aReale.oraFineEpoch) aReale.oraFineEpoch = Date.now();   // orario di fine: serve a calcolare la durata (statistiche di /gestione)
     activePoll=null; activePollOdgId=null;
     // Se un sondaggio era rimasto aperto (l'amministratore ha premuto "Termina" senza prima
     // chiuderlo), il suo riquadro fisico andrebbe altrimenti nascosto solo da closePoll(): qui
@@ -12551,6 +12552,9 @@ function sbRigheDesiderate(){
         convocati_modo: modoApp, convocati_tabelle: Array.isArray(conv.tabelle) ? conv.tabelle : [],
         oraInizio: a.oraInizio ?? null, registrazioneScadenza: a.registrazioneScadenza ?? null,
         assembleaPrecedenteId: a.assembleaPrecedenteId ?? null, assembleaSuccessivaId: a.assembleaSuccessivaId ?? null });
+      // orario di fine (serve alla durata nelle statistiche di /gestione): si scrive solo se noto,
+      // così un valore già presente sul database non viene mai cancellato
+      if(a.oraFineEpoch) extra.oraFineEpoch = a.oraFineEpoch;
       put('assemblee', {id:aid, stabile_id:sid, id_app:a.id, oggetto:String(a.oggetto||''), tipo:String(a.tipo||'ordinaria'),
         modalita:['in-presenza','mista','online'].includes(a.modalita) ? a.modalita : 'mista',
         data_prima:sbData(a.dataPrima), ora_prima:sbOra(a.oraPrima), data_seconda:sbData(a.dataSeconda), ora_seconda:sbOra(a.oraSeconda),
@@ -12704,6 +12708,8 @@ function sbCostruisci(D){
       a.assembleaPrecedenteId = prec; a.assembleaSuccessivaId = succ;
       if(ar.ora_inizio) a.oraInizioEpoch = new Date(ar.ora_inizio).getTime();
       else if(mem && mem.oraInizioEpoch) a.oraInizioEpoch = mem.oraInizioEpoch;
+      const fineEp = Number(ex.oraFineEpoch) || (mem && mem.oraFineEpoch) || null;
+      if(fineEp) a.oraFineEpoch = fineEp;
       const memOdg = new Map(((mem&&mem.odg)||[]).map(x=>[x.id,x]));
       a.odg = (odgPerAss.get(ar.id)||[]).slice().sort((x,y)=>x.posizione-y.posizione).map(p=>{
         m.odg.set(ar.id+':'+p.id_app, p.id);
@@ -12793,7 +12799,7 @@ async function avviaPartecipanteSupabase(){
 // Da lì si prendono SOLO le parti "vive"; ciò che sta su Supabase resta com'è in memoria.
 const SB_CHIAVI_ASS = ['oggetto','tipo','modalita','dataPrima','oraPrima','dataSeconda','oraSeconda','luogo','testo','tipoConvocazione','convocati','invitiInviati','stato','iniziata',
   'registrazioneAttiva','promemoriaVerbaleNascosto','descrizioneAllegati','testoOspiti','presidenteNominato','segretarioNominato','cronologiaCarichePresidenzaSegreteria','programmati','verbale'];
-const SB_CHIAVI_ASS_SE_PRESENTI = ['oraInizio','oraInizioEpoch','registrazioneScadenza','assembleaPrecedenteId','assembleaSuccessivaId'];   // la memoria vince solo se ha un valore
+const SB_CHIAVI_ASS_SE_PRESENTI = ['oraInizio','oraInizioEpoch','oraFineEpoch','registrazioneScadenza','assembleaPrecedenteId','assembleaSuccessivaId'];   // la memoria vince solo se ha un valore
 const SB_CHIAVI_ODG = ['testo','domandaSondaggio','opzioni','tabella','sondaggioAbilitato','prossimoNumeroDuplicato'];
 const SB_CHIAVI_OSPITE = ['nome','ditta','email','token'];
 function sbCopia(da, a, chiavi, soloSePresenti){
