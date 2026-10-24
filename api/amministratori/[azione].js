@@ -4,6 +4,7 @@
 // smistate per nome, lascia spazio per quelle future. Gli indirizzi restano quelli di prima.
 // La logica di ogni operazione sta in lib/amministratori/<azione>.js (la cartella "lib" non conta).
 import azzera2fa from '../../lib/amministratori/azzera-2fa.js';
+import fatturazione from '../../lib/amministratori/fatturazione.js';
 import invita from '../../lib/amministratori/invita.js';
 import modifica from '../../lib/amministratori/modifica.js';
 import reinvia from '../../lib/amministratori/reinvia.js';
@@ -12,6 +13,7 @@ import statistiche from '../../lib/amministratori/statistiche.js';
 
 const AZIONI = {
   'azzera-2fa': azzera2fa,
+  'fatturazione': fatturazione,
   'invita': invita,
   'modifica': modifica,
   'reinvia': reinvia,
