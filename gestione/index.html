@@ -68,6 +68,11 @@ tr.st-sotto > td{padding:0 0 0 44px;background:var(--border-soft)}
 .st-live{display:inline-flex;align-items:center;gap:6px;background:#dcfce7;color:#166534;font-weight:600;font-size:12px;padding:2px 10px;border-radius:999px}
 .st-live::before{content:"";width:7px;height:7px;border-radius:50%;background:#16a34a}
 .st-pian{background:#dbeafe;color:#1e40af}
+.fa{display:inline-block;font-weight:600;font-size:12px;padding:2px 10px;border-radius:999px;white-space:nowrap}
+.fa-prova{background:#e2e8f0;color:#334155}.fa-da{background:#fef3c7;color:#92400e}.fa-fatt{background:#dbeafe;color:#1e40af}.fa-pag{background:#dcfce7;color:#166534}
+.fa-riga{display:flex;align-items:center;gap:8px;flex-wrap:nowrap}
+.fa-sotto{font-size:12px;color:var(--text-muted);margin-top:3px;white-space:nowrap}
+.ico-btn.ico-mini{width:26px;height:26px;border-radius:7px}.ico-btn.ico-mini svg{width:14px;height:14px}
 .st-barre{display:flex;align-items:flex-end;gap:22px;height:190px;padding:0 8px;border-bottom:1px solid var(--border)}
 .st-barre > div{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px}
 .st-barre .b{width:100%;max-width:72px;background:var(--accent);border-radius:6px 6px 0 0}
@@ -262,6 +267,38 @@ tr.st-sotto > td{padding:0 0 0 44px;background:var(--border-soft)}
 
     <div id="elenco-msg" class="msg" hidden></div>
       </div>
+
+    <div id="modale-fatt" class="modale" hidden>
+      <div class="modale-sfondo"></div>
+      <section class="carta modale-carta" role="dialog" aria-modal="true" aria-labelledby="fat-titolo">
+        <button id="btn-chiudi-fatt" class="ico-btn modale-x" type="button" aria-label="Chiudi">
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+        <div class="carta-testa">
+          <h2 id="fat-titolo">Stato di fatturazione</h2>
+          <p id="fat-sotto"></p>
+        </div>
+      <div class="griglia">
+        <div>
+          <label for="fat-stato">Stato</label>
+          <select id="fat-stato">
+            <option value="in-prova">In prova (gratuita)</option>
+            <option value="da-fatturare">Da fatturare</option>
+            <option value="fatturata">Fatturata</option>
+            <option value="pagata">Pagata</option>
+          </select>
+        </div>
+        <div id="fat-w-num"><label for="fat-num">Numero fattura</label><input id="fat-num" type="text" autocomplete="off" maxlength="60"></div>
+      </div>
+      <div class="griglia">
+        <div id="fat-w-df"><label for="fat-df">Data fattura</label><input id="fat-df" type="date"></div>
+        <div id="fat-w-dp"><label for="fat-dp">Data pagamento</label><input id="fat-dp" type="date"></div>
+      </div>
+      <button id="btn-salva-fatt" class="btn btn-primario" type="button" style="margin-top:18px">Salva</button>
+      <div id="fat-msg" class="msg" hidden></div>
+      </section>
+    </div>
+
 
     <div id="sez-statistiche" hidden>
       <div id="st-elenco-vista">
@@ -769,12 +806,16 @@ tr.st-sotto > td{padding:0 0 0 44px;background:var(--border-soft)}
     var conDurata = concl.filter(function (x) { return x.durata_min !== null; });
     var mediaDur = conDurata.length ? Math.round(conDurata.reduce(function (s, x) { return s + x.durata_min; }, 0) / conDurata.length) : null;
     var mediaRem = concl.length ? Math.round(concl.reduce(function (s, x) { return s + (x.remoto || 0); }, 0) / concl.length) : null;
+    var avviate = c.assemblee.filter(function (x) { return x.fatturazione; });
+    function conta(s) { return avviate.filter(function (x) { return x.fatturazione.stato === s; }).length; }
+    var contaNota = conta('in-prova') + ' in prova, ' + conta('fatturata') + ' fatturate, ' + conta('pagata') + ' pagate';
     var rq = stEl('div', null, 'st-riquadri');
     stRiquadri(rq, [
       ['Unità registrate', String(c.unita), 'sotto questo condominio'],
       ['Assemblee concluse', String(c.concluse), c.in_corso + ' in corso, ' + c.pianificate + ' pianificate'],
       ['Durata media', stDurata(mediaDur), conDurata.length ? 'su ' + conDurata.length + ' assemblee' : 'non ancora disponibile'],
-      ['Da remoto, in media', mediaRem === null ? '—' : String(mediaRem), 'partecipanti per assemblea']
+      ['Da remoto, in media', mediaRem === null ? '—' : String(mediaRem), 'partecipanti per assemblea'],
+      ['Da fatturare', String(conta('da-fatturare')), contaNota]
     ]);
     v.appendChild(rq);
     // grafico: partecipanti da remoto, dalla più vecchia alla più recente
@@ -801,7 +842,7 @@ tr.st-sotto > td{padding:0 0 0 44px;background:var(--border-soft)}
       carta.appendChild(stEl('p', 'Nessuna assemblea ancora.', 'vuoto'));
     } else {
       var scorri = stEl('div', null, 'tabella-scorri'), tab = document.createElement('table');
-      tab.innerHTML = '<thead><tr><th>Data</th><th>Oggetto</th><th>Tipo</th><th>Stato</th><th>Durata</th><th>Da remoto</th><th>In presenza</th></tr></thead>';
+      tab.innerHTML = '<thead><tr><th>Data</th><th>Oggetto</th><th>Tipo</th><th>Stato</th><th>Durata</th><th>Da remoto</th><th>In presenza</th><th>Fatturazione</th></tr></thead>';
       var tb = document.createElement('tbody');
       c.assemblee.forEach(function (x) {
         var r = document.createElement('tr');
@@ -812,12 +853,86 @@ tr.st-sotto > td{padding:0 0 0 44px;background:var(--border-soft)}
         r.appendChild(stTd(x.stato === 'conclusa' ? stDurata(x.durata_min) : '—'));
         r.appendChild(stTd(x.stato === 'pianificata' ? '—' : stNum(x.remoto) + (x.stato === 'in-corso' ? ' collegati' : '')));
         r.appendChild(stTd(x.stato === 'pianificata' ? '—' : stNum(x.presenza)));
+        r.appendChild(stTd(cellaFatt(x, c)));
         tb.appendChild(r);
       });
       tab.appendChild(tb); scorri.appendChild(tab); carta.appendChild(scorri);
     }
     v.appendChild(carta);
+    if (stDati && stDati.fatturazione_pronta === false) v.appendChild(stEl('p', 'Lo stato di fatturazione non è ancora attivo: manca la tabella nel database (script SQL "01-crea-tabella-fatturazione").', 'piccolo'));
     if (!conDurata.length && concl.length) v.appendChild(stEl('p', 'La durata compare solo per le assemblee terminate dopo l\'aggiornamento che ne registra l\'orario di fine.', 'piccolo'));
+  }
+
+  // ---------- Stato di fatturazione delle assemblee ----------
+  var FATT = {
+    'in-prova': ['In prova', 'fa-prova'], 'da-fatturare': ['Da fatturare', 'fa-da'],
+    'fatturata': ['Fatturata', 'fa-fatt'], 'pagata': ['Pagata', 'fa-pag']
+  };
+  function cellaFatt(x, c) {
+    var f = x.fatturazione;
+    if (!f) return '—';
+    var box = document.createElement('div');
+    var riga = stEl('div', null, 'fa-riga');
+    var def = FATT[f.stato] || FATT['in-prova'];
+    riga.appendChild(stEl('span', def[0], 'fa ' + def[1]));
+    if (x.stato === 'conclusa' && stDati && stDati.fatturazione_pronta !== false) {
+      riga.appendChild(iconaBtn(SVG.matita, 'Modifica stato di fatturazione', 'ico-mini', function () { apriFatt(x, c); }));
+    }
+    box.appendChild(riga);
+    var dett = '';
+    if (f.stato === 'fatturata' || f.stato === 'pagata') dett = 'n. ' + f.numero_fattura + ' del ' + stData(f.data_fattura);
+    if (f.stato === 'pagata') dett += ' · pagata il ' + stData(f.data_pagamento);
+    if (dett) box.appendChild(stEl('div', dett, 'fa-sotto'));
+    return box;
+  }
+  var fattSel = null;
+  function mostraCampiFatt() {
+    var st = $('fat-stato').value;
+    $('fat-w-num').style.visibility = (st === 'fatturata' || st === 'pagata') ? 'visible' : 'hidden';
+    $('fat-w-df').style.visibility = (st === 'fatturata' || st === 'pagata') ? 'visible' : 'hidden';
+    $('fat-w-dp').style.visibility = st === 'pagata' ? 'visible' : 'hidden';
+  }
+  function apriFatt(x, c) {
+    fattSel = x;
+    var f = x.fatturazione || { stato: 'in-prova' };
+    messaggio('fat-msg', '');
+    $('fat-sotto').textContent = c.nome + ' · assemblea del ' + stData(x.data);
+    $('fat-stato').value = f.stato;
+    $('fat-num').value = f.numero_fattura || '';
+    $('fat-df').value = f.data_fattura || '';
+    $('fat-dp').value = f.data_pagamento || '';
+    mostraCampiFatt();
+    $('modale-fatt').hidden = false;
+    setTimeout(function () { $('fat-stato').focus(); }, 30);
+  }
+  function chiudiFatt() { $('modale-fatt').hidden = true; fattSel = null; }
+  async function salvaFatt() {
+    var x = fattSel; if (!x) return;
+    var st = $('fat-stato').value, prima = x.fatturazione.stato;
+    var dati = { assemblea_id: x.id, stato: st };
+    if (st === 'fatturata' || st === 'pagata') {
+      dati.numero_fattura = $('fat-num').value.trim();
+      dati.data_fattura = $('fat-df').value;
+      if (!dati.numero_fattura || !dati.data_fattura) { messaggio('fat-msg', 'Inserisci numero e data della fattura.', 'err'); return; }
+    }
+    if (st === 'pagata') {
+      dati.data_pagamento = $('fat-dp').value;
+      if (!dati.data_pagamento) { messaggio('fat-msg', 'Inserisci la data del pagamento.', 'err'); return; }
+      if (dati.data_pagamento < dati.data_fattura) { messaggio('fat-msg', 'Il pagamento non può essere precedente alla fattura.', 'err'); return; }
+    }
+    if (st === prima && st !== 'fatturata' && st !== 'pagata') { messaggio('fat-msg', 'Nessuna modifica da salvare.', 'info'); return; }
+    if ((prima === 'fatturata' || prima === 'pagata') && (st === 'in-prova' || st === 'da-fatturare') &&
+        !window.confirm('Stai togliendo i dati della fattura (numero e date) da questa assemblea.\n\nProcedere?')) return;
+    var btn = $('btn-salva-fatt'); btn.disabled = true;
+    messaggio('fat-msg', 'Salvataggio in corso…', 'info');
+    try {
+      await chiamaApi('/api/amministratori/fatturazione', dati);
+      chiudiFatt();
+      await caricaStatistiche();
+    } catch (e) {
+      messaggio('fat-msg', e.message, 'err');
+    }
+    btn.disabled = false;
   }
 
   // ---------- Schede: Utenti / Statistiche ----------
@@ -1016,6 +1131,11 @@ tr.st-sotto > td{padding:0 0 0 44px;background:var(--border-soft)}
     $('btn-chiudi-modifica').addEventListener('click', chiudiModifica);
     $('modale-modifica').querySelector('.modale-sfondo').addEventListener('click', chiudiModifica);
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('modale-modifica').hidden) chiudiModifica(); });
+    $('btn-salva-fatt').addEventListener('click', salvaFatt);
+    $('btn-chiudi-fatt').addEventListener('click', chiudiFatt);
+    $('fat-stato').addEventListener('change', mostraCampiFatt);
+    $('modale-fatt').querySelector('.modale-sfondo').addEventListener('click', chiudiFatt);
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('modale-fatt').hidden) chiudiFatt(); });
     iniziaFiltri();
     tip($('btn-nuovo'), 'Invita un nuovo utente');
     $('btn-nuovo').addEventListener('click', apriModale);
