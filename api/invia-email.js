@@ -1,3 +1,7 @@
+// LT-346: link agli allegati della convocazione (firmati qui, con la chiave segreta)
+import { clienteServer } from '../lib/supabase.js';
+import { sostituisciLinkAllegati, trovaLinkAllegati } from '../lib/allegati.js';
+
 // /api/invia-email.js — funzione serverless Vercel (Node.js, nessun framework richiesto)
 //
 // Manda le email di Riunion: convocazioni, inviti agli ospiti, deleghe, verbali.
@@ -38,6 +42,21 @@
 const MAX_DESTINATARI = 60;      // un condominio grande sta dentro; oltre, è un errore o un abuso
 const MAX_OGGETTO = 300;
 const MAX_CORPO = 200000;
+
+// L'assemblea della cartella degli allegati deve essere di chi chiama: la si cerca con il SUO
+// biglietto, quindi passano le regole del database (un'assemblea di altri non viene trovata).
+async function assembleaDiChiChiama(token, idAssemblea) {
+  const url = process.env.SUPABASE_URL, chiavePubblica = process.env.SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !chiavePubblica || !/^[0-9a-f-]{36}$/i.test(String(idAssemblea || ''))) return false;
+  try {
+    const r = await fetch(url.replace(/\/+$/, '') + '/rest/v1/assemblee?select=id&id=eq.' + idAssemblea, {
+      headers: { apikey: chiavePubblica, Authorization: 'Bearer ' + token }
+    });
+    if (!r.ok) return false;
+    const righe = await r.json();
+    return Array.isArray(righe) && righe.length === 1;
+  } catch (e) { return false; }
+}
 
 function riassunto(testo) {
   if (!testo) return 'nessun dettaglio';
@@ -200,10 +219,19 @@ export default async function handler(req, res) {
   }
 
   const titolo = String(oggetto || '').trim().slice(0, MAX_OGGETTO);
-  const corpo = String(testoHtml || '');
+  let corpo = String(testoHtml || '');
   if (!titolo) { res.status(400).json({ ok: false, errore: 'L\'email non ha un oggetto.' }); return; }
   if (!corpo.trim()) { res.status(400).json({ ok: false, errore: 'L\'email non ha un testo.' }); return; }
   if (corpo.length > MAX_CORPO) { res.status(413).json({ ok: false, errore: 'Il testo dell\'email è troppo lungo.' }); return; }
+
+  // LT-346: link agli allegati — solo file nella cartella di un'assemblea di chi chiama
+  if (trovaLinkAllegati(corpo).length) {
+    let prep;
+    try { prep = await sostituisciLinkAllegati(clienteServer(), corpo, aid => assembleaDiChiChiama(token, aid)); }
+    catch (e) { prep = { errore: 'Non riesco a preparare i link agli allegati: ' + riassunto(e && e.message) }; }
+    if (prep.errore) { res.status(prep.errore.includes('non appartengono') ? 403 : 502).json({ ok: false, errore: prep.errore }); return; }
+    corpo = prep.html;
+  }
 
   const esito = await f.invia({
     chiave,
