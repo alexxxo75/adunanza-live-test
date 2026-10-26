@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-342 — creata il 26/10/2026 alle 14:02
+  Versione: LT-343 — creata il 26/10/2026 alle 15:42
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -31,6 +31,13 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
+<script>
+// Un link di recupero password o di invito deve passare SEMPRE da "Imposta password".
+// Se Supabase lo fa atterrare altrove (per esempio perché l'indirizzo non è nell'elenco dei
+// reindirizzamenti consentiti), qui lo rimandiamo alla pagina giusta prima che l'app lo
+// trasformi in un accesso diretto, senza far scegliere la nuova password.
+(function(){var h=location.hash||'';if(/(^|[#&])type=(recovery|invite)(&|$)/.test(h)&&location.pathname.indexOf('/imposta-password')!==0){location.replace('/imposta-password/'+h);}})();
+</script>
 <meta name="author" content="Alessandro Castiglioni">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Riunion — Assemblee condominiali online</title>
@@ -876,7 +883,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 26/10/2026 alle 14:02">LT-342</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 26/10/2026 alle 15:42">LT-343</span>
   </div>
 
   <!-- MAIN -->
