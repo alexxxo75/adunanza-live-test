@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-343 — creata il 26/10/2026 alle 15:42
+  Versione: LT-346 — creata il 26/10/2026 alle 20:04
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -883,7 +883,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 26/10/2026 alle 15:42">LT-343</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 26/10/2026 alle 20:04">LT-346</span>
   </div>
 
   <!-- MAIN -->
@@ -1377,7 +1377,10 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
           <p class="muted" style="margin-bottom:10px;">È il corpo vero e proprio dell'email che riceveranno i condòmini — non il luogo dell'assemblea, che si imposta nel campo qui sopra. Segnaposto: <span style="font-family:var(--font-mono);">{{nome}} {{nomecondominio}} {{comune}} {{tipo}} {{modalita}} {{data_prima}} {{ora_prima}} {{data_seconda}} {{ora_seconda}} {{luogo}} {{indirizzostudio}} {{link_accesso}} {{link_delega}} {{link_solo_voto}} {{allegati}} {{firma_amministratore}} {{odg}}</span></p>
           <textarea id="ca-testo" rows="8" oninput="aggiornaAvvisoTestoInvito()"></textarea>
           <div id="ca-testo-avviso" class="hidden note" style="margin-top:10px;border-color:var(--brick);color:var(--ink);"></div>
-          <button class="btn small secondary" style="margin-top:10px;" onclick="ripristinaTestoInvitoStandard()">↺ Ripristina il testo standard dell'app</button>
+          <div class="row-inline" style="gap:8px;flex-wrap:wrap;margin-top:10px;">
+            <button class="btn small secondary" style="flex:0 0 auto;" onclick="ripristinaTestoInvitoStandard()">↺ Ripristina il testo standard dell'app</button>
+            <button class="btn small secondary" style="flex:0 0 auto;" onclick="scaricaConvocazioneDocx()">⬇ Scarica convocazione in formato .docx</button>
+          </div>
           <div class="field" style="margin-top:16px;">
             <label>Descrizione degli allegati selezionabili qui sotto</label>
             <textarea id="ca-allegati-descrizione" rows="2" placeholder="Es. lo specchietto di riepilogo spese e il bilancio consuntivo 2025"></textarea>
@@ -1385,7 +1388,8 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
           <div style="margin-top:16px;">
             <label style="display:block;margin-bottom:6px;">Documenti da allegare alla convocazione</label>
             <p class="muted" style="margin-bottom:8px;">Es. specchietto di riepilogo spese, bilancio, preventivi — inviati insieme all'invito a tutti i convocati.</p>
-            <input type="file" id="ca-allegati-input" multiple onchange="aggiungiAllegatoConvocazione(this)">
+            <input type="file" id="ca-allegati-input" multiple accept=".pdf,.doc,.docx,.odt,.rtf,.txt,.xls,.xlsx,.ods,.csv,.jpg,.jpeg,.png,.gif,.tif,.tiff,.bmp,.ppt,.pptx,.zip" onchange="aggiungiAllegatoConvocazione(this)">
+            <p class="muted" style="font-size:12px;margin-top:6px;">PDF, Word, Excel, immagini o ZIP, fino a 50 MB per file. I condòmini ricevono un link per scaricarli, valido fino a 5 giorni dopo l'assemblea.</p>
             <div id="ca-allegati-lista" style="margin-top:10px;"></div>
           </div>
         </div>
@@ -1408,9 +1412,22 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
 
         <div class="frame-dark" style="margin-bottom:18px;">
         <div class="card frame-dark-hover">
-          <div class="row-inline">
-            <button class="btn brass" onclick="salvaESpedisciAssemblea()">✉ Salva e invia le email</button>
-            <button class="btn secondary" onclick="salvaSenzaInviare()">Salva senza inviare</button>
+          <!-- LT-344: tre tasti uno sopra l'altro, tutti della stessa larghezza -->
+          <div style="display:flex;flex-direction:column;gap:10px;max-width:460px;">
+            <button class="btn brass" id="ca-btn-invia" style="width:100%;" onclick="salvaESpedisciAssemblea()">✉ Salva e invia subito le email</button>
+            <button class="btn secondary" id="ca-btn-pianifica" style="width:100%;" onclick="apriPianificazioneInvio()">🕒 Salva e pianifica l'invio</button>
+            <button class="btn secondary" style="width:100%;" onclick="salvaSenzaInviare()">Salva senza inviare</button>
+          </div>
+          <div id="ca-pianifica-box" class="hidden" style="margin-top:14px;padding:14px 16px;background:var(--paper);border-radius:4px;max-width:620px;">
+            <div id="ca-pianifica-stato" style="margin-bottom:10px;"></div>
+            <div id="ca-pianifica-modulo">
+              <p class="muted" style="margin:0 0 10px;font-size:13px;">Scegli quando far partire le email di convocazione. Partono da sole, anche se il tuo computer è spento, entro 5 minuti dall'ora scelta. Si può pianificare un solo invio: se cambi qualcosa nell'assemblea e premi "Salva senza inviare", le email in attesa vengono aggiornate.</p>
+              <div class="row-inline" style="align-items:flex-end;gap:10px;flex-wrap:wrap;">
+                <div class="field" style="margin:0;min-width:160px;"><label>Giorno</label><input type="date" id="ca-pianifica-data"></div>
+                <div class="field" style="margin:0;min-width:120px;"><label>Ora</label><input type="time" id="ca-pianifica-ora" step="300"></div>
+                <button class="btn brass" style="flex:0 0 auto;" onclick="confermaPianificazioneInvio()">Conferma pianificazione</button>
+              </div>
+            </div>
           </div>
           <!-- LT-327: la sezione "Invii programmati" non c'è più; resta solo il promemoria automatico,
                che ora parte davvero dal server (timer di Supabase + /api/promemoria). -->
@@ -6976,6 +6993,7 @@ function aprireModuloAssemblea(esistente){
   document.getElementById('ca-remind-30min').checked = !!a._remind30 || (a.programmati||[]).some(p=>p.tipo==='Promemoria 30 minuti prima');
   renderOdgList();
   renderSchedList();
+  aggiornaStatoPianificazione();   // LT-344
   renderConvocatiControlli();
   aggiornaVistaTipoConvocazione();
   renderConvocatiTable();
@@ -7055,36 +7073,92 @@ function cambiaTipoConvocazione(){
 }
 // Documenti allegati alla convocazione (specchietti di riepilogo, bilanci, preventivi...):
 // caricati come dataUrl, allegati automaticamente quando si invia la convocazione.
-function aggiungiAllegatoConvocazione(input){
-  const a = workingAssembly;
-  if(!a || !input.files) return;
-  a.allegatiConvocazione = a.allegatiConvocazione || [];
-  Array.from(input.files).forEach(file=>{
-    const reader = new FileReader();
-    reader.onload = (e)=>{
-      a.allegatiConvocazione.push({nome:file.name, tipo:file.type, dataUrl:e.target.result});
-      renderAllegatiConvocazione();
-      salvaStato();
-    };
-    reader.readAsDataURL(file);
-  });
-  input.value = '';
+// ---- LT-345 — ALLEGATI DELLA CONVOCAZIONE ----
+// I file si caricano nello spazio file privato "allegati" di Supabase, nella cartella
+// dell'assemblea; nell'assemblea resta solo l'elenco {nome, tipo, dimensione, path}. All'invio
+// il server li prende da lì e li allega a ogni email (a mano e pianificate). Prima i file
+// restavano solo nel browser di chi li caricava e nelle email compariva soltanto il nome.
+const ESTENSIONI_ALLEGATI = ['pdf','doc','docx','odt','rtf','txt','xls','xlsx','ods','csv','jpg','jpeg','png','gif','tif','tiff','bmp','ppt','pptx','zip'];
+const MAX_FILE_ALLEGATO_MB = 50;   // LT-346: limite di Supabase (piano gratuito) per un singolo file
+// Ultimo giorno in cui i link agli allegati funzionano: 5 giorni dopo la seconda convocazione.
+function dataScadenzaAllegati(a){
+  const iso = parseDataItalianaToIso(a && a.dataSeconda);
+  if(!iso) return '';
+  const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + 5);
+  const p = n=>String(n).padStart(2,'0');
+  return `${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()}`;
 }
-function rimuoviAllegatoConvocazione(indice){
-  const a = workingAssembly;
-  if(!a || !a.allegatiConvocazione) return;
+function allegatiScaduti(a){
+  const iso = parseDataItalianaToIso(a && a.dataSeconda);
+  if(!iso) return false;
+  const fine = new Date(iso + 'T23:59:59'); fine.setDate(fine.getDate() + 5);
+  return Date.now() > fine.getTime();
+}
+function allegatiDaSpedire(a){ return ((a && a.allegatiConvocazione) || []).filter(f=>f && f.path).map(f=>({path:f.path, nome:f.nome})); }
+function allegatiDaRicaricare(a){ return ((a && a.allegatiConvocazione) || []).filter(f=>f && !f.path); }
+function dimensioneLeggibile(n){ n = Number(n)||0; return n >= 1048576 ? (n/1048576).toFixed(1).replace('.', ',') + ' MB' : (n>0 ? Math.max(1, Math.round(n/1024)) : 0) + ' KB'; }
+let __caricamentoAllegati = 0;
+async function aggiungiAllegatoConvocazione(input){
+  const a = workingAssembly, b = getActiveBuilding();
+  const files = Array.from((input && input.files) || []);
+  if(input) input.value = '';
+  if(!a || !b || !files.length) return;
+  a.allegatiConvocazione = a.allegatiConvocazione || [];
+  const sb = window.__cancello && window.__cancello.sb;
+  if(!sb || !sb.storage || !__sbAn.attivo){ toast('Per allegare documenti serve il collegamento a Supabase.'); return; }
+  const scartati = files.filter(f=>!ESTENSIONI_ALLEGATI.includes(String(f.name).split('.').pop().toLowerCase()));
+  if(scartati.length){ toast('Formato non accettato: ' + scartati.map(f=>f.name).join(', ') + '. Usa PDF, Word, Excel, immagini o ZIP.'); }
+  const validi = files.filter(f=>!scartati.includes(f));
+  if(!validi.length) return;
+  const troppoGrandi = validi.filter(f=>f.size > MAX_FILE_ALLEGATO_MB*1048576);
+  if(troppoGrandi.length){ toast(`File troppo grande (massimo ${MAX_FILE_ALLEGATO_MB} MB): ` + troppoGrandi.map(f=>f.name).join(', ') + '.'); return; }
+  // I file vanno nella cartella dell'assemblea, che deve già esistere su Supabase.
+  if(a.id==null || !(b.assemblee||[]).some(x=>x.id===a.id)){
+    salvaCampiAssemblea(); salvaAssembleaInElenco(); salvaStato();
+    toast('Assemblea salvata come bozza, per poter caricare gli allegati.');
+  }else{ salvaStato(); }
+  __caricamentoAllegati++; renderAllegatiConvocazione();
+  try{
+    if(!(await attendiSincronizzazioneSupabase())){ toast('⚠️ Il salvataggio dell\'assemblea su Supabase non è ancora riuscito: allegato non caricato. Riprova fra poco.'); return; }
+    const aid = idDbAssemblea(b, a);
+    for(const f of validi){
+      const nomePulito = String(f.name).normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9._-]+/g,'_').slice(-80) || 'allegato';
+      const path = `${aid}/${Date.now()}-${Math.random().toString(36).slice(2,8)}-${nomePulito}`;
+      const r = await sb.storage.from('allegati').upload(path, f, {contentType: f.type || 'application/octet-stream', upsert:false});
+      if(r.error){ toast('⚠️ "' + f.name + '" non caricato: ' + (r.error.message||'errore') + (/bucket|not found/i.test(r.error.message||'') ? ' (manca lo script LT-345 su Supabase?)' : '')); continue; }
+      a.allegatiConvocazione.push({nome:f.name, tipo:f.type||'', dimensione:f.size, path});
+    }
+    salvaStato();
+    rigeneraEmailPianificate(a, b);   // le email già pianificate prendono anche i nuovi allegati
+  }finally{
+    __caricamentoAllegati--; renderAllegatiConvocazione();
+  }
+}
+async function rimuoviAllegatoConvocazione(indice){
+  const a = workingAssembly, b = getActiveBuilding();
+  if(!a || !a.allegatiConvocazione || !a.allegatiConvocazione[indice]) return;
+  const f = a.allegatiConvocazione[indice];
+  if(!confirm('Vuoi togliere "' + f.nome + '" dagli allegati?')) return;
   a.allegatiConvocazione.splice(indice, 1);
   renderAllegatiConvocazione();
   salvaStato();
+  const sb = window.__cancello && window.__cancello.sb;
+  if(f.path && sb && sb.storage){ try{ await sb.storage.from('allegati').remove([f.path]); }catch(_){ /* il file resta, ma non viene più spedito */ } }
+  if(b) rigeneraEmailPianificate(a, b);
 }
 function renderAllegatiConvocazione(){
   const el = document.getElementById('ca-allegati-lista');
   if(!el) return;
   const a = workingAssembly;
   const allegati = (a && a.allegatiConvocazione) || [];
-  el.innerHTML = allegati.length
-    ? allegati.map((f,i)=>`<div class="list-row" style="padding:6px 0;"><span>📎 ${escapeHtml(f.nome)}</span><button class="btn small secondary" onclick="rimuoviAllegatoConvocazione(${i})">Rimuovi</button></div>`).join('')
-    : '<p class="muted">Nessun documento allegato.</p>';
+  const scad = dataScadenzaAllegati(a), scaduti = allegatiScaduti(a);
+  el.innerHTML = (allegati.length
+    ? allegati.map((f,i)=>`<div class="list-row" style="padding:6px 0;"><span>📎 ${escapeHtml(f.nome)}${f.dimensione ? ` <span class="muted" style="font-size:12px;">(${dimensioneLeggibile(f.dimensione)})</span>` : ''}${f.path ? '' : ' <span style="color:var(--brick);font-size:12.5px;">— ⚠️ non salvato online: non verrebbe spedito. Toglilo e caricalo di nuovo.</span>'}</span><button class="btn small secondary" onclick="rimuoviAllegatoConvocazione(${i})">Rimuovi</button></div>`).join('')
+      + (scaduti
+          ? `<div style="font-size:12.5px;margin-top:4px;color:var(--brick);">I link agli allegati sono scaduti il ${scad}: i file sono stati cancellati dal server.</div>`
+          : `<div class="muted" style="font-size:12px;margin-top:4px;">Nell'email ogni condòmino trova un link "Scarica"${scad ? `, valido fino al <b>${scad}</b> (5 giorni dopo l'assemblea)` : ', valido fino a 5 giorni dopo l\'assemblea'}. Poi i file vengono cancellati.</div>`)
+    : '<p class="muted">Nessun documento allegato.</p>')
+    + (__caricamentoAllegati ? '<div class="muted" style="margin-top:6px;">⏳ Caricamento in corso…</div>' : '');
 }
 function salvaCampiAssemblea(){
   const a = workingAssembly;
@@ -7521,6 +7595,263 @@ function renderSchedList(){
   el.innerHTML = prog.map((p,i)=>`<div class="list-row"><span><span class="badge pending">Programmato</span> ${p.data} ore ${p.ora} — ${p.tipo}</span><span class="tag-close" onclick="removeInvioProgrammato(${i})">Rimuovi</span></div>`).join('');
 }
 
+// =================== LT-344 — INVIO PIANIFICATO DELLE CONVOCAZIONI ===================
+// Si pianifica UN solo invio. Al momento della pianificazione la pagina prepara le email (una
+// per condòmino, con i suoi link personali, identiche a quelle dell'invio a mano) e le mette su
+// Supabase (tabella convocazioni_programmate) con l'ora scelta: le spedisce il server, con il
+// timer che ogni 5 minuti manda già il promemoria, anche a computer spento.
+// Finché l'invio è in attesa, ogni "Salva senza inviare" rifà le email con i dati aggiornati.
+let __pianif = {assembleaId:null, caricato:false, nonDisponibile:false, quando:null, attesa:0, invio:0, inviate:0, errori:0, totale:0, ultimoInvio:null, dettagliErrori:[]};
+let __pianifAperto = false;
+const attendi = ms => new Promise(r=>setTimeout(r, ms));
+function idDbAssemblea(b, a){ return (__sbAn && __sbAn.uuid && b && a && a.id!=null) ? sbUuid(__sbAn.uuid.assemblee, b.id+':'+a.id) : null; }
+function idDbCondomino(b, c){ return sbUuid(__sbAn.uuid.condomini, b.id+':'+c.id); }
+function dataOraIt(iso){
+  const d = new Date(iso); if(isNaN(d)) return '';
+  const p = n=>String(n).padStart(2,'0');
+  return {data:`${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()}`, ora:`${p(d.getHours())}:${p(d.getMinutes())}`};
+}
+// Aspetta che le modifiche dell'assemblea siano davvero su Supabase (le email pianificate
+// fanno riferimento all'assemblea e ai condòmini, che devono già esistere lì).
+async function attendiSincronizzazioneSupabase(){
+  if(!__sbAn.attivo) return false;
+  const t0 = Date.now();
+  await attendi(450);
+  while(sbADaFare() && Date.now()-t0 < 20000) await attendi(200);
+  return !sbADaFare() && !__indFonti.sb;
+}
+function destinatariConvocazione(a, b){
+  const tutti = a.convocati.selezionati.map(id=>b.condomini.find(c=>c.id===id)).filter(Boolean);
+  const ids = new Set(tutti.map(c=>c.id));
+  const primari = tutti.filter(c=>!(c.unificatoCon && ids.has(c.unificatoCon)));
+  return {tutti, primari, conEmail: primari.filter(c=>(c.email||'').trim()), senzaEmail: primari.filter(c=>!(c.email||'').trim())};
+}
+async function aggiornaStatoPianificazione(){
+  const a = workingAssembly, b = getActiveBuilding();
+  __pianif = {assembleaId: a ? a.id : null, caricato:false, nonDisponibile:false, quando:null, attesa:0, invio:0, inviate:0, errori:0, totale:0, ultimoInvio:null, dettagliErrori:[]};
+  __pianifAperto = false;
+  renderPianificazione();
+  const sb = window.__cancello && window.__cancello.sb;
+  const aid = idDbAssemblea(b, a);
+  if(!a || !sb || !aid || !__sbAn.attivo){ __pianif.caricato = true; renderPianificazione(); return; }
+  const r = await sb.from('convocazioni_programmate').select('quando,stato,inviata_il,destinatario,errore').eq('assemblea_id', aid);
+  if(workingAssembly !== a) return;   // nel frattempo è stata aperta un'altra assemblea
+  __pianif.caricato = true;
+  if(r.error){ __pianif.nonDisponibile = true; renderPianificazione(); return; }
+  for(const x of (r.data||[])){
+    __pianif.totale++;
+    if(x.stato==='attesa'){ __pianif.attesa++; __pianif.quando = x.quando; }
+    else if(x.stato==='invio') __pianif.invio++;
+    else if(x.stato==='inviata'){ __pianif.inviate++; if(!__pianif.ultimoInvio || x.inviata_il > __pianif.ultimoInvio) __pianif.ultimoInvio = x.inviata_il; if(!__pianif.quando) __pianif.quando = x.quando; }
+    else if(x.stato==='errore'){ __pianif.errori++; __pianif.dettagliErrori.push(x.destinatario + ': ' + (x.errore||'errore')); if(!__pianif.quando) __pianif.quando = x.quando; }
+  }
+  // Le email pianificate sono partite: l'assemblea risulta convocata anche qui (come dopo un invio a mano).
+  if(__pianif.inviate>0 && !a.invitiInviati){ a.invitiInviati = true; try{ renderOdgList(); }catch(_){} }
+  renderPianificazione();
+}
+function renderPianificazione(){
+  const btn = document.getElementById('ca-btn-invia');
+  // dopo una pianificazione, o quando le convocazioni sono già partite, il primo tasto è un invio "a mano"
+  if(btn) btn.textContent = (__pianif.totale>0 || (workingAssembly && workingAssembly.invitiInviati)) ? '✉ Invia manualmente tutte le email' : '✉ Salva e invia subito le email';
+  const box = document.getElementById('ca-pianifica-box'), stato = document.getElementById('ca-pianifica-stato'), modulo = document.getElementById('ca-pianifica-modulo');
+  if(!box || !stato || !modulo) return;
+  const p = __pianif;
+  box.classList.toggle('hidden', !(__pianifAperto || p.totale>0 || p.nonDisponibile && __pianifAperto));
+  let html = '';
+  if(p.nonDisponibile){
+    html = '⚠️ La pianificazione non è disponibile: manca lo script "LT-344 Supabase.sql" su Supabase.';
+  }else if(p.attesa>0){
+    const q = dataOraIt(p.quando);
+    html = `🕒 <b>Invio pianificato</b> per il <b>${q.data}</b> alle <b>${q.ora}</b>: ${p.attesa} email in attesa. `
+      + `<button class="btn small secondary" style="margin-left:6px;" onclick="annullaPianificazioneInvio()">Annulla pianificazione</button>`
+      + `<div class="muted" style="font-size:12.5px;margin-top:6px;">Per cambiare giorno o ora, scegli i nuovi qui sotto e premi di nuovo "Conferma pianificazione".</div>`;
+  }else if(p.invio>0){
+    html = '⏳ Invio pianificato in corso…';
+  }else if(p.inviate>0 || p.errori>0){
+    const q = dataOraIt(p.ultimoInvio || p.quando);
+    html = (p.inviate>0 ? `✅ <b>Convocazioni inviate</b> con l'invio pianificato${q ? ` del ${q.data} alle ${q.ora}` : ''}: ${p.inviate} email.` : '')
+      + (p.errori>0 ? `<div style="margin-top:6px;color:var(--brick);">⚠️ ${p.errori} email non inviate:<br>${p.dettagliErrori.map(escapeHtml).join('<br>')}</div>` : '')
+      + `<div class="muted" style="font-size:12.5px;margin-top:6px;">Si può pianificare un solo invio. Per mandare di nuovo le email usa "Invia manualmente tutte le email".</div>`;
+  }
+  stato.innerHTML = html;
+  stato.classList.toggle('hidden', !html);
+  // il modulo per scegliere giorno e ora c'è solo se non è già partito un invio pianificato
+  modulo.classList.toggle('hidden', p.nonDisponibile || p.invio>0 || ((p.inviate>0 || p.errori>0) && p.attesa===0));
+}
+function apriPianificazioneInvio(){
+  if(!workingAssembly) return;
+  if(__pianif.inviate>0 && __pianif.attesa===0){ toast('L\'invio pianificato è già stato fatto: per mandare di nuovo le email usa "Invia manualmente tutte le email".'); }
+  __pianifAperto = true;
+  renderPianificazione();
+  const d = document.getElementById('ca-pianifica-data'), o = document.getElementById('ca-pianifica-ora');
+  if(__pianif.quando && __pianif.attesa>0){
+    const x = new Date(__pianif.quando), p2 = n=>String(n).padStart(2,'0');
+    d.value = `${x.getFullYear()}-${p2(x.getMonth()+1)}-${p2(x.getDate())}`; o.value = `${p2(x.getHours())}:${p2(x.getMinutes())}`;
+  }
+  document.getElementById('ca-pianifica-box').scrollIntoView({behavior:'smooth', block:'center'});
+}
+// Prepara le email e le mette su Supabase al posto di quelle ancora in attesa.
+async function preparaEmailPianificate(a, b, quandoIso){
+  const sb = window.__cancello && window.__cancello.sb;
+  if(!sb) return {errore:'collegamento a Supabase assente'};
+  if(!(await attendiSincronizzazioneSupabase())) return {errore:'il salvataggio dell\'assemblea su Supabase non è ancora riuscito'};
+  const aid = idDbAssemblea(b, a);
+  const {conEmail, senzaEmail} = destinatariConvocazione(a, b);
+  const odgCambiato = !!(a.invitiInviati && a._odgModificatoDopoInvio);
+  const nota = odgCambiato ? notaAvvisoOdg(amministratore.testoAvvisoOdg, a, b) : '';
+  const oggetto = (odgCambiato ? oggettoAvvisoOdg(a, b) : a.oggetto) || a.oggetto || 'Convocazione assemblea';
+  const righe = conEmail.map(c=>({assemblea_id:aid, condomino_id:idDbCondomino(b, c), quando:quandoIso,
+    destinatario:c.email.trim(), oggetto, corpo: nota + costruisciEmail(c, a, b)}));
+  const del = await sb.from('convocazioni_programmate').delete().eq('assemblea_id', aid).eq('stato', 'attesa');
+  if(del.error) return {errore: del.error.message || 'cancellazione delle email precedenti non riuscita'};
+  for(let i=0; i<righe.length; i+=100){
+    const ins = await sb.from('convocazioni_programmate').insert(righe.slice(i, i+100));
+    if(ins.error) return {errore: (ins.error.message||'inserimento non riuscito') + (i>0 ? ` (salvate solo ${i} email su ${righe.length})` : '')};
+  }
+  return {ok:true, n:righe.length, senzaEmail:senzaEmail.length};
+}
+async function confermaPianificazioneInvio(){
+  const a = workingAssembly, b = getActiveBuilding();
+  if(!a || !b) return;
+  const giorno = document.getElementById('ca-pianifica-data').value, ora = document.getElementById('ca-pianifica-ora').value;
+  if(!giorno || !ora){ toast('Scegli giorno e ora dell\'invio.'); return; }
+  const quando = new Date(`${giorno}T${ora}:00`);
+  if(isNaN(quando)){ toast('Giorno o ora non validi.'); return; }
+  if(quando.getTime() < Date.now() + 2*60000){ toast('L\'ora dell\'invio deve essere nel futuro (almeno fra qualche minuto). Per mandare subito usa il primo tasto.'); return; }
+  salvaCampiAssemblea();
+  if(!a.oggetto || !a.oggetto.trim()){ toast('Inserisci l\'oggetto dell\'assemblea prima di pianificare la convocazione.'); return; }
+  if(!validaOrarioSecondaConvocazione(a)) return;
+  const isoPrima = parseDataItalianaToIso(a.dataPrima);
+  if(isoPrima){
+    const prima = new Date(isoPrima + 'T' + (a.oraPrima||'00:00') + ':00');
+    if(quando >= prima){ toast('L\'invio deve essere pianificato prima della prima convocazione (' + a.dataPrima + ').'); return; }
+    const giorni = (prima - quando) / 86400000;
+    if(giorni < 5 && !confirm(`ATTENZIONE: con questo invio mancheranno meno di 5 giorni alla prima convocazione (${a.dataPrima}).\n\nPer legge la convocazione deve arrivare almeno 5 giorni prima dell'assemblea.\n\nVuoi pianificarlo comunque?`)) return;
+  }
+  const problemiTesto = problemiTestoInvito(a.testo, a.modalita);
+  if(problemiTesto.length && !confirm('ATTENZIONE — il testo dell\'email di convocazione ' + problemiTesto.join('; ') + '.\n\nVuoi pianificarla lo stesso così com\'è?')) return;
+  const {conEmail, senzaEmail} = destinatariConvocazione(a, b);
+  if(conEmail.length===0){ toast('Nessun convocato con un indirizzo email: non c\'è niente da pianificare.'); return; }
+  const q = dataOraIt(quando.toISOString());
+  if(!confirm(`Pianifico l'invio di ${conEmail.length} email di convocazione per il ${q.data} alle ${q.ora}?`
+    + (senzaEmail.length ? `\n\nAttenzione: ${senzaEmail.length} convocat${senzaEmail.length===1?'o non ha':'i non hanno'} un indirizzo email e non riceverà nulla.` : '')
+    + (__pianif.attesa>0 ? '\n\nL\'invio pianificato in precedenza viene sostituito da questo.' : ''))) return;
+  salvaAssembleaInElenco();
+  if(!salvaStato()){ toast('ATTENZIONE: il salvataggio non è riuscito — invio NON pianificato. Riprova.'); return; }
+  toast('Preparo le email pianificate…');
+  const esito = await preparaEmailPianificate(a, b, quando.toISOString());
+  if(!esito.ok){ toast('⚠️ Pianificazione NON riuscita: ' + esito.errore + '. Riprova.'); await aggiornaStatoPianificazione(); return; }
+  toast(`✅ Invio pianificato: ${esito.n} email partiranno il ${q.data} alle ${q.ora}.`);
+  await aggiornaStatoPianificazione();
+}
+async function cancellaEmailInAttesa(a, b){
+  const sb = window.__cancello && window.__cancello.sb;
+  const aid = idDbAssemblea(b, a);
+  if(!sb || !aid) return false;
+  const r = await sb.from('convocazioni_programmate').delete().eq('assemblea_id', aid).eq('stato', 'attesa');
+  return !r.error;
+}
+async function annullaPianificazioneInvio(){
+  const a = workingAssembly, b = getActiveBuilding();
+  if(!a || !b) return;
+  if(!confirm('Vuoi annullare l\'invio pianificato? Le email in attesa non partiranno.')) return;
+  const ok = await cancellaEmailInAttesa(a, b);
+  toast(ok ? 'Invio pianificato annullato.' : 'Non sono riuscito ad annullare l\'invio pianificato: controlla la connessione e riprova.');
+  await aggiornaStatoPianificazione();
+}
+// Chiamata da "Salva senza inviare": se c'è un invio in attesa, le email vengono rifatte.
+async function rigeneraEmailPianificate(a, b){
+  if(!(__pianif.attesa>0 && __pianif.assembleaId===a.id && __pianif.quando)) return;
+  const esito = await preparaEmailPianificate(a, b, __pianif.quando);
+  toast(esito.ok ? `Email pianificate aggiornate con le modifiche (${esito.n}).` : '⚠️ Le email pianificate NON sono state aggiornate: ' + esito.errore + '. Apri l\'assemblea e premi di nuovo "Salva senza inviare".');
+}
+
+// =================== LT-344 — CONVOCAZIONE IN FORMATO WORD (.docx) ===================
+// Un solo documento, senza link personali (al loro posto una frase), da stampare per chi non
+// ha l'email o da spedire per raccomandata. Il file si prepara qui nel browser: nessuna
+// funzione nuova sul server.
+function testoConvocazioneDocumento(a, b){
+  const odgTesto = a.odg.length ? a.odg.map((p,i)=>`${i+1}. ${p.testo||'(punto da definire)'}`).join('\n') : '(ordine del giorno da definire)';
+  const nota = a.convocati.modo!=='tutti' ? '\n\nQuesta convocazione riguarda solo i condòmini con quota nelle voci di spesa indicate all\'ordine del giorno.' : '';
+  const etichetteModalita = {'in-presenza':'in presenza','mista':'mista (in presenza e online)','online':'online'};
+  const online = a.modalita!=='in-presenza';
+  let allegati = '';
+  if((a.allegatiConvocazione||[]).length){
+    allegati = 'Allegati:\n' + (a.descrizioneAllegati && a.descrizioneAllegati.trim() ? a.descrizioneAllegati.trim()+'\n' : '') + a.allegatiConvocazione.map(f=>'- '+f.nome).join('\n');
+  }
+  // {{nome}}: "Condòmino" nel saluto (la prima volta), una riga da compilare altrove (es. nel modulo di delega)
+  let primoNome = true;
+  const conNomi = String(a.testo||'').replace(/\{\{nome\}\}/g, ()=>{ if(primoNome){ primoNome=false; return 'Condòmino'; } return '______________________________'; });
+  const t = (a.oggetto ? `Oggetto: ${a.oggetto}\n\n` : '') + conNomi
+    .replaceAll('{{nomecondominio}}', (b && b.nome) || '')
+    .replaceAll('{{comune}}', (b && b.comune) || '')
+    .replaceAll('{{tipo}}', a.tipo==='straordinaria' ? 'Straordinaria' : 'Ordinaria')
+    .replaceAll('{{modalita}}', etichetteModalita[a.modalita]||'mista (in presenza e online)')
+    .replaceAll('{{data_prima}}', formattaData(a.dataPrima))
+    .replaceAll('{{ora_prima}}', a.oraPrima||'da definire')
+    .replaceAll('{{data_seconda}}', formattaData(a.dataSeconda))
+    .replaceAll('{{ora_seconda}}', a.oraSeconda||'da definire')
+    .replaceAll('{{luogo}}', a.luogo && a.luogo.trim() ? a.luogo.trim() : '(luogo della seconda convocazione da definire)')
+    .replaceAll('{{indirizzostudio}}', indirizzoStudioAmm() || '')
+    .replaceAll('{{link_accesso}}', online ? 'Per partecipare online riceverete il link personale via email.' : '')
+    .replaceAll('{{link_delega}}', online ? 'Per concedere la delega online riceverete il link personale via email.' : '')
+    .replaceAll('{{link_solo_voto}}', 'Il link per votare dal telefono vi verrà inviato via email.')
+    .replaceAll('{{allegati}}', allegati)
+    .replaceAll('{{firma_amministratore}}', firmaAmministratorePerEmail())
+    .replaceAll('{{odg}}', odgTesto) + nota;
+  return t.replace(/<[^>]*>/g, '').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+// Archivio .zip senza compressione (è tutto ciò che serve a un .docx).
+function zipSemplice(files){
+  const tab = zipSemplice.tab || (zipSemplice.tab = (()=>{ const t = new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c = (c&1) ? (0xEDB88320 ^ (c>>>1)) : (c>>>1); t[n]=c>>>0; } return t; })());
+  const crc = d => { let c = 0xFFFFFFFF; for(let i=0;i<d.length;i++) c = tab[(c ^ d[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+  const enc = new TextEncoder(), parti = [], centrale = [];
+  let pos = 0;
+  const u16 = (v)=>[v & 0xFF, (v>>>8) & 0xFF], u32 = (v)=>[v & 0xFF, (v>>>8) & 0xFF, (v>>>16) & 0xFF, (v>>>24) & 0xFF];
+  for(const f of files){
+    const nome = enc.encode(f.nome), dati = typeof f.dati==='string' ? enc.encode(f.dati) : f.dati, c = crc(dati);
+    const loc = new Uint8Array([...u32(0x04034b50), ...u16(20), ...u16(0x0800), ...u16(0), ...u16(0), ...u16(0x21), ...u32(c), ...u32(dati.length), ...u32(dati.length), ...u16(nome.length), ...u16(0)]);
+    parti.push(loc, nome, dati);
+    centrale.push(new Uint8Array([...u32(0x02014b50), ...u16(20), ...u16(20), ...u16(0x0800), ...u16(0), ...u16(0), ...u16(0x21), ...u32(c), ...u32(dati.length), ...u32(dati.length), ...u16(nome.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(0), ...u32(pos)]), nome);
+    pos += loc.length + nome.length + dati.length;
+  }
+  const lungC = centrale.reduce((s,x)=>s+x.length, 0);
+  const fine = new Uint8Array([...u32(0x06054b50), ...u16(0), ...u16(0), ...u16(files.length), ...u16(files.length), ...u32(lungC), ...u32(pos), ...u16(0)]);
+  return new Blob([...parti, ...centrale, fine], {type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+}
+function creaDocx(testo){
+  const x = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const font = '<w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:sz w:val="22"/>';
+  const par = riga => {
+    if(riga.trim()==='---') return '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';   // separatore -> pagina nuova
+    const lettere = riga.replace(/[^A-Za-zÀ-ÿ]/g, ''), maiuscole = lettere.replace(/[^A-ZÀ-Ý]/g, '');
+    const titolo = lettere.length>3 && maiuscole.length/lettere.length >= 0.6;
+    return `<w:p><w:pPr><w:spacing w:after="0" w:line="300" w:lineRule="auto"/>${titolo ? '<w:jc w:val="center"/>' : ''}</w:pPr>`
+      + (riga ? `<w:r><w:rPr>${font}${titolo ? '<w:b/>' : ''}</w:rPr><w:t xml:space="preserve">${x(riga)}</w:t></w:r>` : '') + '</w:p>';
+  };
+  const corpo = testo.split('\n').map(par).join('');
+  const documento = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    + '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' + corpo
+    + '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1418" w:right="1134" w:bottom="1418" w:left="1134" w:header="709" w:footer="709" w:gutter="0"/></w:sectPr></w:body></w:document>';
+  return zipSemplice([
+    {nome:'[Content_Types].xml', dati:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>'},
+    {nome:'_rels/.rels', dati:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'},
+    {nome:'word/document.xml', dati:documento}
+  ]);
+}
+function scaricaConvocazioneDocx(){
+  const a = workingAssembly, b = getActiveBuilding();
+  if(!a || !b) return;
+  salvaCampiAssemblea();   // usa il testo appena scritto, anche se non ancora salvato
+  const blob = creaDocx(testoConvocazioneDocumento(a, b));
+  const pulisci = s => String(s||'').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
+  const nome = 'Convocazione - ' + (pulisci(b.nome) || 'Condominio') + (a.oggetto ? ' - ' + pulisci(a.oggetto) : '') + '.docx';
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a'); link.href = url; link.download = nome;
+  document.body.appendChild(link); link.click(); link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+}
+
 function formattaData(d){
   return d && d.trim() ? d.trim() : 'da definire';
 }
@@ -7593,11 +7924,14 @@ function costruisciEmail(c, a, b){
   const linkDelegaHtml = a.modalita==='in-presenza' ? '' :
     `<a class="email-link-btn" href="${linkDelega}" target="_blank">Concedi delega →</a><div class="muted" style="margin-top:8px;font-family:var(--font-mono);">${linkDelega}</div>`;
 
+  // LT-346: gli allegati non viaggiano nell'email: c'è un link per scaricarli. Il server, al
+  // momento dell'invio, trasforma "riunion-allegato:<percorso>" in un link vero e temporaneo.
   let allegatiBlock = '';
   if((a.allegatiConvocazione||[]).length){
-    allegatiBlock = 'Allegati:\n';
+    const scad = dataScadenzaAllegati(a);
+    allegatiBlock = 'Allegati' + (scad ? ` (scaricabili fino al ${scad})` : '') + ':\n';
     if(a.descrizioneAllegati && a.descrizioneAllegati.trim()) allegatiBlock += a.descrizioneAllegati.trim() + '\n';
-    allegatiBlock += a.allegatiConvocazione.map(f=>'📎 '+f.nome).join('\n');
+    allegatiBlock += a.allegatiConvocazione.map(f=>'📎 ' + escapeHtml(f.nome) + (f.path ? ` — <a href="riunion-allegato:${f.path}">Scarica</a>` : '')).join('\n');
   }
 
   const firmaAmministratore = (amministratore.firmaEmail && amministratore.firmaEmail.trim())
@@ -7623,7 +7957,9 @@ function costruisciEmail(c, a, b){
     .replaceAll('{{link_solo_voto}}', linkSoloVotoHtml)
     .replaceAll('{{allegati}}', allegatiBlock)
     .replaceAll('{{firma_amministratore}}', firmaAmministratore)
-    .replaceAll('{{odg}}', odgTesto) + nota;
+    .replaceAll('{{odg}}', odgTesto) + nota
+    // LT-346: se il testo non ha il segnaposto {{allegati}}, i link vanno comunque in fondo
+    + (allegatiBlock && !String(a.testo||'').includes('{{allegati}}') ? '\n\n' + allegatiBlock : '');
 }
 function salvaAssembleaInElenco(){
   const b=getActiveBuilding();
@@ -7667,6 +8003,7 @@ function salvaSenzaInviare(){
   }
   salvaAssembleaInElenco();
   const salvataggioRiuscito = salvaStato();
+  if(salvataggioRiuscito) rigeneraEmailPianificate(workingAssembly, b);   // LT-344
   toast(salvataggioRiuscito ? 'Assemblea salvata. Invito non inviato.' : 'ATTENZIONE: l\'assemblea è stata creata ma il salvataggio permanente nel browser è FALLITO (spazio esaurito o altro errore). Potrebbe non essere qui alla prossima visita.');
   tornaElencoAssemblee();
 }
@@ -8653,6 +8990,12 @@ async function salvaESpedisciAssemblea(){
       if(giorni < 5 && !confirm(`ATTENZIONE: mancano meno di 5 giorni alla prima convocazione (${a.dataPrima}).\n\nPer legge la convocazione deve arrivare almeno 5 giorni prima dell'assemblea: una comunicazione che cambia l'ordine del giorno inviata ora potrebbe non essere valida.\n\nVuoi inviarla comunque?`)) return;
     }
   }
+  // LT-344: se c'è un invio pianificato in attesa, l'invio a mano lo sostituisce
+  const pianificatoInAttesa = __pianif.attesa>0 && __pianif.assembleaId===a.id;
+  if(pianificatoInAttesa){
+    const q = dataOraIt(__pianif.quando);
+    if(!confirm(`C'è un invio pianificato per il ${q.data} alle ${q.ora}.\n\nSe invii adesso, la pianificazione viene annullata e le email partono subito. Continuare?`)) return;
+  }
   const elencoDestinatari = convocati.map(c=>`- ${nomeCompletoCondomino(c)} <${c.email}>`).join('\n');
   const inviareDavvero = confirm(`Stai per inviare ${convocati.length} email VERE a:\n\n${elencoDestinatari}\n\nConfermi l'invio?`);
 
@@ -8675,6 +9018,12 @@ async function salvaESpedisciAssemblea(){
     return;
   }
 
+  // LT-345/346: allegati caricati con le versioni vecchie (solo nel browser): niente link
+  if(allegatiDaRicaricare(a).length && !confirm('ATTENZIONE: ' + allegatiDaRicaricare(a).map(f=>'"'+f.nome+'"').join(', ') + ' non è salvato online e NON verrà allegato.\n\nPer allegarlo, annulla, toglilo e caricalo di nuovo. Vuoi inviare comunque?')) return;
+  if(pianificatoInAttesa && !(await cancellaEmailInAttesa(a, b))){
+    toast('⚠️ Non sono riuscito ad annullare l\'invio pianificato: invio interrotto, per non mandare le email due volte. Riprova.');
+    return;
+  }
   toast(`Invio in corso di ${convocati.length} email...`);
   let riusciti=0, falliti=[], ultimoMotivo='';
   const notaReinvio = odgCambiato ? notaAvvisoOdg(amministratore.testoAvvisoOdg, a, b) : '';   // LT-340
@@ -8693,6 +9042,7 @@ async function salvaESpedisciAssemblea(){
     await new Promise(r=>setTimeout(r, 400));
   }
   if(riusciti>0 && odgCambiato){ a._odgModificatoDopoInvio = false; const av=document.getElementById('ca-odg-avviso-modifica'); if(av) av.classList.add('hidden'); }
+  aggiornaStatoPianificazione();   // LT-344
   toast(falliti.length===0
     ? `✅ ${riusciti} email inviate correttamente.`
     : `⚠️ ${riusciti} email inviate, ${falliti.length} FALLITE (${falliti.join(', ')})${ultimoMotivo?'. Motivo: '+ultimoMotivo:''}`);
@@ -8702,6 +9052,8 @@ function eliminaAssembleaCorrente(){
   if(!confirm('Vuoi eliminare l\'assemblea corrente?')) return;
   if(!confirm('Premendo Sì l\'intera assemblea, tutti i sondaggi e le modifiche apportate alla stessa saranno eliminati. Sei certo di voler procedere?')) return;
   const b=getActiveBuilding();
+  // LT-345: via anche i file allegati dallo spazio file (se non riesce, restano lì ma non servono più)
+  try{ const sb = window.__cancello && window.__cancello.sb; const pp = allegatiDaSpedire(a).map(f=>f.path); if(sb && sb.storage && pp.length) sb.storage.from('allegati').remove(pp); }catch(_){}
   __idAssembleeEliminateSessione.add(a.id);   // LT-285: eliminazione voluta, il database può cancellarla
   b.assemblee = b.assemblee.filter(x=>x.id!==a.id);
   if(b.assembleaInCorsoId===a.id) b.assembleaInCorsoId=null;
@@ -12597,6 +12949,8 @@ function sbRigheDesiderate(){
       // orario di fine (serve alla durata nelle statistiche di /gestione): si scrive solo se noto,
       // così un valore già presente sul database non viene mai cancellato
       if(a.oraFineEpoch) extra.oraFineEpoch = a.oraFineEpoch;
+      // LT-345: elenco degli allegati (i file stanno nello spazio file "allegati")
+      extra.allegati = (a.allegatiConvocazione||[]).filter(f=>f && f.path).map(f=>({nome:String(f.nome||''), tipo:String(f.tipo||''), dimensione:Number(f.dimensione)||0, path:String(f.path)}));
       put('assemblee', {id:aid, stabile_id:sid, id_app:a.id, oggetto:String(a.oggetto||''), tipo:String(a.tipo||'ordinaria'),
         modalita:['in-presenza','mista','online'].includes(a.modalita) ? a.modalita : 'mista',
         data_prima:sbData(a.dataPrima), ora_prima:sbOra(a.oraPrima), data_seconda:sbData(a.dataSeconda), ora_seconda:sbOra(a.oraSeconda),
@@ -12744,6 +13098,8 @@ function sbCostruisci(D){
       };
       // valori "grezzi": se non sono ancora sul database si prendono da ciò che l'app aveva in memoria
       a.oraInizio = ex.oraInizio ?? (mem && mem.oraInizio) ?? null;
+      // LT-345: allegati salvati online; finché non ce ne sono, restano quelli vecchi in memoria (da ricaricare)
+      a.allegatiConvocazione = Array.isArray(ex.allegati) ? ex.allegati : (((mem && mem.allegatiConvocazione) || []).filter(f=>f && !f.path).map(f=>({nome:f.nome, tipo:f.tipo})));
       a.registrazioneScadenza = ex.registrazioneScadenza ?? (mem && mem.registrazioneScadenza) ?? null;
       const prec = ex.assembleaPrecedenteId ?? (ar.assemblea_precedente_id ? idAppAss.get(ar.assemblea_precedente_id) : null) ?? (mem && mem.assembleaPrecedenteId) ?? null;
       const succ = ex.assembleaSuccessivaId ?? (ar.assemblea_successiva_id ? idAppAss.get(ar.assemblea_successiva_id) : null) ?? (mem && mem.assembleaSuccessivaId) ?? null;
@@ -12840,7 +13196,7 @@ async function avviaPartecipanteSupabase(){
 // ---- Unione con i dati arrivati dal database condiviso (Firebase).
 // Da lì si prendono SOLO le parti "vive"; ciò che sta su Supabase resta com'è in memoria.
 const SB_CHIAVI_ASS = ['oggetto','tipo','modalita','dataPrima','oraPrima','dataSeconda','oraSeconda','luogo','testo','tipoConvocazione','convocati','invitiInviati','stato','iniziata',
-  'registrazioneAttiva','promemoriaVerbaleNascosto','descrizioneAllegati','testoOspiti','presidenteNominato','segretarioNominato','cronologiaCarichePresidenzaSegreteria','programmati','verbale'];
+  'registrazioneAttiva','promemoriaVerbaleNascosto','descrizioneAllegati','testoOspiti','presidenteNominato','segretarioNominato','cronologiaCarichePresidenzaSegreteria','programmati','verbale','allegatiConvocazione'];   // LT-345: allegati da Supabase
 const SB_CHIAVI_ASS_SE_PRESENTI = ['oraInizio','oraInizioEpoch','oraFineEpoch','registrazioneScadenza','assembleaPrecedenteId','assembleaSuccessivaId'];   // la memoria vince solo se ha un valore
 const SB_CHIAVI_ODG = ['testo','domandaSondaggio','opzioni','tabella','sondaggioAbilitato','prossimoNumeroDuplicato'];
 const SB_CHIAVI_OSPITE = ['nome','ditta','email','token'];
