@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-346 — creata il 26/10/2026 alle 20:04
+  Versione: LT-347 — creata il 26/10/2026 alle 20:53
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -883,7 +883,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 26/10/2026 alle 20:04">LT-346</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 26/10/2026 alle 20:53">LT-347</span>
   </div>
 
   <!-- MAIN -->
@@ -1396,9 +1396,9 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
         </div>
 
         <div class="frame-dark" style="margin-bottom:18px;">
-        <div class="frame-dark-title">Inviti per ospiti</div>
+        <div class="frame-dark-title">Crea invito per ospiti: email con link</div>
         <div class="card frame-dark-hover">
-          <p class="muted" style="margin-bottom:14px;">Persone esterne al condominio invitate a partecipare alla sola videochiamata: un tecnico che deve illustrare un intervento, chi presenta un preventivo, un consulente. L'ospite <b>non entra nell'appello</b>, non ha millesimi, non vota e non compare in nessun elenco di condòmini: riceve un link che apre soltanto la videoconferenza. Puoi invitarli anche dopo aver mandato le convocazioni ai condòmini — l'invito dell'ospite parte per conto suo, con il pulsante della sua riga, e non tocca nulla del resto dell'assemblea.</p>
+          <p class="muted" style="margin-bottom:14px;">Persone esterne al condominio invitate a partecipare alla sola videochiamata: un tecnico che deve illustrare un intervento, chi presenta un preventivo, un consulente. L'ospite <b>non entra nell'appello</b>, non ha millesimi, non vota e non compare in nessun elenco di condòmini: riceve un link che apre soltanto la videoconferenza. Gli ospiti possono essere invitati anche successivamente all'invio delle email ai condòmini con i link d'accesso.</p>
           <div id="ca-ospiti-lista"></div>
           <button class="btn small secondary" onclick="aggiungiOspiteInvito()">+ Invita ospite</button>
           <div id="ca-ospiti-anteprima" class="hidden" style="margin-top:16px;"></div>
@@ -1414,7 +1414,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
         <div class="card frame-dark-hover">
           <!-- LT-344: tre tasti uno sopra l'altro, tutti della stessa larghezza -->
           <div style="display:flex;flex-direction:column;gap:10px;max-width:460px;">
-            <button class="btn brass" id="ca-btn-invia" style="width:100%;" onclick="salvaESpedisciAssemblea()">✉ Salva e invia subito le email</button>
+            <button class="btn brass" id="ca-btn-invia" style="width:100%;" onclick="salvaESpedisciAssemblea()">✉ Salva ed invia tutte le email</button>
             <button class="btn secondary" id="ca-btn-pianifica" style="width:100%;" onclick="apriPianificazioneInvio()">🕒 Salva e pianifica l'invio</button>
             <button class="btn secondary" style="width:100%;" onclick="salvaSenzaInviare()">Salva senza inviare</button>
           </div>
@@ -1434,7 +1434,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
           <label style="display:flex;align-items:center;gap:12px;margin-top:16px;margin-bottom:4px;padding:14px 16px;background:var(--paper);border-radius:4px;font-weight:700;font-size:15px;">
             <input type="checkbox" id="ca-remind-30min" onchange="toggleRemind30Min(this.checked)" style="width:20px;height:20px;flex-shrink:0;"> Promemoria automatico via email 30 minuti prima dell'assemblea
           </label>
-          <p class="muted" style="font-size:12.5px;margin:4px 2px 0;">Parte da solo 30 minuti prima della seconda convocazione, anche se il tuo computer è spento: a tutti i convocati (tranne chi ha delegato), agli ospiti invitati e ai delegati esterni, ognuno con il proprio link.</p>
+          <p class="muted" style="font-size:12.5px;margin:4px 2px 0;">Verrà inviato a tutti i partecipanti un promemoria 30 minuti prima dell'inizio dell'assemblea, con i link d'accesso e per le deleghe.</p>
           <div id="ca-sched-list" class="hidden"></div>
         </div>
         </div>
@@ -2489,7 +2489,7 @@ ORDINE DEL GIORNO
 Cordiali saluti,
 {{firma_amministratore}}
 
-Modulo delega: alternativa cartacea, da compilare solo se si preferisce non usare il modulo online
+Modulo delega cartacea, da compilare solo se impossibilitati ad usare il modulo online disponibile nell'email.
 
 ---
 
@@ -2527,7 +2527,7 @@ ORDINE DEL GIORNO
 Cordiali saluti,
 {{firma_amministratore}}
 
-Modulo delega: alternativa cartacea, da compilare solo se si preferisce non usare il modulo online
+Modulo delega cartacea, da compilare solo se impossibilitati ad usare il modulo online disponibile nell'email.
 
 ---
 
@@ -2571,6 +2571,9 @@ Luogo e Data ________________________________
 
 Firma ________________________________`;
 
+// LT-347: frase del modulo delega aggiornata (vale anche per i testi già salvati prima)
+const FRASE_DELEGA_VECCHIA = "Modulo delega: alternativa cartacea, da compilare solo se si preferisce non usare il modulo online";
+const FRASE_DELEGA_NUOVA = "Modulo delega cartacea, da compilare solo se impossibilitati ad usare il modulo online disponibile nell'email.";
 const TESTO_INVITO_DEFAULT = TESTO_INVITO_MISTA; // usato come ripiego dove serve un default generico
 
 // Restituisce il testo standard da usare per una certa modalità: quello personalizzato
@@ -7651,8 +7654,11 @@ async function aggiornaStatoPianificazione(){
 }
 function renderPianificazione(){
   const btn = document.getElementById('ca-btn-invia');
-  // dopo una pianificazione, o quando le convocazioni sono già partite, il primo tasto è un invio "a mano"
-  if(btn) btn.textContent = (__pianif.totale>0 || (workingAssembly && workingAssembly.invitiInviati)) ? '✉ Invia manualmente tutte le email' : '✉ Salva e invia subito le email';
+  // "Salva ed invia" finché l'assemblea non è mai stata salvata; dopo un salvataggio, una
+  // pianificazione o un invio diventa "Invia manualmente"
+  const wa = workingAssembly, bb = getActiveBuilding();
+  const giaSalvata = !!(wa && wa.id!=null && bb && (bb.assemblee||[]).some(x=>x.id===wa.id));
+  if(btn) btn.textContent = (__pianif.totale>0 || (wa && wa.invitiInviati) || giaSalvata) ? '✉ Invia manualmente tutte le email' : '✉ Salva ed invia tutte le email';
   const box = document.getElementById('ca-pianifica-box'), stato = document.getElementById('ca-pianifica-stato'), modulo = document.getElementById('ca-pianifica-modulo');
   if(!box || !stato || !modulo) return;
   const p = __pianif;
@@ -7779,9 +7785,22 @@ function testoConvocazioneDocumento(a, b){
   if((a.allegatiConvocazione||[]).length){
     allegati = 'Allegati:\n' + (a.descrizioneAllegati && a.descrizioneAllegati.trim() ? a.descrizioneAllegati.trim()+'\n' : '') + a.allegatiConvocazione.map(f=>'- '+f.nome).join('\n');
   }
+  // LT-347: su carta i link non servono. Si tolgono i paragrafi dei link ({{link_accesso}},
+  // {{link_delega}}, {{link_solo_voto}}) e quello che li introduce subito prima; al posto del
+  // primo va una sola frase.
+  const paragrafi = String(a.testo||'').replaceAll(FRASE_DELEGA_VECCHIA, FRASE_DELEGA_NUOVA).split(/\n[ \t]*\n/);
+  const eLink = p => /^\s*\{\{link_(accesso|delega|solo_voto)\}\}\s*$/.test(p);
+  const via = new Set(); let primoTolto = -1;
+  paragrafi.forEach((p,i)=>{ if(eLink(p)){ via.add(i); if(i>0 && !eLink(paragrafi[i-1])) via.add(i-1); } });
+  via.forEach(i=>{ if(primoTolto<0 || i<primoTolto) primoTolto = i; });
+  const fraseOnline = a.modalita==='online'
+    ? "L'assemblea si svolgerà sulla piattaforma Riunion. Riceverete apposito link personale tramite email."
+    : "E' possibile partecipare all'assemblea anche in modalità on-line utilizzando la piattaforma Riunion. Riceverete apposito link personale tramite email.";
+  const testoCarta = paragrafi.map((p,i)=> i===primoTolto ? (a.modalita!=='in-presenza' ? fraseOnline : null) : (via.has(i) ? null : p))
+    .filter(p=>p!==null).join('\n\n');
   // {{nome}}: "Condòmino" nel saluto (la prima volta), una riga da compilare altrove (es. nel modulo di delega)
   let primoNome = true;
-  const conNomi = String(a.testo||'').replace(/\{\{nome\}\}/g, ()=>{ if(primoNome){ primoNome=false; return 'Condòmino'; } return '______________________________'; });
+  const conNomi = testoCarta.replace(/\{\{nome\}\}/g, ()=>{ if(primoNome){ primoNome=false; return 'Condòmino'; } return '______________________________'; });
   const t = (a.oggetto ? `Oggetto: ${a.oggetto}\n\n` : '') + conNomi
     .replaceAll('{{nomecondominio}}', (b && b.nome) || '')
     .replaceAll('{{comune}}', (b && b.comune) || '')
@@ -7940,7 +7959,7 @@ function costruisciEmail(c, a, b){
         ? nomeStudioAmm()
         : ((amministratore.nome||amministratore.cognome) ? (amministratore.nome+' '+amministratore.cognome).trim() : 'L\'Amministratore'));
 
-  return rigaOggetto + a.testo
+  return rigaOggetto + String(a.testo||'').replaceAll(FRASE_DELEGA_VECCHIA, FRASE_DELEGA_NUOVA)
     .replaceAll('{{nome}}', c.nome+(c.cognome?(' '+c.cognome):''))
     .replaceAll('{{nomecondominio}}', (b && b.nome) || '(nome condominio non impostato)')
     .replaceAll('{{comune}}', (b && b.comune) || '(comune non impostato)')
