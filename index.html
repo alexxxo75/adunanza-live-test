@@ -4,7 +4,7 @@
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
   Tutti i diritti riservati.
 
-  Versione: LT-340 — creata il 22/10/2026 alle 14:46
+  Versione: LT-342 — creata il 26/10/2026 alle 14:02
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -876,7 +876,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 22/10/2026 alle 14:46">LT-340</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 26/10/2026 alle 14:02">LT-342</span>
   </div>
 
   <!-- MAIN -->
@@ -964,6 +964,8 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
         <div><h1>Profilo</h1></div>
       </div>
 
+      <!-- LT-342: primo accesso / profilo incompleto -->
+      <div id="prof-benvenuto" class="note hidden" style="margin-bottom:14px;"><b>Benvenuto in Riunion!</b> Prima di iniziare, completa il tuo profilo: compila tutti i campi segnati con <span class="req">*</span> e premi <b>"Salva profilo"</b>. Questi dati servono per le comunicazioni ai condòmini e per la fatturazione.</div>
       <p class="prof-legenda"><span class="req">*</span> campo obbligatorio</p>
       <div class="prof-colonne">
         <div class="card prof-card">
@@ -1113,6 +1115,8 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
         <span>3. Carica da Excel i dati dei condòmini</span>
       </div>
       <div class="card frame-dark-hover">
+        <!-- LT-341: modello vuoto da compilare -->
+        <a class="btn small secondary" href="/assets/Creazione_Condominio.xlsx" download="Creazione_Condominio.xlsx" style="display:inline-block;margin-bottom:12px;text-decoration:none;">⬇ Scarica file .xlsx per creare il condominio</a>
         <p class="muted" style="margin-bottom:8px;">Colonne riconosciute: Cognome, Nome (opzionale), Interno (opzionale), Unità immobiliare (opzionale), Email, e una o più colonne "Millesimi ..." (es. "Millesimi Proprietà", "Millesimi Giardino"). Se il file non ha titoli riconoscibili, viene letto per posizione: Cognome (e Nome, se insieme) — Nome — Interno — Unità immobiliare — Email — Millesimi proprietà — altri millesimi.</p>
         <input type="file" id="excel-input" accept=".xlsx,.xls,.csv" onchange="handleExcelUpload(event)">
         <div id="excel-feedback" class="muted" style="margin-top:8px;"></div>
@@ -2335,6 +2339,13 @@ function salvaProfiloAmministratore(){
   // LT-283: la fonte vera del profilo è Supabase (tabella "amministratori"). Il toast di
   // conferma compare solo se il salvataggio lì è riuscito davvero.
   salvaProfiloSuSupabase().then(ok=>{
+    if(ok && __profiloDaCompletare && currentPage==='profilo'){
+      __profiloDaCompletare = false;
+      const benv = document.getElementById('prof-benvenuto'); if(benv) benv.classList.add('hidden');
+      toast('Profilo completato: benvenuto in Riunion!');
+      goPage('home');
+      return;
+    }
     if(ok && window.__testiNonSalvati){ toast('Preferenze salvate, ma NON i testi delle comunicazioni: manca lo script "LT-340 Supabase.sql" su Supabase.'); return; }
     toast(ok ? etichetta+(etichetta==='Profilo'?' salvato.':' salvate.') : 'Non sono riuscito a salvare su Supabase: controlla la connessione e riprova.');
   });
@@ -3199,7 +3210,18 @@ document.addEventListener('visibilitychange', ()=>{
     clearInterval(__timerRicontrolloVisibilita); __timerRicontrolloVisibilita=null;
   }
 });
+// LT-342: finché il profilo ha campi obbligatori vuoti (o scritti male) si resta sul Profilo.
+let __profiloDaCompletare = false;
+function profiloCompleto(){
+  renderProfiloAmministratore();                 // mette nel modulo i dati salvati
+  const ok = profiloCampiMancanti().length===0 && profiloCampiErrati().length===0;
+  return ok;
+}
 function goPage(name){
+  if(__profiloDaCompletare && name!=='profilo'){
+    toast('Prima completa il tuo profilo: compila tutti i campi con * e premi "Salva profilo".');
+    name = 'profilo';
+  }
   // Se l'amministratore sta lasciando la pagina dell'assemblea (per andare altrove nell'app)
   // mentre l'assemblea è stata avviata ma NON ancora terminata col tasto "Termina assemblea",
   // avvisiamo prima di uscire — resta comunque possibile uscire, è solo un promemoria. Il
@@ -3286,6 +3308,9 @@ function goPage(name){
   }else if(name==='profilo'){
     banner.classList.add('hidden');
     renderProfiloAmministratore();
+    const benv = document.getElementById('prof-benvenuto');
+    if(benv) benv.classList.toggle('hidden', !__profiloDaCompletare);
+    if(__profiloDaCompletare){ profiloCampiMancanti(); profiloCampiErrati(); }   // evidenzia subito cosa manca
   }else if(name==='preferenze'){
     banner.classList.add('hidden');
     renderProfiloAmministratore();
@@ -4143,7 +4168,8 @@ function rilevaColonneAnagrafica(headers){
   let keyNome=null, keyCognome=null, keyNomeCompleto=null, keyEmail=null, keyInterno=null, keyUnita=null;
   const millesimiCols = []; // {header, tabella}
   headers.forEach(h=>{
-    const low = h.toLowerCase().trim();
+    // LT-341: l'asterisco che nel modello segna i campi obbligatori non conta
+    const low = String(h).replace(/\*/g,'').toLowerCase().trim();
     const haCognome = low.includes('cognome');
     const haNome = low.replace(/cognome/g,'').includes('nome'); // evita che "Cognome" (che contiene "nome") sia scambiato per nome+cognome combinati
     if((haNome && haCognome) || low.includes('nominativo')) keyNomeCompleto=h;
@@ -4153,7 +4179,7 @@ function rilevaColonneAnagrafica(headers){
     else if(low.includes('intern') || /\bint\.?\b/.test(low)) keyInterno=h;
     else if(low.includes('mail')) keyEmail=h;
     else if(low.includes('millesim')||low.includes('peso')){
-      let tabellaNome = h.replace(/millesim[ie]?/i,'').replace(/peso/i,'').trim().replace(/^[-:\s]+/,'');
+      let tabellaNome = String(h).replace(/\*/g,'').replace(/_\d+$/,'').replace(/millesim[ie]?/i,'').replace(/peso/i,'').trim().replace(/^[-:\s]+/,'');
       if(!tabellaNome) tabellaNome='Proprietà';
       millesimiCols.push({header:h, tabella:tabellaNome});
     }
@@ -4198,7 +4224,7 @@ function normalizzaNome(s){
 }
 function chiaveNomeCondomino(c){ return normalizzaNome((c.nome||'')+' '+(c.cognome||'')); }
 function chiaveNomeRiga(r, keyNome, keyCognome, keyNomeCompleto){
-  if(keyNomeCompleto) return normalizzaNome(r[keyNomeCompleto]);
+  if(keyNomeCompleto) return normalizzaNome(r[keyNomeCompleto] + (keyNome ? ' '+(r[keyNome]||'') : ''));   // LT-341: anche con il Nome in colonna a parte
   return normalizzaNome((keyNome?r[keyNome]:'')+' '+(keyCognome?r[keyCognome]:''));
 }
 // Normalizza un valore di Unità/Interno per il confronto (minuscolo, senza accenti,
@@ -4246,7 +4272,13 @@ function importaExcelFile(file, feedback, opts){
       if(rows.length===0){ feedback.textContent='Il file sembra vuoto.'; if(opts.errore) opts.errore(); return; }
 
       const headers = Object.keys(rows[0]);
-      const {keyNome, keyCognome, keyNomeCompleto, keyEmail, keyInterno, keyUnita, millesimiCols} = rilevaColonneAnagrafica(headers);
+      const {keyNome, keyCognome, keyNomeCompleto, keyEmail, keyInterno, keyUnita, millesimiCols: colonneTrovate} = rilevaColonneAnagrafica(headers);
+      // LT-341: le colonne di millesimi lasciate vuote (es. "Millesimi xxx" del modello) non diventano
+      // tabelle piene di zeri. Resta sempre almeno la prima.
+      const millesimiCols = colonneTrovate.filter((mc,i)=> i===0 || rows.some(r=>String(r[mc.header]==null?'':r[mc.header]).trim()!==''));
+      // Due colonne con lo stesso nome di tabella: la seconda prende un numero, per non mescolarle.
+      const visti = new Set();
+      millesimiCols.forEach(mc=>{ let n=mc.tabella, k=2; while(visti.has(n.toLowerCase())) n = mc.tabella+' '+(k++); mc.tabella=n; visti.add(n.toLowerCase()); });
       if(!(keyNome||keyNomeCompleto) || !keyEmail || millesimiCols.length===0){
         feedback.textContent='Non trovo le colonne attese (Nome, Email, almeno una colonna Millesimi...). Controlla le intestazioni del file.';
         if(opts.errore) opts.errore();
@@ -4266,7 +4298,10 @@ function importaExcelFile(file, feedback, opts){
         // Se cognome e nome sono scritti insieme in un'unica colonna (keyNomeCompleto), il
         // testo va nel campo Cognome (non Nome): il resto dell'app mostra sempre il cognome
         // per primo, ed è così che appare comunque nel testo stesso ("Cognome Nome").
-        const nome = keyNomeCompleto ? '' : String(r[keyNome]||'').trim();
+        // LT-341: se c'è anche una colonna "Nome" compilata (come nel modello scaricabile), la colonna
+        // "Cognome e Nome" contiene il solo cognome e il nome si prende da lì.
+        const nomeSeparato = (keyNomeCompleto && keyNome) ? String(r[keyNome]||'').trim() : '';
+        const nome = keyNomeCompleto ? nomeSeparato : String(r[keyNome]||'').trim();
         const cognome = keyNomeCompleto ? String(r[keyNomeCompleto]||'').trim() : (keyCognome? String(r[keyCognome]||'').trim() : '');
         const email=String(r[keyEmail]||'').trim();
         const interno=keyInterno? String(r[keyInterno]||'').trim() : '';
@@ -14179,7 +14214,11 @@ async function avviaCancello(){
   if(box) box.remove();
   const esci = document.getElementById('nav-esci');
   if(esci) esci.classList.remove('hidden');
+  // LT-342: se mancano campi obbligatori del profilo, si apre il Profilo e non si va avanti
+  // finché non è completo (vale al primo accesso e per chi ha un profilo ancora incompleto).
+  try{ __profiloDaCompletare = !profiloCompleto(); }catch(e){ console.error('[Riunion] controllo profilo non riuscito:', e); }
   avviaApp();
+  if(__profiloDaCompletare) goPage('profilo');
 }
 async function esciDallApp(){
   const c = window.__cancello;
