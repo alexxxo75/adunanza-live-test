@@ -2,6 +2,13 @@
 <html lang="it">
 <head>
 <meta charset="utf-8">
+<script>
+// Un link di recupero password o di invito deve passare SEMPRE da "Imposta password".
+// Se Supabase lo fa atterrare altrove (per esempio perché l'indirizzo non è nell'elenco dei
+// reindirizzamenti consentiti), qui lo rimandiamo alla pagina giusta prima che l'app lo
+// trasformi in un accesso diretto, senza far scegliere la nuova password.
+(function(){var h=location.hash||'';if(/(^|[#&])type=(recovery|invite)(&|$)/.test(h)&&location.pathname.indexOf('/imposta-password')!==0){location.replace('/imposta-password/'+h);}})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <meta name="robots" content="noindex, nofollow">
