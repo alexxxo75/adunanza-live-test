@@ -1,3 +1,4 @@
+// © 2026 Alessandro Castiglioni. Tutti i diritti riservati.
 // /api/verbale.js — funzione serverless Vercel (Node.js, nessun framework richiesto)
 //
 // Fa scrivere a un'intelligenza artificiale la parte discorsiva del verbale d'assemblea.

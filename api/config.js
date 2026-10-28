@@ -1,3 +1,4 @@
+// © 2026 Alessandro Castiglioni. Tutti i diritti riservati.
 // Dà alla pagina l'indirizzo di Supabase e la chiave PUBBLICA (publishable), fatta apposta per stare nel browser.
 // La chiave segreta non compare mai qui.
 export default function handler(req, res) {

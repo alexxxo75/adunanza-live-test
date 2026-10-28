@@ -1,3 +1,4 @@
+// © 2026 Alessandro Castiglioni. Tutti i diritti riservati.
 // LT-346: link agli allegati della convocazione (firmati qui, con la chiave segreta)
 import { clienteServer } from '../lib/supabase.js';
 import { sostituisciLinkAllegati, trovaLinkAllegati } from '../lib/allegati.js';

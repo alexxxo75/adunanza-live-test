@@ -1,3 +1,4 @@
+// © 2026 Alessandro Castiglioni. Tutti i diritti riservati.
 // /api/email-delega.js — LT-320
 //
 // Manda l'email di conferma quando un CONDÒMINO concede una delega dalla sua pagina.

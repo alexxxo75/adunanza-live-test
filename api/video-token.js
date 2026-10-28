@@ -1,3 +1,4 @@
+// © 2026 Alessandro Castiglioni. Tutti i diritti riservati.
 // /api/video-token.js — funzione serverless Vercel (Node.js, nessun framework richiesto)
 //
 // Prepara il link di ingresso alla videochiamata, con il nome della persona e il ruolo
