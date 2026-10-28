@@ -1,3 +1,4 @@
+// © 2026 Alessandro Castiglioni. Tutti i diritti riservati.
 // Selettore del tema: Chiaro / Automatico / Scuro. La scelta resta salvata su questo dispositivo.
 // "Automatico" segue le impostazioni del telefono o del computer.
 (function () {
