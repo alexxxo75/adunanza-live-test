@@ -1,3 +1,4 @@
+// © 2026 Alessandro Castiglioni. Tutti i diritti riservati.
 // POST /api/account/imposta-password   corpo: { password }   Authorization: Bearer <token del link>
 // Serve a chi ha la verifica in due passaggi (2FA) attiva: Supabase rifiuta il cambio password
 // da una sessione "normale" (aal1), e la sessione aperta dal link di recupero è proprio aal1.
