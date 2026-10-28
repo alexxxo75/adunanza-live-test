@@ -1,3 +1,4 @@
+// © 2026 Alessandro Castiglioni. Tutti i diritti riservati.
 // POST /api/amministratori/<azione>
 // UNICA funzione server per tutte le operazioni sugli amministratori. Il piano gratuito di Vercel
 // accetta al massimo 12 funzioni per deploy (una per ogni file in "api/"): tenerle qui dentro,
