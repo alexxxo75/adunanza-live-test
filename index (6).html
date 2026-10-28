@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<!-- © 2026 Alessandro Castiglioni. Tutti i diritti riservati. -->
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<script>
+// Un link di recupero password o di invito deve passare SEMPRE da "Imposta password".
+// Se Supabase lo fa atterrare altrove (per esempio perché l'indirizzo non è nell'elenco dei
+// reindirizzamenti consentiti), qui lo rimandiamo alla pagina giusta prima che l'app lo
+// trasformi in un accesso diretto, senza far scegliere la nuova password.
+(function(){var h=location.hash||'';if(/(^|[#&])type=(recovery|invite)(&|$)/.test(h)&&location.pathname.indexOf('/imposta-password')!==0){location.replace('/imposta-password/'+h);}})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="/assets/riunion.css">
+<script src="/assets/tema.js"></script>
+<title>Riunion — Accesso</title>
+</head>
+<body>
+
+<section id="v-caricamento" class="centro"><p class="tenue">Caricamento…</p></section>
+
+<section id="v-login" class="centro" hidden>
+  <div class="centro-barra"><div class="tema" role="group" aria-label="Tema dell'aspetto">
+          <button type="button" data-tema="light" aria-pressed="false" aria-label="Tema chiaro" title="Chiaro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+          <button type="button" data-tema="auto" aria-pressed="false" aria-label="Tema automatico" title="Automatico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v18" /><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></svg></button>
+          <button type="button" data-tema="dark" aria-pressed="false" aria-label="Tema scuro" title="Scuro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+        </div></div>
+  <div class="marchio"><span class="marchio-icona">R</span>Riunion</div>
+  <div class="carta animate-fadeIn">
+    <div class="carta-testa"><h1>Accesso</h1><p>Area riservata agli amministratori di condominio</p></div>
+    <div id="login-avviso" class="msg info" hidden></div>
+    <div class="campo"><label for="login-email">Email</label>
+      <input id="login-email" type="email" autocomplete="username" inputmode="email"></div>
+    <div class="campo"><label for="login-password">Password</label>
+      <input id="login-password" type="password" autocomplete="current-password"></div>
+    <button id="btn-accedi" class="btn btn-primario btn-pieno" type="button">Accedi</button>
+    <div id="login-msg" class="msg" hidden></div>
+    <p style="margin-top:16px"><button id="btn-dimenticata" class="btn-link" type="button">Password dimenticata?</button></p>
+    <p class="tenue" style="margin-top:14px;font-size:13px">Sei un condòmino o un ospite? Non serve nessun accesso: usa il link ricevuto per email.</p>
+  </div>
+</section>
+
+<section id="v-codice" class="centro" hidden>
+  <div class="marchio"><span class="marchio-icona">R</span>Riunion</div>
+  <div class="carta animate-fadeIn">
+    <div class="carta-testa"><h1>Verifica in due passaggi</h1><p>Apri l'app di autenticazione sul telefono e scrivi il codice di 6 cifre di Riunion.</p></div>
+    <div class="campo"><label for="codice-2fa">Codice</label>
+      <input id="codice-2fa" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]*"></div>
+    <button id="btn-codice" class="btn btn-primario btn-pieno" type="button">Conferma</button>
+    <div id="codice-msg" class="msg" hidden></div>
+    <p style="margin-top:16px"><button id="btn-codice-annulla" class="btn-link" type="button">Annulla ed esci</button></p>
+  </div>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var sb = null;
+
+  function mostra(vista) {
+    ['v-caricamento', 'v-login', 'v-codice'].forEach(function (v) { $(v).hidden = (v !== vista); });
+  }
+  function messaggio(id, testo, tipo) {
+    var e = $(id);
+    e.textContent = testo || '';
+    e.className = 'msg' + (tipo ? ' ' + tipo : '');
+    e.hidden = !testo;
+  }
+  function traduciErrore(e) {
+    var m = (e && e.message) || '';
+    if (/invalid login credentials/i.test(m)) return 'Email o password non corretti.';
+    if (/email not confirmed/i.test(m)) return 'L\'invito non è ancora stato accettato.';
+    if (/banned|user is banned/i.test(m)) return 'Questo account è stato disattivato.';
+    if (/rate limit|too many/i.test(m)) return 'Troppi tentativi. Riprova tra qualche minuto.';
+    return m || 'Errore imprevisto.';
+  }
+
+  // Dopo il login decide dove mandare la persona, in base al ruolo scritto nel database
+  // (non in base a ciò che dichiara il browser): ADMINISTRATOR → gestione utenti,
+  // amministratore attivo → app vera, tutti gli altri → fuori.
+  // Se l'account ha la verifica in due passaggi, prima chiede il codice. Gli ADMINISTRATOR
+  // devono averla: se non l'hanno ancora attivata vengono portati a registrarla.
+  async function leggiAccesso(sessione) {
+    var a = await sb.rpc('mio_accesso');
+    if (!a.error && a.data) return a.data;
+    // Funzione del database non ancora installata: lettura "classica", senza 2FA
+    var p = await sb.from('amministratori').select('ruolo, attivo').eq('id', sessione.user.id).maybeSingle();
+    if (p.error || !p.data) return null;
+    return { ruolo: p.data.ruolo, attivo: p.data.attivo, ha_mfa: false };
+  }
+  async function instrada(sessione) {
+    var acc = await leggiAccesso(sessione);
+    if (!acc) { await rifiuta('Il tuo account non risulta abilitato.'); return; }
+    if (!acc.attivo) { await rifiuta('Il tuo account è stato disattivato. Contatta chi gestisce la piattaforma.'); return; }
+    var l = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+    var livello = l && l.data ? l.data.currentLevel : 'aal1';
+    if (acc.ha_mfa && livello !== 'aal2') { await chiediCodice(); return; }
+    if (acc.ruolo === 'administrator' && !acc.ha_mfa) { window.location.replace('/sicurezza/?obbligatorio=1'); return; }
+    window.location.replace(acc.ruolo === 'administrator' ? '/gestione/' : '/');
+  }
+  var fattoreId = null;
+  async function chiediCodice() {
+    var f = await sb.auth.mfa.listFactors();
+    var t = f && f.data && f.data.totp && f.data.totp[0];
+    if (!t) { await rifiuta('Non trovo la verifica in due passaggi del tuo account. Contatta un ADMINISTRATOR.'); return; }
+    fattoreId = t.id;
+    messaggio('codice-msg', '');
+    $('codice-2fa').value = '';
+    mostra('v-codice');
+    $('codice-2fa').focus();
+  }
+  async function confermaCodice() {
+    var codice = $('codice-2fa').value.replace(/\s/g, '');
+    if (!/^[0-9]{6}$/.test(codice)) { messaggio('codice-msg', 'Il codice ha 6 cifre.', 'err'); return; }
+    $('btn-codice').disabled = true;
+    var r = await sb.auth.mfa.challengeAndVerify({ factorId: fattoreId, code: codice });
+    if (r.error) {
+      $('btn-codice').disabled = false;
+      var m = r.error.message || '';
+      messaggio('codice-msg', /rate limit|too many/i.test(m) ? 'Troppi tentativi. Riprova tra qualche minuto.' : 'Codice non corretto (o scaduto). Riprova con il codice attuale.', 'err');
+      return;
+    }
+    var s = await sb.auth.getSession();
+    await instrada(s.data.session);
+    $('btn-codice').disabled = false;
+  }
+  async function rifiuta(testo) {
+    await sb.auth.signOut();
+    mostra('v-login');
+    messaggio('login-msg', testo, 'err');
+  }
+
+  async function accedi() {
+    var email = $('login-email').value.trim();
+    var password = $('login-password').value;
+    if (!email || !password) { messaggio('login-msg', 'Inserisci email e password.', 'err'); return; }
+    $('btn-accedi').disabled = true;
+    messaggio('login-msg', '');
+    var r = await sb.auth.signInWithPassword({ email: email, password: password });
+    if (r.error) { $('btn-accedi').disabled = false; messaggio('login-msg', traduciErrore(r.error), 'err'); return; }
+    $('login-password').value = '';
+    await instrada(r.data.session);
+    $('btn-accedi').disabled = false;
+  }
+
+  async function passwordDimenticata() {
+    var email = $('login-email').value.trim();
+    if (!email) { messaggio('login-msg', 'Scrivi la tua email qui sopra, poi premi di nuovo "Password dimenticata?".', 'err'); return; }
+    var r = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/imposta-password/' });
+    if (r.error) { messaggio('login-msg', traduciErrore(r.error), 'err'); return; }
+    messaggio('login-msg', 'Se l\'indirizzo è registrato, riceverai un\'email con le istruzioni.', 'ok');
+  }
+
+  async function avvia() {
+    var cfg;
+    try {
+      var r = await fetch('/api/config', { cache: 'no-store' });
+      cfg = await r.json();
+      if (!r.ok || !cfg.url || !cfg.chiavePubblica) throw new Error('config');
+    } catch (e) {
+      mostra('v-login');
+      $('btn-accedi').disabled = true;
+      messaggio('login-msg', 'Configurazione mancante: controlla le variabili d\'ambiente su Vercel.', 'err');
+      return;
+    }
+    sb = window.supabase.createClient(cfg.url, cfg.chiavePubblica);
+    $('btn-accedi').addEventListener('click', accedi);
+    $('login-password').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') accedi(); });
+    $('btn-dimenticata').addEventListener('click', passwordDimenticata);
+    $('btn-codice').addEventListener('click', confermaCodice);
+    $('codice-2fa').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') confermaCodice(); });
+    $('btn-codice-annulla').addEventListener('click', async function () { await sb.auth.signOut(); mostra('v-login'); });
+
+    // Messaggio lasciato dall'app quando ti rimanda qui (es. sessione scaduta).
+    var motivo = new URLSearchParams(window.location.search).get('motivo');
+    if (motivo === 'scaduta') messaggio('login-avviso', 'La sessione è scaduta: accedi di nuovo.', 'info');
+    if (motivo === 'disattivato') messaggio('login-avviso', 'Il tuo account è stato disattivato. Contatta chi gestisce la piattaforma.', 'err');
+
+    var s = await sb.auth.getSession();
+    if (s.data.session) await instrada(s.data.session); else mostra('v-login');
+  }
+  avvia();
+})();
+</script>
+<footer class="piede-legale">© 2026 Alessandro Castiglioni. Tutti i diritti riservati.<br><a href="/termini/" target="_blank" rel="noopener">Termini di servizio</a> · <a href="/privacy/" target="_blank" rel="noopener">Informativa privacy</a></footer>
+</body>
+</html>

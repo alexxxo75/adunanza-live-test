@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<!-- © 2026 Alessandro Castiglioni. Tutti i diritti riservati. -->
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="/assets/riunion.css">
+<script src="/assets/tema.js"></script>
+<title>Riunion — Scegli la tua password</title>
+</head>
+<body>
+<div class="centro">
+  <div class="centro-barra"><div class="tema" role="group" aria-label="Tema dell'aspetto">
+          <button type="button" data-tema="light" aria-pressed="false" aria-label="Tema chiaro" title="Chiaro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+          <button type="button" data-tema="auto" aria-pressed="false" aria-label="Tema automatico" title="Automatico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v18" /><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></svg></button>
+          <button type="button" data-tema="dark" aria-pressed="false" aria-label="Tema scuro" title="Scuro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+        </div></div>
+  <div class="marchio"><span class="marchio-icona">R</span>Riunion</div>
+
+  <div class="carta animate-fadeIn">
+    <div id="v-attesa"><p class="tenue">Verifica del link in corso…</p></div>
+
+    <div id="v-form" hidden>
+      <div class="carta-testa"><h1>Scegli la tua password</h1><p>Con questa password accederai a Riunion.</p></div>
+      <div class="campo"><label for="pw1">Nuova password</label>
+        <input id="pw1" type="password" autocomplete="new-password"></div>
+      <p class="regole">Almeno 12 caratteri. Meglio una frase lunga che una parola complicata.</p>
+      <div class="campo"><label for="pw2">Ripeti la password</label>
+        <input id="pw2" type="password" autocomplete="new-password"></div>
+      <button id="btn-salva" class="btn btn-primario btn-pieno" type="button">Salva la password</button>
+      <div id="msg" class="msg" hidden></div>
+    </div>
+
+    <div id="v-errore" hidden>
+      <div class="carta-testa"><h1>Link non utilizzabile</h1></div>
+      <p id="errore-testo" class="tenue"></p>
+      <p class="tenue" style="margin-top:10px">Chiedi un nuovo invito oppure, se hai già un account, usa "Password dimenticata?" nella pagina di accesso.</p>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var sb = null;
+  var formMostrato = false;
+
+  function vista(nome) {
+    ['v-attesa', 'v-form', 'v-errore'].forEach(function (v) { $(v).hidden = (v !== nome); });
+  }
+  function messaggio(testo, tipo) {
+    var e = $('msg');
+    e.textContent = testo || '';
+    e.className = 'msg' + (tipo ? ' ' + tipo : '');
+    e.hidden = !testo;
+  }
+  function errore(testo) {
+    $('errore-testo').textContent = testo;
+    vista('v-errore');
+  }
+  // Se il link è scaduto o già usato, Supabase lo scrive nell'indirizzo della pagina.
+  function erroreNelLink() {
+    var p = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
+    if (p.get('error') || p.get('error_code')) {
+      return p.get('error_code') === 'otp_expired' ? 'Il link è scaduto o è già stato usato.' : 'Il link non è valido.';
+    }
+    return null;
+  }
+  function mostraForm() {
+    if (formMostrato) return;
+    formMostrato = true;
+    // Togliamo dall'indirizzo i dati temporanei del link.
+    if (window.history && window.history.replaceState) window.history.replaceState(null, '', window.location.pathname);
+    vista('v-form');
+  }
+
+  async function salva() {
+    var a = $('pw1').value, b = $('pw2').value;
+    if (a.length < 12) { messaggio('La password deve avere almeno 12 caratteri.', 'err'); return; }
+    if (a !== b) { messaggio('Le due password non coincidono.', 'err'); return; }
+    $('btn-salva').disabled = true;
+    messaggio('Salvataggio…', 'info');
+    var r = await sb.auth.updateUser({ password: a });
+    // Con il 2FA attivo Supabase non accetta il cambio da una sessione aperta da un link email:
+    // in quel caso lo fa il server, che verifica che il token arrivi davvero dal link.
+    if (r.error && /aal2/i.test(r.error.message || '')) {
+      try {
+        var ses = await sb.auth.getSession();
+        var rr = await fetch('/api/account/imposta-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ses.data.session.access_token },
+          body: JSON.stringify({ password: a })
+        });
+        var jj = {}; try { jj = await rr.json(); } catch (e2) {}
+        r = (rr.ok && jj.ok) ? { error: null } : { error: { message: jj.errore || 'Impossibile salvare la password.' } };
+      } catch (e3) { r = { error: { message: 'Impossibile salvare la password.' } }; }
+    }
+    if (r.error) {
+      var m = r.error.message || '';
+      if (/same|different from the old/i.test(m)) m = 'Scegli una password diversa dalla precedente.';
+      else if (/weak|short|at least/i.test(m)) m = 'La password non è abbastanza robusta.';
+      messaggio(m || 'Impossibile salvare la password.', 'err');
+      $('btn-salva').disabled = false;
+      return;
+    }
+    messaggio('Password salvata. Ti porto avanti…', 'ok');
+    var dove = '/';
+    try {
+      var u = await sb.auth.getUser();
+      var p = await sb.from('amministratori').select('ruolo').eq('id', u.data.user.id).maybeSingle();
+      if (p.data && p.data.ruolo === 'administrator') dove = '/gestione/';
+    } catch (e) {}
+    setTimeout(function () { window.location.href = dove; }, 1200);
+  }
+
+  async function avvia() {
+    var prima = erroreNelLink();
+    if (prima) { errore(prima); return; }
+    var cfg;
+    try {
+      var r = await fetch('/api/config', { cache: 'no-store' });
+      cfg = await r.json();
+      if (!r.ok || !cfg.url || !cfg.chiavePubblica) throw new Error('config');
+    } catch (e) { errore('Configurazione mancante sul server.'); return; }
+
+    sb = window.supabase.createClient(cfg.url, cfg.chiavePubblica);
+    sb.auth.onAuthStateChange(function (evento, sessione) {
+      if (sessione && (evento === 'SIGNED_IN' || evento === 'PASSWORD_RECOVERY' || evento === 'INITIAL_SESSION')) mostraForm();
+    });
+    $('btn-salva').addEventListener('click', salva);
+    $('pw2').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') salva(); });
+
+    setTimeout(async function () {
+      if (formMostrato) return;
+      var s = await sb.auth.getSession();
+      if (s.data.session) mostraForm(); else errore('Il link non è valido o è scaduto.');
+    }, 2500);
+  }
+  avvia();
+})();
+</script>
+<footer class="piede-legale">© 2026 Alessandro Castiglioni. Tutti i diritti riservati.<br><a href="/termini/" target="_blank" rel="noopener">Termini di servizio</a> · <a href="/privacy/" target="_blank" rel="noopener">Informativa privacy</a></footer>
+</body>
+</html>
