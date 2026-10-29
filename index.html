@@ -4,7 +4,7 @@
   (la piattaforma si chiamava Adunanza fino a LT-280: il nome è cambiato in LT-281)
   Progetto ideato e sviluppato da Alessandro Castiglioni — Luglio 2026
 
-  Versione: LT-349 — creata il 28/10/2026 alle 21:38
+  Versione: LT-350 — creata il 29/10/2026 alle 07:45
 
   NOTA PER CHI (o quale IA) MODIFICA QUESTO FILE IN FUTURO — anche in una chat diversa da questa:
   ad ogni modifica al codice, PRIMA di consegnare il file, aggiornare SEMPRE insieme:
@@ -108,6 +108,13 @@
   .footbar-diagnostica{position:fixed;bottom:0;left:0;right:0;height:26px;background:#000;color:rgba(255,255,255,.5);display:flex;align-items:center;gap:14px;padding:0 20px;font-size:11px;white-space:nowrap;overflow-x:auto;z-index:150;}
   .footbar-diagnostica span{cursor:pointer;text-decoration:underline;flex-shrink:0;}
   .footbar-diagnostica span:hover{color:rgba(255,255,255,.8);}
+  /* LT-350: riga legale fissa, subito sopra la barra con la versione, testo centrato */
+  .piede-legale-app{position:fixed;left:0;right:0;bottom:26px;height:20px;display:flex;align-items:center;justify-content:center;padding:0 12px;font-size:10.5px;white-space:nowrap;overflow:hidden;background:#000;color:rgba(255,255,255,.5);z-index:150;}
+  body.skin .piede-legale-app{bottom:28px;background:var(--barra-bg);color:var(--barra-text);border-top:1px solid var(--barra-border);}
+  .piede-legale-app a{color:inherit;text-decoration:underline;}
+  /* pagine del condòmino e dell'ospite: niente barre fisse (non deve coprire i tasti del voto) */
+  .piede-legale-app.in-pagina{position:static;height:auto;background:transparent;border:0;padding:16px 12px 20px;opacity:.6;white-space:normal;text-align:center;}
+  @media (max-width:600px){ .piede-legale-app:not(.in-pagina){font-size:9px;height:auto;min-height:20px;white-space:normal;text-align:center;line-height:1.35;padding:3px 10px;} }
   .topbar-brand{display:flex;align-items:center;flex-shrink:0;}
   .topbar-brand img{height:44px;width:auto;display:block;}
   .topbar-nav{display:flex;align-items:center;gap:2px;flex:1;overflow-x:auto;}
@@ -883,7 +890,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     <span id="sb-stato" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.6);"></span>
     <span id="topbar-nome-studio" style="cursor:default;text-decoration:none;color:rgba(255,255,255,.75);font-weight:600;"></span>
     <span style="margin-left:auto;" onclick="esportaDatiDiagnostica()">Esporta dati</span>
-    <span style="cursor:default;text-decoration:none;" title="Versione creata il 28/10/2026 alle 21:38">LT-349</span>
+    <span style="cursor:default;text-decoration:none;" title="Versione creata il 29/10/2026 alle 07:45">LT-350</span>
   </div>
 
   <!-- MAIN -->
@@ -1928,7 +1935,7 @@ window.__cancello = { attivo: false, aperto: true, sb: null, utente: null, profi
     </div>
 
     <!-- LT-348: piè di pagina legale, sotto qualunque pagina (amministratore, condòmino, ospite) -->
-    <footer id="piede-legale" style="text-align:right;font-size:10.5px;line-height:1.5;opacity:.5;padding:18px 16px 14px;">© 2026 Alessandro Castiglioni. Tutti i diritti riservati. · <a style="color:inherit;text-decoration:underline;" href="/termini/" target="_blank" rel="noopener">Termini di servizio</a> · <a style="color:inherit;text-decoration:underline;" href="/privacy/" target="_blank" rel="noopener">Informativa privacy</a></footer>
+    <footer id="piede-legale" class="piede-legale-app"><span>© 2026 Alessandro Castiglioni. Tutti i diritti riservati. · <a style="color:inherit;text-decoration:underline;" href="/termini/" target="_blank" rel="noopener">Termini di servizio</a> · <a style="color:inherit;text-decoration:underline;" href="/privacy/" target="_blank" rel="noopener">Informativa privacy</a></span></footer>
   </div>
 </div>
 
@@ -3294,13 +3301,15 @@ function goPage(name){
       // pensato apposta per annullare ESATTAMENTE il padding di base di .main.
       document.querySelector('.main').style.paddingBottom = '';
       if(footbarEl) footbarEl.classList.add('hidden');
+      const piedeL = document.getElementById('piede-legale'); if(piedeL) piedeL.classList.add('in-pagina');   // LT-350
     }else{
       topbarEl.classList.remove('hidden');
       document.querySelector('.main').style.margin = '';
       // Un po' di spazio in più in fondo, così la barra diagnostica fissa (visibile solo qui)
       // non copre mai l'ultima riga di contenuto quando si scorre fino in fondo alla pagina.
-      document.querySelector('.main').style.paddingBottom = '58px';
+      document.querySelector('.main').style.paddingBottom = '78px';   // LT-350: + la riga legale fissa
       if(footbarEl) footbarEl.classList.remove('hidden');
+      const piedeL = document.getElementById('piede-legale'); if(piedeL) piedeL.classList.remove('in-pagina');   // LT-350
     }
   }
   const paginePerCondominio = ['dashboard','crea-assemblea','assemblea','registrazioni','invio-verbale'];
